@@ -1,0 +1,65 @@
+2026-10-13 04:07:10,761 ERROR loop error
+Traceback (most recent call last):
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 357, in main
+    reply = ask_with_spinner(capcom, crew)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 52, in ask_with_spinner
+    reply = capcom.speak(prompt_text)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/capcom.py", line 208, in speak
+    return self._speak_model(line)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/capcom.py", line 233, in _speak_model
+    + f"[Tools] {tools}\n{tool_hint}\n\n"
+                          ^^^^^^^^^
+NameError: name 'tool_hint' is not defined
+2026-10-13 04:07:10,813 DEBUG Using selector: EpollSelector
+2026-10-13 04:07:52,024 DEBUG Using selector: EpollSelector
+2026-10-13 04:08:32,414 DEBUG Using selector: EpollSelector
+2026-10-13 04:09:51,062 ERROR loop error
+Traceback (most recent call last):
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 357, in main
+    reply = ask_with_spinner(capcom, crew)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 52, in ask_with_spinner
+    reply = capcom.speak(prompt_text)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/capcom.py", line 208, in speak
+    return self._speak_model(line)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/capcom.py", line 233, in _speak_model
+    + f"[Tools] {tools}\n{tool_hint}\n\n"
+                          ^^^^^^^^^
+NameError: name 'tool_hint' is not defined
+2026-10-13 04:09:51,113 DEBUG Using selector: EpollSelector
+2026-10-13 06:24:40,110 ERROR loop error
+Traceback (most recent call last):
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 312, in main
+    prov, chosen_model, _ = pick_model_tiered(capcom)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/model_selector.py", line 322, in pick_model_tiered
+    if not get_openrouter_key():
+           ^^^^^^^^^^^^^^^^^^
+NameError: name 'get_openrouter_key' is not defined. Did you mean: 'set_openrouter_key'?
+2026-10-13 06:24:40,158 DEBUG Using selector: EpollSelector
+2026-10-13 06:25:05,683 ERROR loop error
+Traceback (most recent call last):
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 312, in main
+    prov, chosen_model, _ = pick_model_tiered(capcom)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/model_selector.py", line 322, in pick_model_tiered
+    if not get_openrouter_key():
+           ^^^^^^^^^^^^^^^^^^
+NameError: name 'get_openrouter_key' is not defined. Did you mean: 'set_openrouter_key'?
+2026-10-13 06:25:05,730 DEBUG Using selector: EpollSelector
+2026-10-13 06:25:38,436 DEBUG Using selector: EpollSelector
+2026-10-13 06:26:53,960 ERROR loop error
+Traceback (most recent call last):
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/cli.py", line 312, in main
+    prov, chosen_model, _ = pick_model_tiered(capcom)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/landy/Apps/CaptainRocket/src/captainrocket/modules/model_selector.py", line 322, in pick_model_tiered
+    if not get_openrouter_key():
+           ^^^^^^^^^^^^^^^^^^
+NameError: name 'get_openrouter_key' is not defined. Did you mean: 'set_openrouter_key'?
+2026-10-13 06:26:54,009 DEBUG Using selector: EpollSelector

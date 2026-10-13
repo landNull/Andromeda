@@ -23,3 +23,4 @@ restic.env
 *.zip
 /tmp/
 install.log
+.aider*

@@ -1,0 +1,7 @@
+alias cl="clear"
+alias eza="micro ~/.zsh_aliases"
+alias ezr="micro ~/.zshrc"
+alias exz="exec zsh && source ~/.zshrc"
+
+alias sdvm="ssh sd"
+alias bjorn="ssh bjorn"
