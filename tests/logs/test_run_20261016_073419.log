@@ -1,0 +1,31 @@
+==========================================================
+ Stardust Test Suite Execution
+ Time: Fri Oct 16 07:34:19 MDT 2026
+ Log:  /data/data/com.termux/files/home/Apps/Stardust/tests/logs/test_run_20261016_073419.log
+==========================================================
+
+[0;33mINFO: Running [Security & Contracts] -> /data/data/com.termux/files/home/Apps/Stardust/tests/security_tests/00_permissions_and_contracts.sh[0m
+==> [TEST] Security and Architectural Contracts
+FAIL: deploy user does not exist.
+[0;31mFAIL: Security & Contracts - FAILED![0m
+
+[0;33mINFO: Running [Platform Lifecycle] -> /data/data/com.termux/files/home/Apps/Stardust/tests/platform_tests/00_platform_lifecycle.sh[0m
+==> [TEST] Platform Lifecycle & Permissions
+--> Creating platform: test-plat-7746 (using bee dl-core fallback)
+/data/data/com.termux/files/home/Apps/Stardust/tests/platform_tests/00_platform_lifecycle.sh: line 15: stardust: command not found
+--> Cleaning up platform test-plat-7746...
+[0;31mFAIL: Platform Lifecycle - FAILED![0m
+
+[0;33mINFO: Running [Site Lifecycle] -> /data/data/com.termux/files/home/Apps/Stardust/tests/site_tests/00_site_lifecycle.sh[0m
+==> [TEST] Site Lifecycle & Bee Integration
+--> Provisioning test platform: siteplat-7750
+/data/data/com.termux/files/home/Apps/Stardust/tests/site_tests/00_site_lifecycle.sh: line 16: stardust: command not found
+--> Cleaning up site and platform...
+[0;31mFAIL: Site Lifecycle - FAILED![0m
+
+==========================================================
+ Test Run Summary
+ Passed: 0
+ Failed: 3
+ Log:    /data/data/com.termux/files/home/Apps/Stardust/tests/logs/test_run_20261016_073419.log
+==========================================================

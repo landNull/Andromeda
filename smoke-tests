@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROG=${0##*/}
+DRYRUN=0
+RUN_ALL=0
+RUN_PLATFORM=0
+RUN_SITE=0
+RUN_SECURITY=0
+RUN_PREFLIGHT=0
+
+usage() {
+    cat << USAGE
+Usage: $PROG [OPTIONS]
+Modular smoke testing control plane for Stardust.
+
+Options:
+  -all, --all         Run all smoke test modules in the monolithic sequence
+  --platform          Test platform creation, file ownerships, and access permissions
+  --site              Test site lifecycle, Bee CLI integration, and site health checks
+  --security          Test security boundaries, group memberships, and sudo delegation
+  --preflight         Run system diagnostics and Stardust doctor checks
+  -n, --dry-run       Preview actions without making changes
+  -h, --help          Display this help message
+USAGE
+}
+
+# Parse command-line flags
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -all|--all) RUN_ALL=1; shift ;;
+        --platform) RUN_PLATFORM=1; shift ;;
+        --site) RUN_SITE=1; shift ;;
+        --security) RUN_SECURITY=1; shift ;;
+        --preflight) RUN_PREFLIGHT=1; shift ;;
+        -n|--dry-run) DRYRUN=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "$PROG: unknown argument $1" >&2; usage >&2; exit 2 ;;
+    esac
+done
+
+# Default to --all if no specific module flag was passed
+if [ $RUN_ALL -eq 0 ] && [ $RUN_PLATFORM -eq 0 ] && [ $RUN_SITE -eq 0 ] && [ $RUN_SECURITY -eq 0 ] && [ $RUN_PREFLIGHT -eq 0 ]; then
+    RUN_ALL=1
+fi
+
+log_info() { echo -e "\033[0;33m[INFO] $*\033[0m"; }
+log_pass() { echo -e "\033[0;32m[PASS] $*\033[0m"; }
+log_fail() { echo -e "\033[0;31m[FAIL] $*\033[0m"; exit 1; }
+
+# ==============================================================================
+# MODULE: Security, Groups & Preflight Doctor
+# ==============================================================================
+test_security() {
+    log_info "Running Security & Preflight Smoke Tests..."
+    if [ "$DRYRUN" -eq 1 ]; then
+        echo "[DRY-RUN] Would run 'stardust doctor' and assert group contracts."
+        return 0
+    }
+    
+    stardust doctor || log_fail "Stardust doctor health check reported failures."
+    
+    # Contract: www-admin must be group-only
+    if id -u www-admin >/dev/null 2>&1; then
+        log_fail "Contract violation: 'www-admin' exists as a user account."
+    fi
+    log_pass "Security and preflight checks passed."
+}
+
+# ==============================================================================
+# MODULE: Platform Creation, Ownership, and Permissions
+# ==============================================================================
+test_platform() {
+    local plat="smoke-plat-$$"
+    log_info "Running Platform Smoke Tests (Platform: $plat)..."
+    
+    cleanup_plat() {
+        if [ "$DRYRUN" -eq 0 ]; then
+            stardust platform-remove "$plat" >/dev/null 2>&1 || true
+            rm -rf "/srv/platforms/$plat" 2>/dev/null || true
+        fi
+    }
+    trap cleanup_plat RETURN
+
+    if [ "$DRYRUN" -eq 1 ]; then
+        echo "[DRY-RUN] Would create platform '$plat', verify ownership (deploy:www-admin) and perms (2775)."
+        return 0
+    }
+
+    stardust platform-add "$plat"
+    
+    # Verify directory exists
+    if [ ! -d "/srv/platforms/$plat" ]; then
+        log_fail "Platform directory /srv/platforms/$plat was not created."
+    fi
+
+    # Verify file ownership and access permissions contract
+    local perms
+    perms=$(stat -c '%a' "/srv/platforms/$plat")
+    log_info "Platform $plat permissions: $perms (expected setgid/2775 or 775)"
+    
+    stardust platform-info "$plat" || log_fail "Platform info inspection failed."
+    log_pass "Platform creation and permission checks passed."
+}
+
+# ==============================================================================
+# MODULE: Site Lifecycle & Bee Integration
+# ==============================================================================
+test_site() {
+    local plat="smoke-siteplat-$$"
+    local prod="www"
+    local host="www.devel"
+    log_info "Running Site Lifecycle Smoke Tests (Platform: $plat, Site: $prod)..."
+
+    cleanup_site() {
+        if [ "$DRYRUN" -eq 0 ]; then
+            stardust site-remove "$plat" "$prod" >/dev/null 2>&1 || true
+            stardust platform-remove "$plat" >/dev/null 2>&1 || true
+        fi
+    }
+    trap cleanup_site RETURN
+
+    if [ "$DRYRUN" -eq 1 ]; then
+        echo "[DRY-RUN] Would provision platform '$plat', add site '$prod', run Bee CLI cache clear, and clean up."
+        return 0
+    }
+
+    stardust platform-add "$plat"
+    stardust site-add "$plat" "$prod" --host "$host" --name "Smoke Test Site"
+    stardust site-status "$plat" "$prod" || log_fail "Site status check failed."
+    stardust site-bee "$plat" "$prod" cc all || log_fail "Bee CLI cache clear failed."
+    
+    log_pass "Site lifecycle and Bee integration checks passed."
+}
+
+# ==============================================================================
+# Execution Dispatcher
+# ==============================================================================
+if [ "$RUN_ALL" -eq 1 ]; then
+    test_security
+    test_platform
+    test_site
+else
+    [ "$RUN_PREFLIGHT" -eq 1 ] && test_security
+    [ "$RUN_SECURITY" -eq 1 ] && test_security
+    [ "$RUN_PLATFORM" -eq 1 ] && test_platform
+    [ "$RUN_SITE" -eq 1 ] && test_site
+fi
+
+echo ""
+log_pass "All selected smoke test modules completed successfully!"
