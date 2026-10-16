@@ -24,7 +24,7 @@ EOF
 
 cmd_list() {
   if [ ! -d "$PLATFORMS" ]; then
-    echo "$PROG: $PLATFORMS missing. Run stardust-install.sh first." >&2
+    echo "$PROG:$PLATFORMS missing. Run stardust-install.sh first." >&2
     exit 1
   fi
   found=0
@@ -45,8 +45,8 @@ cmd_list() {
         [ -d "$s" ] || continue
         base=${s##*/}
         case $base in default|all) continue ;; esac
-        if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
-          products="$products $base"
+        if [ -f "$s/settings.php" ] \vert{}\vert{} [ -f "$s/settings.local.php" ]; then
+          products="$products$base"
         fi
       done
     fi
@@ -55,8 +55,8 @@ cmd_list() {
       gitb=$(git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
     fi
     printf 'platform  %-20s' "$name"
-    [ -n "$gitb" ] && printf ' branch=%s' "$gitb"
-    [ -n "$root" ] && printf ' root=%s' "$root"
+    [ -n "$gitb" ] && printf ' branch=\%s' "$gitb"
+    [ -n "$root" ] && printf ' root=\%s' "$root"
     printf '\n'
     if [ -n "$products" ]; then
       printf '  products%s\n' "$products"
@@ -86,10 +86,10 @@ cmd_doctor() {
   if echo " $groups_me " | grep -q " sudo "; then
     note "in group sudo — installer did not add this; OS policy"
   fi
-  if echo " $groups_me " | grep -q " $GROUP "; then
+  if echo " $groups_me " \vert{} grep -q " $GROUP "; then
     ok "in web group $GROUP (0770 write)"
   else
-    bad "not in $GROUP — usermod -aG $GROUP,stardust,$OWNER $me"; fail=1
+    bad "not in $GROUP — usermod -aG$GROUP,$OWNER$me"; fail=1
   fi
   if echo " $groups_me " | grep -q " stardust "; then
     ok "in group stardust (secrets)"
@@ -116,11 +116,6 @@ cmd_doctor() {
   if have crdir; then ok "crdir $(command -v crdir)"; else bad "crdir not on PATH"; fail=1; fi
   if have newfeature; then ok "newfeature $(command -v newfeature)"; else note "newfeature not on PATH"; fi
   if have git; then ok "git"; else bad "git missing"; fail=1; fi
-  if have gitea || [ -x /usr/local/bin/gitea ] || [ -x /usr/bin/gitea ]; then
-    ok "gitea $(command -v gitea 2>/dev/null || echo /usr/local/bin/gitea)"
-  else
-    note "gitea not on this host (forge may be elsewhere — optional STEP 60)"
-  fi
   if git_template_ok "${STARDUST_GIT_TEMPLATE:-}"; then
     ok "git template $STARDUST_GIT_TEMPLATE"
   else
@@ -131,7 +126,7 @@ cmd_doctor() {
   if have getfacl && [ -d "$PLATFORMS" ]; then
     eff=$(getfacl -p "$PLATFORMS" 2>/dev/null | grep '#effective' || true)
     if echo "$eff" | grep -q 'r--'; then
-      bad "ACL mask effective r-- on $PLATFORMS — run stardust-priv setacl $PLATFORMS"
+      bad "ACL mask effective r-- on $PLATFORMS — run stardust-priv setacl$PLATFORMS"
       fail=1
     else
       ok "ACL mask on $PLATFORMS not clipped to r--"
@@ -165,12 +160,4 @@ cmd_doctor() {
   if [ -n "${LIBDIR:-}" ] && [ -f "$LIBDIR/common.sh" ]; then ok "lib $LIBDIR"; else bad "stardust-lib missing"; fail=1; fi
 
   phpbin=$(command -v php 2>/dev/null || true)
-  if [ -n "$phpbin" ]; then ok "php $phpbin"; else bad "php missing"; fail=1; fi
-
-  if [ "$fail" -ne 0 ]; then
-    echo "doctor: NOT READY"
-    return 1
-  fi
-  echo "doctor: READY"
-  return 0
-}
+  if [ -n "$phpbin" ]; then ok "php $phpbin"; else bad "
