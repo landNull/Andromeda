@@ -1,26 +1,12 @@
-# Built TUI — compile on the box
-tui/stardust-tui
-tui/stardust-tui.exe
+# Ignore this file so it can be changed.
+.gitignore
 
-# Editor / OS
-*~
-*.swp
-*.swo
-.DS_Store
-Thumbs.db
+# Ignore configuration files that may contain sensitive information.
+/settings*.php
+sites/*/settings*.php
 
-# Secrets and host state — never commit
-state/
-*.cnf
-secrets/
-.env
-restic.env
-
-# Local scratch
-/dist/
-*.tar
-*.tar.gz
-*.zip
-/tmp/
-install.log
-.aider*
+# Ignore paths that contain user-generated content.
+/files
+/private
+sites/*/files
+sites/*/private

@@ -1,71 +1,115 @@
-# Stardust 0.4.0
+Backdrop is a full-featured content management system that allows non-technical
+users to manage a wide variety of content. It can be used to create all kinds of
+websites including blogs, image galleries, social networks, intranets, and more.
 
-CLI control plane for Backdrop CMS. Apache + PHP + MariaDB + Bee + crdir.
-No PHP panel.
+Backdrop aims to provide:
+- A CMS that can be used out-of-the-box.
+- Code that can be learned quickly.
+- Extensible APIs.
 
-This repository is **tools**, not a site. Do not `stardust platform-add stardust`.
-Do not commit `/srv/platforms` or `/srv/stardust/state/secrets`.
+Requirements
+------------
+- PHP 7.1.0 or higher. Even if Backdrop can run on older versions of PHP, we
+  strongly recommend that you use a
+  [supported version of PHP](https://secure.php.net/supported-versions.php).
+- MySQL 5.5.0 or higher with PDO enabled
+- Apache (recommended) or Nginx web server
+- 50 MB of disk space (recommended), 15 MB (minimum)
 
-## Layout
+Installation
+------------
 
-```
-apps/                 one directory per app (host, apache, php, bee, gitea, …)
-apps/MANIFEST         host-install order
-install-stardust.sh   orchestrator — sources apps/<name>/install.sh
-modules/              compatibility shims → apps/*/install.sh
-bin/stardust          thin router (doctor, platform, site, bee, d7, …)
-bin/stardust-priv     only root helper
-lib/                  runtime libraries sourced by bin/stardust
-docs/tutorial.txt     install + day-to-day
-docs/d7-migration.txt Drupal 7 / BOA -> Backdrop
-```
+1. Create a new database, username, and password for Backdrop to use in MySQL.
 
-Work on one app at a time. Bee lives in `apps/bee/`
-(`install.sh` for the host, `lib.sh` for `stardust bee PLATFORM PRODUCT …`).
-Do not put Bee install logic back into `install-stardust.sh`.
+2. Point your browser at the URL of your Backdrop installation. You will be
+   redirected to the install screen. If you're not redirected, visit the install
+   URL. If Backdrop was installed at http://example.com/backdrop, the install
+   URL would be http://example.com/backdrop/core/install.php.
 
+3. Follow the instructions provided by the installer.
 
-## Roles and git branches
+Bug Reports and Feature Requests
+--------------------------------
+Please use the GitHub
+[issue tracker](https://github.com/backdrop/backdrop-issues/issues) for
+reporting all bugs and features. We use a separate issue tracker that is not
+part of the main Backdrop code repository because of GitHub's restrictions on
+the use of labels and issue management.
 
-| Host role (`-m` / `STARDUST_ROLE`) | Default git branch |
-|------------------------------------|--------------------|
-| devel                              | `devel`            |
-| test                               | `test`             |
-| live                               | `live`             |
+Security Issues
+---------------
+If you have discovered a security issue with Backdrop CMS or any of its
+[contributed modules](https://github.com/backdrop-contrib/), please contact the
+Backdrop Security Team directly at
+[security@backdropcms.org](mailto:security@backdropcms.org).
+We manage security issues separately in a private repository until the issue has
+been resolved. Even if you're not sure if it's a security problem, please
+contact the security team before filing an issue.
 
-Override branch names in `/etc/stardust.conf` if the site repo uses other names:
+Developers
+----------
+Backdrop is a fork of Drupal. It preserves the legacy audience of developers who
+value ease of use and speed of learning over architectural flexibility. You can
+join Backdrop's developer community by
+[forking Backdrop](https://github.com/backdrop/backdrop) on GitHub.
 
-```
-BRANCH_DEVEL=main
-BRANCH_TEST=staging
-BRANCH_LIVE=production
-# or pin this host: STARDUST_BRANCH=main
-```
+You can submit changes to Backdrop by creating a pull request that references an
+issue in the [issue tracker](https://github.com/backdrop/backdrop-issues/issues).
+Details about how to do this are in the
+[Contribute to Backdrop Core](https://docs.backdropcms.org/documentation/contribute-to-backdrop-core)
+documentation.
 
-`platform-add` clones git when `STARDUST_GIT_TEMPLATE` or `--git` is set:
+Thanks to the following companies for providing sponsorship through services and
+products which may be used by Backdrop contributors to build and improve the
+project:
 
-```
-STARDUST_GIT_TEMPLATE=git@git.example:org/%s.git
-stardust platform-add mysite
-# same as: stardust platform-add mysite --git git@git.example:org/mysite.git
-```
+- [BrowserStack](https://www.browserstack.com) for interface testing across
+  desktop and mobile browsers. *(Contact info@backdropcms.org for access
+  information.)*
+- [JetBrains](https://www.jetbrains.com/phpstorm) for use of the PHPStorm IDE
+  for development. *(Contact info@backdropcms.org for a license.)*
+- [Fastly](https://fastly.com) for CDN services for all backdropcms.org properties.
+- [GitHub](https://github.com) for collaboration and code management tools.
+- [Tugboat](https://www.tugboat.qa) for powering our [demo site sandboxes](https://backdropcms.org/demo).
+- [ZenCI](https://zen.ci) for continuous automated testing and sandbox testing.
+- [Linode](https://linode.com) for web hosting.
+- [1Password](https://1password.com) for keeping our passwords safe.
+- [SendGrid](https://sendgrid.com) for getting our emails into your inboxes.
 
-`--branch` always wins. Without a URL and without the template, Stardust falls back to `bee dl-core` and `git init`.
+User Guide
+----------
+Please see the [Backdrop Handbook](https://docs.backdropcms.org/documentation/getting-started).
 
-## Install
+Developer Documentation
+-----------------------
+Please see the [Backdrop API Documentation](https://docs.backdropcms.org/api/backdrop/groups).
 
-```sh
-git clone -b devel git@git.example:org/stardust.git ~/stardust
-cd ~/stardust
-./install-stardust.sh -n --localhost    # laptop, 127.0.0.1
-./install-stardust.sh -n -m devel       # devel workstation
-./install-stardust.sh -n -m test        # remote test
-./install-stardust.sh -n -F -m live     # remote live + CSF
-```
+Code of Conduct
+---------------
+A primary goal of the Backdrop CMS community is to be inclusive to the largest
+number of contributors, with the most varied and diverse backgrounds possible.
+As such, we are committed to providing a friendly, safe and welcoming
+environment for all, regardless of ability, ethnicity, gender, sexual
+orientation, sexual preferences, socioeconomic status, geographic location, or
+religion (or lack thereof).
 
-Do not prefix the installer or `stardust` with `sudo`.
-User binaries refuse root. Root work is `/usr/local/sbin/stardust-priv` only
-(paths under `/srv/platforms` and `/srv/stardust`; DB names `bd_*`).
+Our
+[code of conduct](https://github.com/backdrop-ops/conduct/blob/main/code_of_conduct.md)
+outlines our expectations for all those who participate in our community, as
+well as the consequences for unacceptable behavior.
 
-Site code is a **different** repository. Platforms live under `/srv/platforms`.
-Promote (`stardust promote PLATFORM --to test|live`) runs on the test/live host, not on devel.
+We invite all those who participate in the Backdrop CMS community to help us
+create safe and positive experiences for everyone.
+
+License
+-------
+Backdrop is [GPL v2](http://www.gnu.org/licenses/gpl-2.0.html) (or higher)
+software. See the LICENSE.txt file for complete text. Distributions of this
+software may relicense it as any later version of the GPL.
+
+All Backdrop code is Copyright 2001 - 2026 by the original authors.
+
+Backdrop also includes works under different copyright notices that are
+distributed according to the terms of the GNU General Public License or a
+compatible license. These individual works may have specific copyright
+information noted within their source code files or directories.
