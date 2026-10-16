@@ -21,6 +21,11 @@ set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+
+# Source common functions
+# shellcheck source=lib/common.sh
+. "$HERE/lib/common.sh"
+
 STARDUST_VERSION=0.4.0
 if [ -f "$HERE/VERSION" ]; then
   STARDUST_VERSION=$(tr -d ' \n' < "$HERE/VERSION")
@@ -736,9 +741,6 @@ ship_tools() {
     done
     echo "installed docs from $DOCSRC"
   fi
-  if [ -x /usr/local/bin/stardust ]; then
-    run_root ln -sfn /usr/local/bin/stardust "$STARDUST/bin/stardust"
-  fi
 }
 
 tune_php_fpm() {
@@ -1108,7 +1110,7 @@ bootstrap_deps() {
         "password       CHANGE-ME" \
         | write_if_absent /etc/msmtprc.example
       if [ "$DRYRUN" -eq 0 ] && [ -t 0 ]; then
-        nmail=$(install_prompt "NOTIFY email — where backup/fail mail goes (empty skip)" "" \
+        nmail=$(prompt_line "NOTIFY email — where backup/fail mail goes (empty skip)" "" \
           "Stardust can mail after backup-all or a failed site-check.
 This only sets NOTIFY= in /etc/stardust.conf.
 You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
@@ -1139,144 +1141,6 @@ You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
   fi
 }
 
-install_prompt() {
-  q=$1
-  def=${2:-}
-  help=${3:-}
-  needed=${4:-}
-  while :; do
-    if [ -n "$help" ]; then
-      printf '%s  (? help)\n' "$q" >&2
-    else
-      printf '%s\n' "$q" >&2
-    fi
-    if [ -n "$needed" ]; then
-      printf '%s\n' "$needed" >&2
-    fi
-    if [ -n "$def" ]; then
-      printf '> [%s]: ' "$def" >&2
-    else
-      printf '> ' >&2
-    fi
-    IFS= read -r ans || ans=
-    case $ans in
-      \?|help|HELP)
-        # Help must not go to stdout — callers capture this function with $().
-        pager=""
-        if [ -t 2 ]; then
-          if command -v sensible-pager >/dev/null 2>&1; then
-            pager=sensible-pager
-          elif command -v less >/dev/null 2>&1; then
-            pager="less -F -X -E"
-          elif command -v more >/dev/null 2>&1; then
-            pager=more
-          fi
-        fi
-        if [ -n "$help" ] && [ -n "$pager" ]; then
-          printf '%s\n\nType q to close this help and return to the question.\n' "$help" | $pager >&2 \
-            || printf '%s\n' "$help" >&2
-        elif [ -n "$help" ]; then
-          printf '\n%s\n\n' "$help" >&2
-        else
-          echo "(no extra help for this question)" >&2
-        fi
-        continue
-        ;;
-    esac
-    [ -n "$ans" ] || ans=$def
-    printf '%s\n' "$ans"
-    return 0
-  done
-}
-
-gitea_conf_path() {
-  for f in \
-    /etc/gitea/app.ini \
-    /var/lib/gitea/custom/conf/app.ini \
-    /etc/gitea/conf/app.ini \
-    /home/git/gitea/custom/conf/app.ini
-  do
-    if [ -f "$f" ]; then
-      printf '%s\n' "$f"
-      return 0
-    fi
-  done
-  return 1
-}
-
-gitea_installed() {
-  have gitea && return 0
-  [ -x /usr/local/bin/gitea ] && return 0
-  [ -x /usr/bin/gitea ] && return 0
-  gitea_conf_path >/dev/null && return 0
-  return 1
-}
-
-stardust_git_configured() {
-  for f in "$HOME/.stardust.conf" /etc/stardust.conf; do
-    [ -f "$f" ] || continue
-    val=$(sed -n 's/^STARDUST_GIT_TEMPLATE=//p' "$f" | tail -n 1)
-    case $val in
-      ''|*YOURORG*|*git.example*) ;;
-      *) return 0 ;;
-    esac
-  done
-  return 1
-}
-
-# Devel/localhost only. Never rewrite Gitea app.ini.
-# Fresh box + Gitea present → prompt once. Existing Stardust git template → skip.
-maybe_gitea_defaults() {
-  if [ "$LOCALHOST" -ne 1 ] && [ "$ROLE" != devel ]; then
-    return 0
-  fi
-  if stardust_git_configured; then
-    echo "git template already set — skip Gitea/Stardust git prompts"
-    return 0
-  fi
-  if ! gitea_installed; then
-    echo "Gitea not found on this host — skip git template (set STARDUST_GIT_TEMPLATE later)"
-    return 0
-  fi
-  gc=$(gitea_conf_path || true)
-  echo "Gitea present${gc:+ ($gc)}"
-  if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ prompt STARDUST_GIT_TEMPLATE (Gitea seen, no existing Stardust git config)"
-    return 0
-  fi
-  if [ ! -t 0 ]; then
-    echo "no TTY — not prompting for git template"
-    return 0
-  fi
-  host_def=gitforge
-  if [ -f "$HOME/.ssh/config" ]; then
-    h=$(awk 'tolower($1)=="host" && $2 !~ /[*?]/ {
-      if ($2 ~ /gitea|github|gitlab|git/) { print $2; exit }
-    }' "$HOME/.ssh/config" 2>/dev/null || true)
-    [ -n "$h" ] && host_def=$h
-  fi
-  host=$(install_prompt "Git SSH host — name in git@HOST:org/repo.git" "$host_def" \
-    "Accept the scanned default. This is usually a Host line in ~/.ssh/config.
-Empty host skips git template. Type ? here for this text again." \
-    "Needed: the HOST in git@HOST:org/repo.git — usually an SSH alias like gitforge.")
-  owner=$(install_prompt "Git owner/org — first path after the colon" "" \
-    "On Gitea this is the organization or your username.
-Template becomes git@HOST:OWNER/%s.git  (%s = platform name)." \
-    "Needed: the org or username after the colon (acme in git@HOST:acme/myapp.git). Empty skips.")
-  if [ -z "$owner" ]; then
-    echo "no owner — leave STARDUST_GIT_TEMPLATE empty"
-    return 0
-  fi
-  tpl="git@${host}:${owner}/%s.git"
-  dest=/etc/stardust.conf
-  if [ -f "$dest" ] && grep -q '^STARDUST_GIT_TEMPLATE=' "$dest"; then
-    as_root sed -i "s|^STARDUST_GIT_TEMPLATE=.*|STARDUST_GIT_TEMPLATE=$tpl|" "$dest"
-  elif [ -f "$dest" ]; then
-    as_root sh -c "printf 'STARDUST_GIT_TEMPLATE=%s\\n' '$tpl' >> '$dest'"
-  fi
-  echo "wrote STARDUST_GIT_TEMPLATE=$tpl"
-  echo "Gitea app.ini was not changed (already installed)"
-}
 
 write_etc_conf() {
   dest=/etc/stardust.conf
@@ -1308,14 +1172,6 @@ DB_PREFIX=bd_
 KEEP_BACKUPS=7
 NOTIFY=
 HOOKS=$STARDUST/hooks
-# Git URL template. %s is the platform name.
-# STARDUST_GIT_TEMPLATE=git@git.example:org/%s.git
-STARDUST_GIT_TEMPLATE=
-# Branch names (defaults match roles). Override for main/staging/production.
-BRANCH_DEVEL=devel
-BRANCH_TEST=test
-BRANCH_LIVE=live
-# STARDUST_BRANCH=
 CSF_ALLOW="10.8.0.0/24 192.168.1.0/24"
 EOF
   as_root chmod 0644 "$dest"

@@ -1,0 +1,136 @@
+==========================================================
+ Stardust Test Suite Execution
+ Time: Fri Oct 16 08:34:05 AM MDT 2026
+ Log:  /home/landy/Apps/Stardust/tests/logs/test_run_20261016_083405.log
+==========================================================
+
+[0;33mINFO: Running [Security & Contracts] -> /home/landy/Apps/Stardust/tests/security_tests/00_permissions_and_contracts.sh[0m
+==> [TEST] Security and Architectural Contracts
+FAIL: /srv/platforms permissions are 2770 (expected 2775).
+[0;31mFAIL: Security & Contracts - FAILED![0m
+
+[0;33mINFO: Running [Platform Lifecycle] -> /home/landy/Apps/Stardust/tests/platform_tests/00_platform_lifecycle.sh[0m
+==> [TEST] Platform Lifecycle & Permissions
+--> Creating platform: test-plat-16793 (using bee dl-core fallback)
+
+ [1;33m⚠️ [0m Warning: mkdir(): Permission denied
+in download_core_bee_callback() (line 403 of /opt/bee/commands/download.bee.inc).
+
+
+[31m ✘ [0m The destination directory 'web' doesn't exist and couldn't be created.
+
+fatal: cannot change to '/srv/platforms/test-plat-16793/.gitignore': Not a directory
+platform test-plat-16793 ready at /srv/platforms/test-plat-16793/.gitignore
+next: stardust site-add test-plat-16793 <product> [--host host.example]
+--> Verifying platform-info output
+stardust: unknown command 'platform-info'
+stardust 0.4.0 — manage Backdrop platforms and sites from the shell
+          (Aegir/BOA replacement, no PHP panel)
+
+  Do not type "sudo stardust" — refused (exit 2). Use -n before mutating commands.
+
+  stardust doctor | list | env | help | log [N] | last
+  stardust [-n] platform-add NAME [--git URL] [--branch BRANCH]
+  stardust [-n] platform-upgrade PLATFORM [--no-pull]
+  stardust inventory
+  stardust [-n] promote PLATFORM --to test|live
+  stardust [-n] site-add PLATFORM PRODUCT [--host HOST] [--name TITLE] [--pass PASS]
+  stardust [-n] site-backup PLATFORM PRODUCT
+  stardust [-n] site-restore [--from DIR] PLATFORM PRODUCT
+  stardust [-n] site-clone SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD [--host HOST]
+  stardust [-n] site-check PLATFORM PRODUCT [--host HOST]
+  stardust [-n] site-disable PLATFORM PRODUCT
+  stardust [-n] site-enable PLATFORM PRODUCT
+  stardust [-n] site-delete PLATFORM PRODUCT [--force]
+  stardust [-n] backup-all
+  stardust [-n] cron-all
+  stardust [-n] bee PLATFORM PRODUCT [bee-verb…]   # Bee with --root/--site set
+  stardust [-n] d7 VERB …   # Drupal 7 / BOA -> Backdrop (see stardust d7 help)
+  stardust-menu          # gum / whiptail / dialog
+  stardust-tui           # Bubble Tea full-screen; same verbs
+
+  log / last        task journal (/srv/stardust/state/tasks.log)
+  promote           ff-only origin/test|live on the VPS checkout, then upgrade
+  backup-all        every product; prune to KEEP_BACKUPS (default 7)
+  cron-all          bee --site=PRODUCT cron, staggered (installer cron.d)
+  site-disable      bee maintenance-mode 1
+  secrets           /srv/stardust/state/secrets/<plat>/<prod> 0640 deploy:stardust
+                    (+ .cnf for mysql --defaults-extra-file; Apache cannot read)
+  groups            required: www-admin stardust
+                    recommended: adm deploy
+                    adm = read /var/log (not sudo); installer adds it
+                    refresh: exec su - landy   (exec bash does NOT work)
+  sudo              refused if you prefix this wrapper. Root work is
+                    /usr/local/sbin/stardust-priv only.
+  PHP ini           30-stardust all SAPIs; 35-stardust-harden FPM only;
+                    35-stardust-cli keeps Bee exec
+  host extras       intl/imagick/apcu, mariadb-backup, logwatch, goaccess,
+                    etckeeper, smartd, unattended-upgrades (no reboot),
+                    msmtp-mta (needs /etc/msmtprc for NOTIFY)
+
+EXIT STATUS
+  0  ok (doctor READY, site-check OK)
+  1  ran, but failed (missing tree, git/Bee/DB, dirty promote,
+     check failed, lock held, doctor NOT READY)
+  2  usage (bad flag, missing args, promote --to devel / on devel host)
+
+EXAMPLES
+  git remote add origin git@git.example:org/stardust.git
+  git push -u origin devel
+  git push origin devel
+  git clone -b devel git@git.example:org/stardust.git ~/stardust
+  cd ~/stardust && ./stardust-install.sh -n --localhost
+
+  stardust doctor
+  stardust -n platform-add mysite --git git@git.example:org/mysite.git
+  stardust site-add mysite www --host www.devel
+  stardust site-backup mysite www
+  stardust site-check mysite www --host www.devel
+  stardust site-restore --from /srv/stardust/backups/mysite/www/devel/STAMP mysite www
+  stardust site-clone mysite www mysite www-copy --host www-copy.devel
+  stardust -n promote mysite --to test
+  stardust promote mysite --to live
+  stardust log 20
+  stardust last
+  stardust backup-all
+  stardust inventory
+  stardust site-disable mysite www && stardust site-enable mysite www
+  stardust -n site-delete mysite www-copy
+  stardust d7 test /data/disk/o1/…/sites/example.com
+  stardust d7 /data/disk/o1/…/sites/example.com
+  stardust d7 tools
+  stardust -n d7 all --from /path/to/d7-example --platform ecom --product example --host example.devel
+  stardust-menu
+  stardust-tui
+  id                    # confirm www-admin stardust
+  exec su - "landy"     # after usermod -aG (not exec bash)
+
+  man stardust     stardust -h
+  lib: /usr/local/lib/stardust
+--> Cleaning up platform test-plat-16793...
+[0;31mFAIL: Platform Lifecycle - FAILED![0m
+
+[0;33mINFO: Running [Site Lifecycle] -> /home/landy/Apps/Stardust/tests/site_tests/00_site_lifecycle.sh[0m
+==> [TEST] Site Lifecycle & Bee Integration
+--> Provisioning test platform: siteplat-16963
+
+ [1;33m⚠️ [0m Warning: mkdir(): Permission denied
+in download_core_bee_callback() (line 403 of /opt/bee/commands/download.bee.inc).
+
+
+[31m ✘ [0m The destination directory 'web' doesn't exist and couldn't be created.
+
+fatal: cannot change to '/srv/platforms/siteplat-16963/.gitignore': Not a directory
+platform siteplat-16963 ready at /srv/platforms/siteplat-16963/.gitignore
+next: stardust site-add siteplat-16963 <product> [--host host.example]
+--> Adding test site: www on platform siteplat-16963
+stardust: /srv/platforms/siteplat-16963/web missing
+--> Cleaning up site and platform...
+[0;31mFAIL: Site Lifecycle - FAILED![0m
+
+==========================================================
+ Test Run Summary
+ Passed: 0
+ Failed: 3
+ Log:    /home/landy/Apps/Stardust/tests/logs/test_run_20261016_083405.log
+==========================================================

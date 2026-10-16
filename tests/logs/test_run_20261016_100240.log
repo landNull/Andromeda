@@ -1,0 +1,12 @@
+test_runner.sh: unknown argument -n
+Usage: ./tests/test_runner.sh [OPTIONS]
+Modular test suite runner for Stardust.
+
+Options:
+  --all           Run all test modules in the correct architectural sequence
+  --platform      Run platform creation, ownership, and permission tests
+  --site          Run site lifecycle, Bee CLI, and health check tests
+  --security      Run security boundaries, group memberships, and sudo delegation tests
+  --preflight     Run system diagnostics and Stardust doctor checks
+  --dry-run       Preview actions without executing mutating commands
+  -h, --help      Display this help message
