@@ -1,11 +1,11 @@
 #!/bin/sh
-# smoke-test-live.sh — automated product demo of Stardust.
+# smoke-test-live.sh — automated product demo of Stardust (with deep error diagnostics).
 #
 # Creates a real platform and sites, then exercises every verb Stardust
 # can run against them. Prints a clear narrative to the screen.
 #
 # On success writes  passed.YYYYMMDD-HHMMSS.log   (readable story)
-# On failure writes  smoketest.error.YYYYMMDD-HHMMSS.log
+# On failure writes  smoketest.error.YYYYMMDD-HHMMSS.log (with full trace & diagnostics)
 #
 # Cleanup is NOT automatic. Pass --delete yourself if you want the
 # demo sites removed at the end.
@@ -25,7 +25,7 @@ HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 STARDUST=${STARDUST_BIN:-$HERE/bin/stardust}
 [ -x "$STARDUST" ] || STARDUST=$(command -v stardust 2>/dev/null || true)
 if [ -z "${STARDUST:-}" ] || [ ! -x "$STARDUST" ]; then
-  echo "$PROG: cannot find stardust binary" >&2
+  echo "$PROG: cannot find stardust binary (checked $HERE/bin/stardust and PATH)" >&2
   exit 1
 fi
 
@@ -35,11 +35,92 @@ HOST=""
 GIT_URL=""
 DELETE=0
 DRYRUN=0
+DEMO_FINISHED=0
+CURRENT_STEP="Initialization"
+LAST_CMD=""
 STAMP=$(date +%Y%m%d-%H%M%S)
 PASSED_LOG="passed.${STAMP}.log"
 ERROR_LOG="smoketest.error.${STAMP}.log"
 STORY=$(mktemp /tmp/stardust-demo-story.XXXXXX)
-trap 'rm -f "$STORY"' EXIT
+LAST_OUT=$(mktemp /tmp/stardust-demo-out.XXXXXX)
+
+# --- crash & cleanup trap -------------------------------------------------
+on_exit() {
+      rc=$?
+  set +e
+  if [ "$DEMO_FINISHED" -eq 0 ] && [ "$rc" -ne 0 ]; then
+    echo "" >&2
+    echo "══════════════════════════════════════════════════════════════" >&2
+    echo "  ✗ SMOKE TEST FAILED (exit code $rc)" >&2
+    echo "  Step    : $CURRENT_STEP" >&2
+    echo "  Command : $LAST_CMD" >&2
+    echo "══════════════════════════════════════════════════════════════" >&2
+    write_diagnostic_error_log "$rc" "$CURRENT_STEP" "$LAST_CMD"
+    echo "Detailed error report written to: $ERROR_LOG" >&2
+  fi
+  rm -f "$STORY" "$LAST_OUT"
+  exit "$rc"
+}
+trap 'on_exit' EXIT
+trap 'echo "Interrupted by user." >&2; exit 130' INT TERM
+
+write_diagnostic_error_log() {
+      fail_rc=$1
+  fail_step=$2
+  fail_cmd=$3
+  {
+        echo "======================================================================"
+    echo "STARDUST SMOKE TEST FAILURE REPORT"
+    echo "======================================================================"
+    echo "Timestamp   : $STAMP ($(date))"
+    echo "Failed Step : $fail_step"
+    echo "Command     : $fail_cmd"
+    echo "Exit Code   : $fail_rc"
+    echo "User / ID   : $(id)"
+    echo "Working Dir : $(pwd)"
+    echo "Stardust Bin: $STARDUST"
+    echo ""
+    echo "--- 1. OUTPUT OF THE FAILED COMMAND ----------------------------------"
+    if [ -s "$LAST_OUT" ]; then
+      cat "$LAST_OUT"
+    else
+      echo "(No stdout/stderr was emitted by the command before it exited)"
+    fi
+    echo ""
+    echo "--- 2. SHELL TRACE (sh -x) OF FAILED COMMAND -------------------------"
+    echo "Re-running failed command with shell tracing (-x) in dry/diagnostic mode..."
+    case "$fail_cmd" in
+      *"$STARDUST"*)
+        # Trace the stardust shell script directly so we see the exact line that failed
+        sh -x $fail_cmd 2>&1 || true
+        ;;
+      *)
+        echo "(Not a stardust command; skipping sh -x replay)"
+        ;;
+    esac
+    echo ""
+    echo "--- 3. SYSTEM & ENVIRONMENT DIAGNOSTICS ------------------------------"
+    echo "[/etc/stardust.conf]:"
+    cat /etc/stardust.conf 2>&1 || echo "(missing or unreadable)"
+    echo ""
+    echo "[~/.stardust.conf]:"
+    cat "$HOME/.stardust.conf" 2>&1 || echo "(none)"
+    echo ""
+    echo "[Directory Permissions]:"
+    ls -ld /srv /srv/platforms /srv/stardust /srv/stardust/state /usr/local/sbin/stardust-priv 2>&1 || true
+    echo ""
+    echo "[Sudo Delegation (sudo -l)]:"
+    sudo -n -l 2>&1 || echo "(sudo -n -l failed or requires password)"
+    echo ""
+    echo "[Stardust Last Task Journal]:"
+    "$STARDUST" last 2>&1 || true
+    echo ""
+    echo "======================================================================"
+    echo "FULL NARRATIVE LOG UP TO FAILURE"
+    echo "======================================================================"
+    cat "$STORY"
+  } > "$ERROR_LOG"
+}
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -51,111 +132,125 @@ while [ $# -gt 0 ]; do
     --dry-run)  DRYRUN=1;    shift ;;
     -h|--help)
       sed -n '2,22p' "$0"
+      DEMO_FINISHED=1
       exit 0
       ;;
-    *) echo "$PROG: unknown argument $1" >&2; exit 2 ;;
+    *) echo "$PROG: unknown argument $1" >&2; DEMO_FINISHED=1; exit 2 ;;
   esac
 done
 
 if [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" -eq 0 ]; then
   echo "$PROG: do not run this with sudo or as root." >&2
   echo "$PROG: log in as the operator account and re-run." >&2
+  DEMO_FINISHED=1
   exit 2
 fi
 
 # --- narrative helpers ----------------------------------------------------
 say() {
-  printf '%s\n' "$*" | tee -a "$STORY"
+      printf '%s\n' "$*" | tee -a "$STORY"
 }
 
 section() {
+      CURRENT_STEP="Section: $1"
   printf '\n══════════════════════════════════════════════════════════════\n' | tee -a "$STORY"
   printf '  %s\n' "$1" | tee -a "$STORY"
   printf '══════════════════════════════════════════════════════════════\n' | tee -a "$STORY"
 }
 
 explain() {
-  printf '\n%s\n' "$1" | tee -a "$STORY"
+      printf '\n%s\n' "$1" | tee -a "$STORY"
+}
+
+run_and_capture() {
+      # Runs "$@" with live output to terminal AND captures to $LAST_OUT and $STORY
+  : > "$LAST_OUT"
+  # Use a FIFO or standard tee with exit code preservation
+  rc_file=$(mktemp)
+  (
+        set +e
+    "$@" 2>&1
+    echo $? > "$rc_file"
+  ) | tee "$LAST_OUT" | tee -a "$STORY"
+  cmd_rc=$(cat "$rc_file")
+  rm -f "$rc_file"
+  return "$cmd_rc"
 }
 
 demo_run() {
-  # demo_run "description" cmd arg arg ...
+      # demo_run "description" cmd arg arg ...
   desc=$1; shift
+  CURRENT_STEP="$desc"
+  LAST_CMD="$*"
   printf '\n→ %s\n' "$desc" | tee -a "$STORY"
   printf '$ %s\n' "$*" | tee -a "$STORY"
-  tmp=$(mktemp)
+
   set +e
-  "$@" >"$tmp" 2>&1
+  run_and_capture "$@"
   rc=$?
   set -e
-  cat "$tmp" | tee -a "$STORY"
-  rm -f "$tmp"
+
   if [ "$rc" -eq 0 ]; then
     printf '  ✓ %s\n' "$desc" | tee -a "$STORY"
     return 0
   fi
+
   printf '  ✗ %s (exit %s)\n' "$desc" "$rc" | tee -a "$STORY"
-  # write error story and stop
-  {
-    echo "Stardust product demo FAILED at: $desc"
-    echo "Timestamp: $STAMP"
-    echo "Exit code: $rc"
-    echo
-    cat "$STORY"
-  } > "$ERROR_LOG"
-  echo
-  echo "Demo stopped. Error story written to: $ERROR_LOG"
-  exit 1
+  echo "" >&2
+  echo "--- FAILED COMMAND OUTPUT ($desc) ---" >&2
+  cat "$LAST_OUT" >&2
+  echo "-------------------------------------" >&2
+  exit "$rc"
 }
 
 demo_run_ok_any() {
-  # demo_run_ok_any "0|1|2" "description" cmd ...
-  # used for commands that are expected to refuse (e.g. promote on devel)
+      # demo_run_ok_any "0|1|2" "description" cmd ...
   allowed=$1; shift
   desc=$1; shift
+  CURRENT_STEP="$desc"
+  LAST_CMD="$*"
   printf '\n→ %s\n' "$desc" | tee -a "$STORY"
   printf '$ %s\n' "$*" | tee -a "$STORY"
-  tmp=$(mktemp)
+
   set +e
-  "$@" >"$tmp" 2>&1
+  run_and_capture "$@"
   rc=$?
   set -e
-  cat "$tmp" | tee -a "$STORY"
-  rm -f "$tmp"
+
   case "|${allowed}|" in
     *"|${rc}|"*)
       printf '  ✓ %s (exit %s, expected)\n' "$desc" "$rc" | tee -a "$STORY"
       return 0
       ;;
   esac
+
   printf '  ✗ %s (got %s, allowed %s)\n' "$desc" "$rc" "$allowed" | tee -a "$STORY"
-  {
-    echo "Stardust product demo FAILED at: $desc"
-    echo "Timestamp: $STAMP"
-    echo "Exit code: $rc (allowed $allowed)"
-    echo
-    cat "$STORY"
-  } > "$ERROR_LOG"
-  echo
-  echo "Demo stopped. Error story written to: $ERROR_LOG"
-  exit 1
+  exit "$rc"
 }
 
 prompt() {
-  var=$1; q=$2; def=${3:-}
+      var=$1; q=$2; def=${3:-}
   if [ -n "$def" ]; then
     printf '%s [%s]: ' "$q" "$def" >&2
   else
     printf '%s: ' "$q" >&2
   fi
-  read -r ans </dev/tty || ans=""
+  if [ -r /dev/tty ]; then
+    read -r ans </dev/tty || ans=""
+  else
+    read -r ans || ans=""
+  fi
   [ -z "$ans" ] && ans=$def
   eval "$var=\$ans"
 }
 
 confirm() {
-  printf '%s [y/N]: ' "$1" >&2
-  read -r ans </dev/tty || ans=""
+      printf '%s [y/N]: ' "$1" >&2
+  if [ -r /dev/tty ]; then
+    read -r ans </dev/tty || ans=""
+  else
+    read -r ans || ans=""
+  fi
   case $ans in y|Y|yes|YES) return 0 ;; *) return 1 ;; esac
 }
 
@@ -198,7 +293,8 @@ explain "Demo will use:
 
 if [ "$DRYRUN" -eq 0 ]; then
   if ! confirm "Create real platform and sites now?"; then
-    echo "Aborted."
+    echo "Aborted by user."
+    DEMO_FINISHED=1
     exit 1
   fi
 fi
@@ -206,32 +302,38 @@ fi
 # --- preflight ------------------------------------------------------------
 section "Preflight — groups, sudo, doctor"
 
+CURRENT_STEP="Check operator group memberships (www-admin and stardust)"
+LAST_CMD="id -nG"
 explain "Stardust refuses to run under sudo. Root work goes through stardust-priv.
 The operator must be in groups www-admin and stardust. We cache sudo credentials
 now so later privileged steps do not interrupt the demo."
 
-if id -nG | grep -qw www-admin && id -nG | grep -qw stardust; then
+ACTIVE_GROUPS=$(id -nG)
+say "Active groups for $(id -un): $ACTIVE_GROUPS"
+
+if echo "$ACTIVE_GROUPS" | grep -qw www-admin && echo "$ACTIVE_GROUPS" | grep -qw stardust; then
   say "  ✓ operator is in www-admin and stardust"
 else
-  say "  ✗ missing required groups. Fix with:"
-  say "    sudo usermod -aG www-admin,stardust \$USER && exec su - \$USER"
-  {
-    echo "Preflight failed: missing groups"
-    cat "$STORY"
-  } > "$ERROR_LOG"
-  echo "Error story: $ERROR_LOG"
+  say "  ✗ missing required active groups (need both www-admin and stardust)."
+  say "    Current active groups: $ACTIVE_GROUPS"
+  say "    In /etc/group: $(grep -E '^(www-admin|stardust|deploy):' /etc/group 2>/dev/null | tr '\n' ' ')"
+  say "    Fix with:"
+  say "      sudo usermod -aG www-admin,stardust,deploy \$USER && exec su - \$USER"
+  printf "Missing required groups in active shell: %s\n" "$ACTIVE_GROUPS" > "$LAST_OUT"
   exit 1
 fi
 
+CURRENT_STEP="Cache sudo credentials"
+LAST_CMD="sudo -v"
 if sudo -n true 2>/dev/null; then
-  say "  ✓ sudo already available"
+  say "  ✓ sudo already available without password prompt"
 else
   explain "Please enter your sudo password to cache credentials for this demo:"
   if sudo -v; then
     say "  ✓ sudo credentials cached"
   else
-    say "  ✗ could not cache sudo"
-    { echo "sudo failed"; cat "$STORY"; } > "$ERROR_LOG"
+    say "  ✗ could not cache sudo credentials"
+    printf "sudo -v failed for user %s\n" "$(id -un)" > "$LAST_OUT"
     exit 1
   fi
 fi
@@ -379,13 +481,14 @@ else
 fi
 
 # --- success story --------------------------------------------------------
+DEMO_FINISHED=1
 section "Demo complete"
 
 explain "All steps finished successfully.
 The full narrative has been saved to $PASSED_LOG"
 
 {
-  echo "Stardust product demo — PASSED"
+      echo "Stardust product demo — PASSED"
   echo "Timestamp : $STAMP"
   echo "Host role : $role"
   echo "Platform  : $PLATFORM"
