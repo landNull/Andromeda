@@ -73,7 +73,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
 
   Do not type "sudo $PROG" — refused (exit 2). Use -n before mutating commands.
 
-  $PROG doctor | list | env | help | log [N] | last
+  $PROG doctor | list | env | help | log [N] | last | ui
   $PROG [-n] platform-add NAME [--git URL] [--branch BRANCH]
   $PROG [-n] platform-upgrade PLATFORM [--no-pull]
   $PROG inventory
@@ -91,7 +91,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG [-n] bee PLATFORM PRODUCT [bee-verb…]   # Bee with --root/--site set
   $PROG [-n] d7 VERB …   # Drupal 7 / BOA -> Backdrop (see $PROG d7 help)
   stardust-menu          # gum / whiptail / dialog
-  stardust-tui           # Bubble Tea full-screen; same verbs
+  $PROG ui               # Textual full-screen (Aegir layout)
 
   log / last        task journal ($STARDUST_ROOT/state/tasks.log)
   promote           ff-only origin/test|live on the VPS checkout, then upgrade
@@ -145,7 +145,7 @@ EXAMPLES
   $PROG d7 tools
   $PROG -n d7 all --from /path/to/d7-example --platform ecom --product example --host example.devel
   stardust-menu
-  stardust-tui
+  $PROG ui
   id                    # confirm www-admin stardust
   exec su - "$USER"     # after usermod -aG (not exec bash)
 
@@ -169,7 +169,7 @@ cmd=${1:-help}
 
 case $cmd in
   help) ;;
-  doctor|list|env|log|last|inventory)
+  doctor|list|env|log|last|inventory|ui)
     check_operator_groups || true
     ;;
   *)
@@ -200,6 +200,20 @@ dispatch() {
     site-enable) cmd_site_enable "$@" ;;
     site-delete) cmd_site_delete "$@" ;;
     inventory) cmd_inventory ;;
+    ui)
+      # Textual front-end; replaces the old Go Bubble Tea TUI
+      TUI="$HERE/../tui/stardust_ui.py"
+      if [ ! -f "$TUI" ]; then
+        echo "$PROG: missing $TUI" >&2
+        return 1
+      fi
+      # Prefer uv when available (no pre-install needed); else plain python3
+      if command -v uv >/dev/null 2>&1; then
+        exec uv run --with textual "$TUI" "$@"
+      else
+        exec python3 "$TUI" "$@"
+      fi
+      ;;
     backup-all) cmd_backup_all ;;
     cron-all) cmd_cron_all ;;
     bee) cmd_bee "$@" ;;
