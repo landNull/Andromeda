@@ -522,7 +522,22 @@ class StardustApp(App[None]):
             self.selected_prod = ""
             self.status = f"selected platform {self.selected_plat}"
 
+    def _current_site(self) -> tuple[str, str]:
+        """Platform and site from the highlighted Sites row, or last selection."""
+        try:
+            table = self.query_one("#sites-table", DataTable)
+            if table.row_count and table.cursor_row is not None:
+                row = table.get_row_at(table.cursor_row)
+                return str(row[1]), str(row[0])
+        except Exception:  # noqa: BLE001
+            pass
+        return self.selected_plat, self.selected_prod
+
     def _act_on_selected(self, verb: str) -> None:
+        if not self.selected_plat or not self.selected_prod:
+            self.status = "select a site row first"
+            return
+        self._start_cmd(verb, self.selected_plat, self.selected_prod)
         if not self.selected_plat or not self.selected_prod:
             self.status = "select a site row first"
             return
@@ -576,13 +591,14 @@ class StardustApp(App[None]):
                 self._start_cmd("promote", self.selected_plat, "--to", target)
             self.push_screen(MigrateModal(), on_to)
         elif bid == "act-delete":
-            if not self.selected_plat or not self.selected_prod:
-                self.status = "select a site row first"
+            plat, prod = self._current_site()
+            if not plat or not prod:
+                self.status = "select a site row first (click the row, then Delete)"
                 return
-            plat, prod = self.selected_plat, self.selected_prod
+            self.selected_plat, self.selected_prod = plat, prod
+            self.status = f"delete? {plat}/{prod}"
 
             def start_delete() -> None:
-                # After the modal is fully gone, or Textual freezes.
                 self.call_later(self._start_cmd, "site-delete", plat, prod)
 
             def on_typed(ok: bool) -> None:
