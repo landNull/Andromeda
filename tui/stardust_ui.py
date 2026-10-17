@@ -185,7 +185,7 @@ class SiteForm(Vertical):
         yield Input(placeholder="Platform", id="form-plat")
         yield Input(placeholder="Site Name", id="form-prod")
         yield Input(placeholder="Host (optional)", id="form-host")
-        yield Button("Create site", id="form-create", variant="success")
+        yield Button("Create Site", id="form-create", variant="success")
 
 
 class StardustApp(App[None]):
@@ -302,12 +302,21 @@ class StardustApp(App[None]):
         self.status = "ready  (q quit  r refresh  d doctor)"
 
     async def _run_and_show(self, *args: str) -> None:
+        tabs = self.query_one("#tabs", TabbedContent)
+        tabs.active = "tab-output"
         self.status = f"running: stardust {' '.join(args)}"
-        self.query_one("#tabs", TabbedContent).active = "tab-output"
+        # Re-assert after the click handler returns so focus does not yank
+        # the user back to the Sites tab.
+        await asyncio.sleep(0)
+        tabs.active = "tab-output"
         rc = await stream_stardust(self, *args)
         self.query_one("#output", Log).write(f"\n(exit {rc})")
         self.status = f"done (exit {rc})"
+        tabs.active = "tab-output"
         if rc == 0 and args and args[0] == "site-add":
+            self.query_one("#form-plat", Input).value = ""
+            self.query_one("#form-prod", Input).value = ""
+            self.query_one("#form-host", Input).value = ""
             self.action_refresh()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
