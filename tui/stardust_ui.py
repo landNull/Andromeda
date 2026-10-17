@@ -31,6 +31,7 @@ from textual.widgets import (
 )
 from textual.binding import Binding
 from textual.reactive import reactive
+from rich.text import Text
 
 STARDUST_BIN = os.environ.get("STARDUST_BIN", "stardust")
 
@@ -421,7 +422,7 @@ class StardustApp(App[None]):
         self.checked.clear()
         for row in parse_inventory(inv):
             sites.add_row(
-                "☐",
+                Text(" [ ] ", style="dim"),
                 row.get("product", ""),
                 row.get("platform", ""),
                 row.get("branch", ""),
@@ -530,10 +531,10 @@ class StardustApp(App[None]):
         key = (plat, prod)
         if key in self.checked:
             self.checked.discard(key)
-            mark = "☐"
+            mark = Text(" [ ] ", style="dim")
         else:
             self.checked.add(key)
-            mark = "☑"
+            mark = Text(" [X] ", style="bold green")
         table.update_cell_at(event.coordinate, mark)
         self.status = f"checked {len(self.checked)}"
 
