@@ -16,7 +16,10 @@ cmd_site_backup() {
   fi
 
   as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-export "$dest/db.sql"
-  if [ ! -s "$dest/db.sql" ]; then
+  # Bee may gzip even when asked for .sql
+  if [ ! -s "$dest/db.sql" ] && [ -s "$dest/db.sql.gz" ]; then
+    echo "note: Bee wrote db.sql.gz"
+  elif [ ! -s "$dest/db.sql" ]; then
     echo "$PROG: db-export produced no $dest/db.sql" >&2
     return 1
   fi
@@ -50,7 +53,7 @@ latest_backup() {
   if [ ! -d "$base" ]; then
     return 1
   fi
-  # newest stamp dir that has db.sql
+  # newest stamp dir that has db.sql or db.sql.gz
   ls -1d "$base"/20* 2>/dev/null | sort | tail -n 1
 }
 
@@ -72,7 +75,11 @@ cmd_site_restore() {
     echo "$PROG: no backup found. Pass --from DIR or run site-backup first." >&2
     exit 1
   fi
-  if [ ! -s "$from/db.sql" ]; then
+  dump="$from/db.sql"
+  if [ ! -s "$dump" ] && [ -s "$from/db.sql.gz" ]; then
+    dump="$from/db.sql.gz"
+  fi
+  if [ ! -s "$dump" ]; then
     echo "$PROG: $from/db.sql missing" >&2
     exit 1
   fi
@@ -80,11 +87,11 @@ cmd_site_restore() {
   bee=$(bee_bin)
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ restore $from -> $root product=$product"
-    echo "+ $bee --root=$web --site=$product db-import $from/db.sql"
+    echo "+ $bee --root=$web --site=$product db-import $dump"
     return 0
   fi
 
-  as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$from/db.sql"
+  as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
 
   cr=$(need_crdir)
   as_root -u "$OWNER" "$cr" -s \
