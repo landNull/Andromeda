@@ -168,36 +168,6 @@ class SudoModal(ModalScreen[str | None]):
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.dismiss(event.value)
-    """Right sidebar: Queues then Navigation (Eldir blocks)."""
-
-    DEFAULT_CSS = """
-    Sidebar {
-        width: 38;
-        dock: right;
-        background: $panel;
-        border-left: solid $primary;
-        padding: 1;
-    }
-    Sidebar .title {
-        text-style: bold;
-        color: $accent;
-        margin-bottom: 1;
-    }
-    Sidebar Button {
-        width: 100%;
-        margin: 0 0 1 0;
-    }
-    """
-
-    def compose(self) -> ComposeResult:
-        yield Label("Queues", classes="title")
-        yield Log(id="queues", highlight=True, max_lines=10)
-        yield Label("Navigation", classes="title")
-        yield Button("Sites", id="nav-sites", variant="primary")
-        yield Button("Platforms", id="nav-platforms")
-        yield Button("Doctor", id="nav-doctor")
-        yield Button("Refresh", id="nav-refresh", variant="success")
-        yield Button("Quit", id="nav-quit", variant="error")
 
 
 class SiteForm(Vertical):
@@ -303,9 +273,8 @@ class StardustApp(App[None]):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        with Horizontal():
-            with Vertical(id="main"):
-                with TabbedContent(id="tabs"):
+        with Vertical(id="main"):
+            with TabbedContent(id="tabs"):
                     with TabPane("Sites", id="tab-sites"):
                         yield SiteForm(id="site-form")
                         yield DataTable(id="sites-table", cursor_type="row", zebra_stripes=True)
@@ -320,7 +289,6 @@ class StardustApp(App[None]):
                     with TabPane("Output", id="tab-output"):
                         yield Button("Back to Sites", id="nav-sites-from-out", variant="primary")
                         yield Log(id="output", highlight=True)
-            yield Sidebar()
         yield Static("", id="status")
         yield Footer()
 
@@ -348,12 +316,6 @@ class StardustApp(App[None]):
         self.query_one("#tabs", TabbedContent).active = "tab-platforms"
 
     async def _refresh_all(self) -> None:
-        _rc, log_out = await asyncio.to_thread(run_stardust, "log", "8")
-        queues = self.query_one("#queues", Log)
-        queues.clear()
-        for line in log_out.splitlines()[-8:]:
-            queues.write(queue_mark(line))
-
         _rc, inv = await asyncio.to_thread(run_stardust, "inventory")
         sites = self.query_one("#sites-table", DataTable)
         sites.clear()
