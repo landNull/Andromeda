@@ -81,6 +81,9 @@ write_secret() {
     return 0
   fi
   run_root mkdir -p "$SECRETDIR/$platform"
+  # operator is in stardust and must be able to stat the .cnf
+  run_root chown "$OWNER:stardust" "$SECRETDIR" "$SECRETDIR/$platform"
+  run_root chmod 2750 "$SECRETDIR" "$SECRETDIR/$platform"
   # tee, not sh -c cat: sudo does not forward a heredoc to sh -c
   as_root tee "$dest" >/dev/null <<EOF
 # stardust secret — do not commit
