@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "==> [TEST] Site Lifecycle & Bee Integration"
 PLATFORM_NAME="siteplat-$$"
-SITE_NAME="www"
+SITE_NAME="www$$"
 
 cleanup() {
     echo "--> Cleaning up site and platform..."
@@ -16,7 +16,7 @@ echo "--> Provisioning test platform: $PLATFORM_NAME"
 stardust platform-add "$PLATFORM_NAME"
 
 echo "--> Adding test site: $SITE_NAME on platform $PLATFORM_NAME"
-stardust site-add "$PLATFORM_NAME" "$SITE_NAME" --host "${SITE_NAME}.devel" --name "Test Site"
+stardust site-add "$PLATFORM_NAME" "$SITE_NAME" --host "www.devel" --name "Test Site"
 
 echo "--> Verifying site and clearing cache"
 stardust site-check "$PLATFORM_NAME" "$SITE_NAME"
