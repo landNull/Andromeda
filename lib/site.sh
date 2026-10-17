@@ -197,11 +197,12 @@ cmd_site_add() {
     echo "+ $cr -s -o $DAEMON -g $GROUP $root/files/$product $root/files_private/$product $root/config/$product/active"
     echo "+ $cr -o $OWNER -g $GROUP $root/config/$product/staging"
   else
-    as_root -u "$OWNER" "$cr" -s -o "$DAEMON" -g "$GROUP" \
+    # crdir calls sudo itself; run as the operator, not deploy
+    "$cr" -s -o "$DAEMON" -g "$GROUP" \
       "$root/files/$product" \
       "$root/files_private/$product" \
       "$root/config/$product/active"
-    as_root -u "$OWNER" "$cr" -o "$OWNER" -g "$GROUP" \
+    "$cr" -o "$OWNER" -g "$GROUP" \
       "$root/config/$product/staging"
   fi
 
