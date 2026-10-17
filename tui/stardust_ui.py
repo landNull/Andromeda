@@ -32,8 +32,8 @@ from textual.reactive import reactive
 STARDUST_BIN = os.environ.get("STARDUST_BIN", "stardust")
 
 
-def run_stardust(*args: str, timeout: int = 300) -> tuple[int, str]:
-    """Run a stardust command and return (exit_code, combined_output)."""
+def run_stardust(*args: str, timeout: int = 60) -> tuple[int, str]:
+    """Capture a short stardust command (list, inventory, log, doctor)."""
     try:
         result = subprocess.run(
             [STARDUST_BIN, *args],
@@ -50,6 +50,53 @@ def run_stardust(*args: str, timeout: int = 300) -> tuple[int, str]:
         return 124, f"timed out after {timeout}s"
     except Exception as exc:  # noqa: BLE001
         return 1, str(exc)
+
+
+async def stream_stardust(app: "StardustApp", *args: str) -> int:
+    """Run stardust and write each line to the Output log as it arrives."""
+    log = app.query_one("#output", Log)
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            STARDUST_BIN,
+            *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+    except FileNotFoundError:
+        log.write(f"{STARDUST_BIN} not found on PATH")
+        return 127
+    assert proc.stdout is not None
+    while True:
+        line = await proc.stdout.readline()
+        if not line:
+            break
+        log.write(line.decode(errors="replace").rstrip("\n"))
+    return await proc.wait()
+    """Run stardust and write each line to the Output log as it arrives."""
+    log = app.query_one("#output", Log)
+    cmd = [STARDUST_BIN, *args]
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+    except FileNotFoundError:
+        log.write(f"{STARDUST_BIN} not found on PATH\n")
+        return 127
+    assert proc.stdout is not None
+    while True:
+        line = await proc.stdout.readline()
+        if not line:
+            break
+        log.write(line.decode(errors="replace").rstrip("\n"))
+    return await proc.wait()
 
 
 def parse_inventory(text: str) -> list[dict[str, str]]:
@@ -160,11 +207,11 @@ class StardustApp(App[None]):
     }
     DataTable {
         height: 1fr;
-        min-height: 8;
+        min-height: 6;
     }
     #site-form {
         height: auto;
-        max-height: 16;
+        dock: top;
     }
     #status {
         dock: bottom;
@@ -196,6 +243,7 @@ class StardustApp(App[None]):
                     with TabPane("Platforms", id="tab-platforms"):
                         yield DataTable(id="platforms-table", cursor_type="row", zebra_stripes=True)
                     with TabPane("Output", id="tab-output"):
+                        yield Button("Back to Sites", id="nav-sites-from-out", variant="primary")
                         yield Log(id="output", highlight=True)
             yield Sidebar()
         yield Static("", id="status")
@@ -255,13 +303,12 @@ class StardustApp(App[None]):
 
     async def _run_and_show(self, *args: str) -> None:
         self.status = f"running: stardust {' '.join(args)}"
-        rc, out = await asyncio.to_thread(run_stardust, *args)
-        output = self.query_one("#output", Log)
-        output.clear()
-        output.write(f"$ stardust {' '.join(args)}  (exit {rc})\n")
-        output.write(out)
         self.query_one("#tabs", TabbedContent).active = "tab-output"
+        rc = await stream_stardust(self, *args)
+        self.query_one("#output", Log).write(f"\n(exit {rc})")
         self.status = f"done (exit {rc})"
+        if rc == 0 and args and args[0] == "site-add":
+            self.action_refresh()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
@@ -271,7 +318,7 @@ class StardustApp(App[None]):
             self.action_refresh()
         elif bid == "nav-doctor":
             self.action_doctor()
-        elif bid == "nav-sites":
+        elif bid in ("nav-sites", "nav-sites-from-out"):
             self.action_sites()
         elif bid == "nav-platforms":
             self.action_platforms()
