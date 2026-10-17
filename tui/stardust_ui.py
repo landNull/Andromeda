@@ -203,6 +203,9 @@ class MigrateModal(ModalScreen[str | None]):
             self.dismiss("live")
         else:
             self.dismiss(None)
+
+
+class SiteForm(Vertical):
     """Create-site form. Maps to stardust site-add PLATFORM PRODUCT [--host]."""
 
     DEFAULT_CSS = """
