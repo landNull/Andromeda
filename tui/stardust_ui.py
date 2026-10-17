@@ -93,6 +93,24 @@ def parse_inventory(text: str) -> list[dict[str, str]]:
     return rows
 
 
+def parse_platforms(text: str) -> list[dict[str, str]]:
+    """Best-effort parse of `stardust list` output."""
+    plats: list[dict[str, str]] = []
+    current: dict[str, str] | None = None
+    for line in text.splitlines():
+        if line.startswith("platform"):
+            parts = line.split()
+            name = parts[1] if len(parts) > 1 else "?"
+            current = {"name": name, "branch": "", "products": ""}
+            for p in parts[2:]:
+                if p.startswith("branch="):
+                    current["branch"] = p.split("=", 1)[1]
+            plats.append(current)
+        elif current and line.strip().startswith("products"):
+            current["products"] = line.split("products", 1)[-1].strip()
+    return plats
+
+
 def platform_exists(name: str) -> bool:
     """True if `stardust list` shows this platform."""
     _rc, text = run_stardust("list")
