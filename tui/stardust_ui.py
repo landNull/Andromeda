@@ -580,16 +580,34 @@ class StardustApp(App[None]):
                 self.status = "select a site row first"
                 return
             plat, prod = self.selected_plat, self.selected_prod
+
+            def start_delete() -> None:
+                # After the modal is fully gone, or Textual freezes.
+                self.call_later(self._start_cmd, "site-delete", plat, prod)
+
+            def on_typed(ok: bool) -> None:
+                if not ok:
+                    self.status = "delete cancelled (type DELETE to confirm)"
+                    return
+                if self.sudo_nopasswd() or self.sudo_askpass:
+                    start_delete()
+                    return
+
+                def on_pass(pw: str | None) -> None:
+                    if not pw:
+                        self.status = "sudo password required"
+                        return
+                    self.set_sudo_askpass(pw)
+                    start_delete()
+
+                self.call_later(self.push_screen, SudoModal(), on_pass)
+
             def on_yes(yes: bool) -> None:
                 if not yes:
                     self.status = "delete cancelled"
                     return
-                def on_typed(ok: bool) -> None:
-                    if not ok:
-                        self.status = "delete cancelled (type DELETE to confirm)"
-                        return
-                    self._start_cmd("site-delete", plat, prod)
-                self.push_screen(DeleteTypeModal(), on_typed)
+                self.call_later(self.push_screen, DeleteTypeModal(), on_typed)
+
             self.push_screen(DeleteConfirmModal(plat, prod), on_yes)
 
     def _queue_create(self, plat: str, prod: str, host: str) -> None:
