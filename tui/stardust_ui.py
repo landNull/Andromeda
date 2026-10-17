@@ -294,10 +294,6 @@ class StardustApp(App[None]):
     CSS = """
     Screen {
         background: $surface;
-        font-size: 14px;
-    }
-    * {
-        font-size: 14px;
     }
     Header {
         background: $primary;
