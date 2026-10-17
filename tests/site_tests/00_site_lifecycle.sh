@@ -7,8 +7,8 @@ SITE_NAME="www"
 
 cleanup() {
     echo "--> Cleaning up site and platform..."
-    stardust site-remove "$PLATFORM_NAME" "$SITE_NAME" >/dev/null 2>&1 || true
-    stardust platform-remove "$PLATFORM_NAME" >/dev/null 2>&1 || true
+    stardust site-delete "$PLATFORM_NAME" "$SITE_NAME" --force >/dev/null 2>&1 || true
+    rm -rf "/srv/platforms/$PLATFORM_NAME" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -18,8 +18,8 @@ stardust platform-add "$PLATFORM_NAME"
 echo "--> Adding test site: $SITE_NAME on platform $PLATFORM_NAME"
 stardust site-add "$PLATFORM_NAME" "$SITE_NAME" --host "${SITE_NAME}.devel" --name "Test Site"
 
-echo "--> Verifying site status & running Bee cache clear"
-stardust site-status "$PLATFORM_NAME" "$SITE_NAME"
-stardust site-bee "$PLATFORM_NAME" "$SITE_NAME" cc all
+echo "--> Verifying site and clearing cache"
+stardust site-check "$PLATFORM_NAME" "$SITE_NAME"
+stardust bee "$PLATFORM_NAME" "$SITE_NAME" cc all
 
 echo "PASS: Site lifecycle test completed successfully."
