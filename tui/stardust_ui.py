@@ -24,6 +24,7 @@ from textual.widgets import (
     Input,
     Label,
     Log,
+    Select,
     Static,
     TabbedContent,
     TabPane,
@@ -333,6 +334,7 @@ class StardustApp(App[None]):
     selected_plat = reactive("")
     selected_prod = reactive("")
     sudo_askpass = ""
+    checked: set[tuple[str, str]] = set()
 
     def sudo_nopasswd(self) -> bool:
         try:
@@ -369,13 +371,18 @@ class StardustApp(App[None]):
                     with TabPane("Sites", id="tab-sites"):
                         yield SiteForm(id="site-form")
                         yield DataTable(id="sites-table", cursor_type="row", zebra_stripes=True)
-                        with Horizontal(id="site-actions"):
-                            yield Button("Backup", id="act-backup")
-                            yield Button("Check", id="act-check")
-                            yield Button("Disable", id="act-disable")
-                            yield Button("Enable", id="act-enable")
-                            yield Button("Migrate", id="act-migrate", variant="warning")
-                            yield Button("Delete", id="act-delete", variant="error")
+                        yield Select(
+                            [
+                                ("Backup", "backup"),
+                                ("Check", "check"),
+                                ("Disable", "disable"),
+                                ("Enable", "enable"),
+                                ("Migrate", "migrate"),
+                                ("Delete", "delete"),
+                            ],
+                            prompt="Actions",
+                            id="site-actions",
+                        )
                     with TabPane("Platforms", id="tab-platforms"):
                         yield DataTable(id="platforms-table", cursor_type="row", zebra_stripes=True)
                     with TabPane("Output", id="tab-output"):
@@ -386,7 +393,7 @@ class StardustApp(App[None]):
 
     def on_mount(self) -> None:
         sites = self.query_one("#sites-table", DataTable)
-        sites.add_columns("Site", "Platform", "Branch", "Backup")
+        sites.add_columns("", "Site", "Platform", "Branch", "Backup")
         plats = self.query_one("#platforms-table", DataTable)
         plats.add_columns("Platform", "Branch", "Sites")
         self.action_refresh()
@@ -411,8 +418,10 @@ class StardustApp(App[None]):
         _rc, inv = await asyncio.to_thread(run_stardust, "inventory")
         sites = self.query_one("#sites-table", DataTable)
         sites.clear()
+        self.checked.clear()
         for row in parse_inventory(inv):
             sites.add_row(
+                "☐",
                 row.get("product", ""),
                 row.get("platform", ""),
                 row.get("branch", ""),
@@ -510,17 +519,51 @@ class StardustApp(App[None]):
         self.status = f"done (exit {rc})"
         tabs.active = "tab-output"
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        if event.data_table.id == "sites-table":
-            row = event.data_table.get_row(event.row_key)
-            self.selected_prod = str(row[0])
-            self.selected_plat = str(row[1])
-            self.status = f"selected {self.selected_plat}/{self.selected_prod}"
-        elif event.data_table.id == "platforms-table":
-            row = event.data_table.get_row(event.row_key)
-            self.selected_plat = str(row[0])
-            self.selected_prod = ""
-            self.status = f"selected platform {self.selected_plat}"
+    def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+        if event.data_table.id != "sites-table":
+            return
+        if event.coordinate.column != 0:
+            return
+        table = event.data_table
+        row = table.get_row_at(event.coordinate.row)
+        prod, plat = str(row[1]), str(row[2])
+        key = (plat, prod)
+        if key in self.checked:
+            self.checked.discard(key)
+            mark = "☐"
+        else:
+            self.checked.add(key)
+            mark = "☑"
+        table.update_cell_at(event.coordinate, mark)
+        self.status = f"checked {len(self.checked)}"
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        if event.select.id != "site-actions" or event.value is Select.BLANK:
+            return
+        action = str(event.value)
+        event.select.value = Select.BLANK
+        if not self.checked:
+            self.status = "check a site first"
+            return
+        plat, prod = next(iter(self.checked))
+        self.selected_plat, self.selected_prod = plat, prod
+        if action == "backup":
+            self._start_cmd("site-backup", plat, prod)
+        elif action == "check":
+            self._start_cmd("site-check", plat, prod)
+        elif action == "disable":
+            self._start_cmd("site-disable", plat, prod)
+        elif action == "enable":
+            self._start_cmd("site-enable", plat, prod)
+        elif action == "migrate":
+            def on_to(target: str | None) -> None:
+                if not target:
+                    self.status = "migrate cancelled"
+                    return
+                self._start_cmd("promote", plat, "--to", target)
+            self.push_screen(MigrateModal(), on_to)
+        elif action == "delete":
+            self._confirm_delete(plat, prod)
 
     def _current_site(self) -> tuple[str, str]:
         """Platform and site from the highlighted Sites row, or last selection."""
@@ -572,59 +615,37 @@ class StardustApp(App[None]):
                     self.set_sudo_askpass(pw)
                     self._queue_create(plat, prod, host)
                 self.push_screen(SudoModal(), on_pass)
-        elif bid == "act-backup":
-            self._act_on_selected("site-backup")
-        elif bid == "act-check":
-            self._act_on_selected("site-check")
-        elif bid == "act-disable":
-            self._act_on_selected("site-disable")
-        elif bid == "act-enable":
-            self._act_on_selected("site-enable")
-        elif bid == "act-migrate":
-            if not self.selected_plat:
-                self.status = "select a site or platform row first"
+
+    def _confirm_delete(self, plat: str, prod: str) -> None:
+        self.status = f"delete? {plat}/{prod}"
+
+        def start_delete() -> None:
+            self.call_later(self._start_cmd, "site-delete", plat, prod)
+
+        def on_typed(ok: bool) -> None:
+            if not ok:
+                self.status = "delete cancelled (type DELETE to confirm)"
                 return
-            def on_to(target: str | None) -> None:
-                if not target:
-                    self.status = "migrate cancelled"
-                    return
-                self._start_cmd("promote", self.selected_plat, "--to", target)
-            self.push_screen(MigrateModal(), on_to)
-        elif bid == "act-delete":
-            plat, prod = self._current_site()
-            if not plat or not prod:
-                self.status = "select a site row first (click the row, then Delete)"
+            if self.sudo_nopasswd() or self.sudo_askpass:
+                start_delete()
                 return
-            self.selected_plat, self.selected_prod = plat, prod
-            self.status = f"delete? {plat}/{prod}"
 
-            def start_delete() -> None:
-                self.call_later(self._start_cmd, "site-delete", plat, prod)
-
-            def on_typed(ok: bool) -> None:
-                if not ok:
-                    self.status = "delete cancelled (type DELETE to confirm)"
+            def on_pass(pw: str | None) -> None:
+                if not pw:
+                    self.status = "sudo password required"
                     return
-                if self.sudo_nopasswd() or self.sudo_askpass:
-                    start_delete()
-                    return
+                self.set_sudo_askpass(pw)
+                start_delete()
 
-                def on_pass(pw: str | None) -> None:
-                    if not pw:
-                        self.status = "sudo password required"
-                        return
-                    self.set_sudo_askpass(pw)
-                    start_delete()
+            self.call_later(self.push_screen, SudoModal(), on_pass)
 
-                self.call_later(self.push_screen, SudoModal(), on_pass)
+        def on_yes(yes: bool) -> None:
+            if not yes:
+                self.status = "delete cancelled"
+                return
+            self.call_later(self.push_screen, DeleteTypeModal(), on_typed)
 
-            def on_yes(yes: bool) -> None:
-                if not yes:
-                    self.status = "delete cancelled"
-                    return
-                self.call_later(self.push_screen, DeleteTypeModal(), on_typed)
-
-            self.push_screen(DeleteConfirmModal(plat, prod), on_yes)
+        self.push_screen(DeleteConfirmModal(plat, prod), on_yes)
 
     def _queue_create(self, plat: str, prod: str, host: str) -> None:
         self.status = f"queued: {plat}/{prod}"
