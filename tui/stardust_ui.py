@@ -93,7 +93,13 @@ def parse_inventory(text: str) -> list[dict[str, str]]:
     return rows
 
 
-def parse_platforms(text: str) -> list[dict[str, str]]:
+def platform_exists(name: str) -> bool:
+    """True if `stardust list` shows this platform."""
+    _rc, text = run_stardust("list")
+    for row in parse_platforms(text):
+        if row.get("name") == name:
+            return True
+    return False
     plats: list[dict[str, str]] = []
     current: dict[str, str] | None = None
     for line in text.splitlines():
@@ -305,6 +311,60 @@ class StardustApp(App[None]):
         self.query_one("#tabs", TabbedContent).active = "tab-output"
         self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
 
+    async def _create_site_queue(self, plat: str, prod: str, host: str) -> None:
+        """Aegir-style queue: platform first, health check, then site.
+
+        A site cannot exist outside a platform. Steps:
+          1. platform-add if missing
+          2. doctor (platform ready)
+          3. site-add
+        """
+        tabs = self.query_one("#tabs", TabbedContent)
+        log = self.query_one("#output", Log)
+        tabs.active = "tab-output"
+        log.clear()
+        log.write(f"queue: create site {plat}/{prod}")
+        log.write("  1. ensure platform")
+        log.write("  2. health check")
+        log.write("  3. create site")
+        log.write("")
+
+        if not platform_exists(plat):
+            log.write(f"--- step 1: stardust platform-add {plat}")
+            self.status = f"queue 1/3: platform-add {plat}"
+            rc = await stream_stardust(self, "platform-add", plat)
+            log.write(f"(platform-add exit {rc})")
+            if rc != 0:
+                self.status = f"queue stopped: platform-add exit {rc}"
+                tabs.active = "tab-output"
+                return
+        else:
+            log.write(f"--- step 1: platform {plat} already exists")
+
+        log.write("--- step 2: stardust doctor")
+        self.status = "queue 2/3: doctor"
+        rc = await stream_stardust(self, "doctor")
+        log.write(f"(doctor exit {rc})")
+        if rc != 0:
+            self.status = f"queue stopped: doctor exit {rc}"
+            tabs.active = "tab-output"
+            return
+
+        site_args = ["site-add", plat, prod]
+        if host:
+            site_args += ["--host", host]
+        log.write(f"--- step 3: stardust {' '.join(site_args)}")
+        self.status = f"queue 3/3: site-add {plat}/{prod}"
+        rc = await stream_stardust(self, *site_args)
+        log.write(f"(site-add exit {rc})")
+        self.status = f"queue done (exit {rc})"
+        tabs.active = "tab-output"
+        if rc == 0:
+            self.query_one("#form-plat", Input).value = ""
+            self.query_one("#form-prod", Input).value = ""
+            self.query_one("#form-host", Input).value = ""
+            self.action_refresh()
+
     async def _run_and_show(self, *args: str) -> None:
         tabs = self.query_one("#tabs", TabbedContent)
         tabs.active = "tab-output"
@@ -315,11 +375,6 @@ class StardustApp(App[None]):
         self.query_one("#output", Log).write(f"\n(exit {rc})")
         self.status = f"done (exit {rc})"
         tabs.active = "tab-output"
-        if rc == 0 and args and args[0] == "site-add":
-            self.query_one("#form-plat", Input).value = ""
-            self.query_one("#form-prod", Input).value = ""
-            self.query_one("#form-host", Input).value = ""
-            self.action_refresh()
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id != "sites-table":
@@ -355,10 +410,13 @@ class StardustApp(App[None]):
             if not plat or not prod:
                 self.status = "platform and site name required"
                 return
-            args = ["site-add", plat, prod]
-            if host:
-                args += ["--host", host]
-            self._start_cmd(*args)
+            self.status = f"queued: {plat}/{prod}"
+            self.query_one("#tabs", TabbedContent).active = "tab-output"
+            self.run_worker(
+                self._create_site_queue(plat, prod, host),
+                exclusive=False,
+                group="cmd",
+            )
         elif bid == "act-backup":
             self._act_on_selected("site-backup")
         elif bid == "act-check":
