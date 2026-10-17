@@ -312,11 +312,11 @@ class StardustApp(App[None]):
         self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
 
     async def _create_site_queue(self, plat: str, prod: str, host: str) -> None:
-        """Aegir-style queue: platform first, health check, then site.
+        """Aegir-style queue: platform first, then site.
 
         A site cannot exist outside a platform. Steps:
-          1. platform-add if missing
-          2. doctor (platform ready)
+          1. platform-add if missing; stop only if the platform is still absent
+          2. doctor — advisory (host-wide; NOT READY does not block)
           3. site-add
         """
         tabs = self.query_one("#tabs", TabbedContent)
@@ -341,14 +341,24 @@ class StardustApp(App[None]):
         else:
             log.write(f"--- step 1: platform {plat} already exists")
 
-        log.write("--- step 2: stardust doctor")
-        self.status = "queue 2/3: doctor"
-        rc = await stream_stardust(self, "doctor")
-        log.write(f"(doctor exit {rc})")
-        if rc != 0:
-            self.status = f"queue stopped: doctor exit {rc}"
+        if not platform_exists(plat):
+            log.write(f"queue stopped: platform {plat} still missing — site-add would fail")
+            self.status = "queue stopped: platform not ready"
             tabs.active = "tab-output"
             return
+
+        log.write("--- step 2: stardust doctor (advisory)")
+        self.status = "queue 2/3: doctor"
+        rc = await stream_stardust(self, "doctor")
+        if rc == 0:
+            log.write("doctor: READY — host can take the site")
+        else:
+            log.write(
+                f"doctor: NOT READY (exit {rc}) — shown above; "
+                "continuing because the platform exists. "
+                "Fix host issues separately if site-add fails."
+            )
+        log.write(f"(doctor exit {rc})")
 
         site_args = ["site-add", plat, prod]
         if host:
