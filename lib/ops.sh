@@ -81,7 +81,8 @@ write_secret() {
     return 0
   fi
   run_root mkdir -p "$SECRETDIR/$platform"
-  as_root sh -c "cat > '$dest'" <<EOF
+  # tee, not sh -c cat: sudo does not forward a heredoc to sh -c
+  as_root tee "$dest" >/dev/null <<EOF
 # stardust secret — do not commit
 db=$db
 user=$user
@@ -89,7 +90,7 @@ pass=$pass
 host=localhost
 EOF
   cnf=${dest}.cnf
-  as_root sh -c "cat > '$cnf'" <<EOF
+  as_root tee "$cnf" >/dev/null <<EOF
 [client]
 user=$user
 password=$pass
