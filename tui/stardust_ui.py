@@ -541,7 +541,7 @@ class StardustApp(App[None]):
         if event.select.id != "site-actions" or event.value is Select.BLANK:
             return
         action = str(event.value)
-        event.select.value = Select.BLANK
+        event.select.clear()
         if not self.checked:
             self.status = "check a site first"
             return
