@@ -430,11 +430,19 @@ as_root() {
       sudo -n -u "$tgt" "$@"
       return $?
     fi
+    if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+      SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A -u "$tgt" "$@"
+      return $?
+    fi
     sudo -u "$tgt" "$@"
     return $?
   fi
   if have sudo && sudo -n true >/dev/null 2>&1; then
     sudo -n "$@"
+    return $?
+  fi
+  if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+    SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A "$@"
     return $?
   fi
   sudo "$@"

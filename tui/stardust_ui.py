@@ -15,6 +15,7 @@ import subprocess
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
     DataTable,
@@ -58,6 +59,9 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
     log = app.query_one("#output", Log)
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
+    if app.sudo_askpass:
+        env["STARDUST_SUDO_ASKPASS"] = app.sudo_askpass
+        env["SUDO_ASKPASS"] = app.sudo_askpass
     try:
         proc = await asyncio.create_subprocess_exec(
             STARDUST_BIN,
@@ -118,20 +122,6 @@ def platform_exists(name: str) -> bool:
         if row.get("name") == name:
             return True
     return False
-    plats: list[dict[str, str]] = []
-    current: dict[str, str] | None = None
-    for line in text.splitlines():
-        if line.startswith("platform"):
-            parts = line.split()
-            name = parts[1] if len(parts) > 1 else "?"
-            current = {"name": name, "branch": "", "products": ""}
-            for p in parts[2:]:
-                if p.startswith("branch="):
-                    current["branch"] = p.split("=", 1)[1]
-            plats.append(current)
-        elif current and line.strip().startswith("products"):
-            current["products"] = line.split("products", 1)[-1].strip()
-    return plats
 
 
 def queue_mark(line: str) -> str:
@@ -144,7 +134,40 @@ def queue_mark(line: str) -> str:
     return "  " + line
 
 
-class Sidebar(VerticalScroll):
+class SudoModal(ModalScreen[str | None]):
+    """Ask for the sudo password. Never logged. Empty dismisses."""
+
+    DEFAULT_CSS = """
+    SudoModal {
+        align: center middle;
+    }
+    SudoModal Vertical {
+        width: 50;
+        height: auto;
+        padding: 1 2;
+        border: solid $primary;
+        background: $panel;
+    }
+    SudoModal Input {
+        margin: 1 0;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("sudo password (for stardust-priv / bee)")
+            yield Input(placeholder="password", password=True, id="sudo-pass")
+            yield Button("OK", id="sudo-ok", variant="primary")
+            yield Button("Cancel", id="sudo-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "sudo-ok":
+            self.dismiss(self.query_one("#sudo-pass", Input).value)
+        else:
+            self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
     """Right sidebar: Queues then Navigation (Eldir blocks)."""
 
     DEFAULT_CSS = """
@@ -248,6 +271,35 @@ class StardustApp(App[None]):
     status = reactive("ready")
     selected_plat = reactive("")
     selected_prod = reactive("")
+    sudo_askpass = ""
+
+    def sudo_nopasswd(self) -> bool:
+        try:
+            r = subprocess.run(
+                ["sudo", "-n", "true"],
+                capture_output=True,
+                timeout=5,
+                check=False,
+            )
+            return r.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
+    def set_sudo_askpass(self, password: str) -> None:
+        import tempfile
+        path = tempfile.mktemp(prefix="stardust-askpass-")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("#!/bin/sh\nprintf '%s\\n' " + repr(password) + "\n")
+        os.chmod(path, 0o700)
+        self.sudo_askpass = path
+
+    def clear_sudo_askpass(self) -> None:
+        if self.sudo_askpass and os.path.exists(self.sudo_askpass):
+            try:
+                os.remove(self.sudo_askpass)
+            except OSError:
+                pass
+        self.sudo_askpass = ""
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -438,13 +490,16 @@ class StardustApp(App[None]):
             if not plat or not prod:
                 self.status = "platform and site name required"
                 return
-            self.status = f"queued: {plat}/{prod}"
-            self.query_one("#tabs", TabbedContent).active = "tab-output"
-            self.run_worker(
-                self._create_site_queue(plat, prod, host),
-                exclusive=False,
-                group="cmd",
-            )
+            if self.sudo_nopasswd() or self.sudo_askpass:
+                self._queue_create(plat, prod, host)
+            else:
+                def on_pass(pw: str | None) -> None:
+                    if not pw:
+                        self.status = "sudo password required"
+                        return
+                    self.set_sudo_askpass(pw)
+                    self._queue_create(plat, prod, host)
+                self.push_screen(SudoModal(), on_pass)
         elif bid == "act-backup":
             self._act_on_selected("site-backup")
         elif bid == "act-check":
@@ -455,6 +510,15 @@ class StardustApp(App[None]):
             self._act_on_selected("site-enable")
         elif bid == "act-delete":
             self._act_on_selected("site-delete")
+
+    def _queue_create(self, plat: str, prod: str, host: str) -> None:
+        self.status = f"queued: {plat}/{prod}"
+        self.query_one("#tabs", TabbedContent).active = "tab-output"
+        self.run_worker(
+            self._create_site_queue(plat, prod, host),
+            exclusive=False,
+            group="cmd",
+        )
 
 
 def main() -> None:
