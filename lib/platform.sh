@@ -73,9 +73,10 @@ cmd_platform_add() {
     run_root chown "$OWNER:$GROUP" "$dest"
     bee=$(bee_bin)
     if [ "$DRYRUN" -eq 1 ]; then
-      echo "+ $bee --root=$dest dl-core web"
+      echo "+ cd $dest && $bee dl-core web"
     else
-      as_root -u "$OWNER" "$bee" --root="$dest" dl-core web
+      # dl-core creates the dest relative to cwd, not --root
+      as_root -u "$OWNER" sh -c "cd '$dest' && exec '$bee' dl-core web"
     fi
   fi
 
