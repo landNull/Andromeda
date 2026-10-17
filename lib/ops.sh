@@ -37,6 +37,8 @@ with_lock() {
   name=$(slug "${1:-global}")
   shift
   run_root mkdir -p "$LOCKDIR"
+  run_root chown "$OWNER:stardust" "$LOCKDIR"
+  run_root chmod 2775 "$LOCKDIR"
   lock=$LOCKDIR/${name}.lock
   if [ "${DRYRUN:-0}" -eq 1 ]; then
     echo "+ lock $lock"
