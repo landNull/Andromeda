@@ -32,7 +32,7 @@ from textual.reactive import reactive
 STARDUST_BIN = os.environ.get("STARDUST_BIN", "stardust")
 
 
-def run_stardust(*args: str, timeout: int = 60) -> tuple[int, str]:
+def run_stardust(*args: str, timeout: int = 300) -> tuple[int, str]:
     """Run a stardust command and return (exit_code, combined_output)."""
     try:
         result = subprocess.run(
@@ -160,6 +160,11 @@ class StardustApp(App[None]):
     }
     DataTable {
         height: 1fr;
+        min-height: 8;
+    }
+    #site-form {
+        height: auto;
+        max-height: 16;
     }
     #status {
         dock: bottom;
@@ -280,7 +285,14 @@ class StardustApp(App[None]):
             args = ["site-add", plat, prod]
             if host:
                 args += ["--host", host]
-            self.run_worker(self._run_and_show(*args), exclusive=True)
+            # Immediate feedback — do not wait for the worker or the command.
+            self.status = f"starting: stardust {' '.join(args)}"
+            output = self.query_one("#output", Log)
+            output.clear()
+            output.write(f"$ stardust {' '.join(args)}\n")
+            output.write("(running — site-add can take a few minutes)\n")
+            self.query_one("#tabs", TabbedContent).active = "tab-output"
+            self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
 
 
 def main() -> None:
