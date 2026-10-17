@@ -12,6 +12,20 @@ from __future__ import annotations
 import asyncio
 import os
 import subprocess
+import traceback
+from datetime import datetime, timezone
+
+UI_LOG = os.environ.get("STARDUST_UI_LOG", "/tmp/stardust-ui.log")
+
+
+def ui_log(msg: str) -> None:
+    """Append one line to the TUI debug log. Never log passwords."""
+    try:
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        with open(UI_LOG, "a", encoding="utf-8") as fh:
+            fh.write(f"{stamp} {msg}\n")
+    except OSError:
+        pass
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
@@ -59,6 +73,7 @@ def run_stardust(*args: str, timeout: int = 60) -> tuple[int, str]:
 async def stream_stardust(app: "StardustApp", *args: str) -> int:
     """Run stardust and write each line to the Output log as it arrives."""
     log = app.query_one("#output", Log)
+    ui_log(f"stream start: {' '.join(args)}")
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     if app.sudo_askpass:
@@ -356,6 +371,7 @@ class StardustApp(App[None]):
             fh.write("#!/bin/sh\nprintf '%s\\n' " + repr(password) + "\n")
         os.chmod(path, 0o700)
         self.sudo_askpass = path
+        ui_log(f"askpass written {path}")
 
     def clear_sudo_askpass(self) -> None:
         if self.sudo_askpass and os.path.exists(self.sudo_askpass):
@@ -609,11 +625,25 @@ class StardustApp(App[None]):
                 self._queue_create(plat, prod, host)
             else:
                 def on_pass(pw: str | None) -> None:
+                    ui_log("sudo modal dismissed")
                     if not pw:
+                        ui_log("sudo password empty")
                         self.status = "sudo password required"
                         return
+                    ui_log("sudo password received, writing askpass")
                     self.set_sudo_askpass(pw)
-                    self.call_later(self._queue_create, plat, prod, host)
+                    ui_log(f"askpass={self.sudo_askpass}")
+                    self.status = f"password ok — starting {plat}/{prod}"
+                    self.query_one("#tabs", TabbedContent).active = "tab-output"
+                    self.query_one("#output", Log).write(
+                        f"password accepted. log: {UI_LOG}"
+                    )
+                    # Do not start work in the modal callback — that freezes.
+                    self.run_worker(
+                        self._queue_create_later(plat, prod, host),
+                        exclusive=False,
+                        group="cmd",
+                    )
                 self.push_screen(SudoModal(), on_pass)
 
     def _confirm_delete(self, plat: str, prod: str) -> None:
@@ -646,6 +676,18 @@ class StardustApp(App[None]):
             self.call_later(self.push_screen, DeleteTypeModal(), on_typed)
 
         self.push_screen(DeleteConfirmModal(plat, prod), on_yes)
+
+    async def _queue_create_later(self, plat: str, prod: str, host: str) -> None:
+        """Wait until the modal is gone, then run the create queue."""
+        ui_log(f"queue worker start {plat}/{prod}")
+        await asyncio.sleep(0.3)
+        ui_log("queue worker after sleep")
+        try:
+            await self._create_site_queue(plat, prod, host)
+            ui_log("queue worker finished")
+        except Exception:
+            ui_log("queue worker exception:\n" + traceback.format_exc())
+            self.status = f"error — see {UI_LOG}"
 
     def _queue_create(self, plat: str, prod: str, host: str) -> None:
         self.status = f"queued: {plat}/{prod}"
