@@ -136,7 +136,7 @@ class SiteForm(Vertical):
     def compose(self) -> ComposeResult:
         yield Label("Add site (stardust site-add)")
         yield Input(placeholder="Platform", id="form-plat")
-        yield Input(placeholder="Product", id="form-prod")
+        yield Input(placeholder="Site Name", id="form-prod")
         yield Input(placeholder="Host (optional)", id="form-host")
         yield Button("Create site", id="form-create", variant="success")
 
@@ -198,9 +198,9 @@ class StardustApp(App[None]):
 
     def on_mount(self) -> None:
         sites = self.query_one("#sites-table", DataTable)
-        sites.add_columns("Platform", "Product", "Branch", "Backup")
+        sites.add_columns("Platform", "Site Name", "Branch", "Backup")
         plats = self.query_one("#platforms-table", DataTable)
-        plats.add_columns("Platform", "Branch", "Products")
+        plats.add_columns("Platform", "Branch", "Site Names")
         self.action_refresh()
 
     def watch_status(self, value: str) -> None:
@@ -275,7 +275,7 @@ class StardustApp(App[None]):
             prod = self.query_one("#form-prod", Input).value.strip()
             host = self.query_one("#form-host", Input).value.strip()
             if not plat or not prod:
-                self.status = "platform and product required"
+                self.status = "platform and site name required"
                 return
             args = ["site-add", plat, prod]
             if host:
