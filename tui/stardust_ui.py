@@ -613,7 +613,7 @@ class StardustApp(App[None]):
                         self.status = "sudo password required"
                         return
                     self.set_sudo_askpass(pw)
-                    self._queue_create(plat, prod, host)
+                    self.call_later(self._queue_create, plat, prod, host)
                 self.push_screen(SudoModal(), on_pass)
 
     def _confirm_delete(self, plat: str, prod: str) -> None:
@@ -635,7 +635,7 @@ class StardustApp(App[None]):
                     self.status = "sudo password required"
                     return
                 self.set_sudo_askpass(pw)
-                start_delete()
+                self.call_later(start_delete)
 
             self.call_later(self.push_screen, SudoModal(), on_pass)
 
