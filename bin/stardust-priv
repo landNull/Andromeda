@@ -104,8 +104,6 @@ case $cmd in
       /etc/init.d/apache2 reload
     elif [ -x /etc/init.d/httpd ]; then
       /etc/init.d/httpd reload
-    elif command -v systemctl >/dev/null 2>&1; then
-      systemctl reload apache2 2>/dev/null || systemctl reload httpd
     else
       echo "$PROG: no apache reload" >&2
       exit 1
@@ -129,6 +127,9 @@ case $cmd in
     [ -n "$pass" ] || { echo "$PROG: no password= in $cnf" >&2; exit 1; }
     mysql -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
     mysql -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';"
+    # IF NOT EXISTS leaves an old password from a previous site-add
+    mysql -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$pass';" || \
+      mysql -e "SET PASSWORD FOR '$user'@'localhost' = PASSWORD('$pass');"
     mysql -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;"
     ;;
   mysql-drop)
