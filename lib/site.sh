@@ -218,6 +218,8 @@ cmd_site_add() {
     if [ -f "$web/sites/$product/.stardust-installed" ]; then
       echo "bee install already marked for $product — skip"
     else
+      # Bee refuses install if config/active is not empty
+      run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" "$bee" --root="$web" --site="$product" install \
         --db-name="$db" --db-user="$user" --db-pass="$pass" \
         --site-name="$title" --auto || true
