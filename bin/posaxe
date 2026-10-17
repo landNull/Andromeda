@@ -1,0 +1,4 @@
+#!/bin/sh
+# posaxe — POSIX Swiss army knife for shell scripts.
+# Full script body follows in the local artifacts/Stardust/bin/posaxe.
+# This commit creates the file; complete body push may require a local git push if truncated.
