@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Stardust Textual TUI — Aegir-style front-end over the shell CLI.
+"""Stardust Textual TUI — Eldir-shaped front-end over the shell CLI.
 
-Does not reimplement backup, upgrade, or site logic.
-Shells out to the existing `stardust` binary and displays the results.
+Layout follows Aegir Eldir (navy header, primary tabs, right sidebar
+Queues + Navigation, main content table). Does not reimplement
+backup, upgrade, or site logic — shells out to the stardust binary.
 Do not run as root.
 """
 
@@ -75,28 +76,6 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
             break
         log.write(line.decode(errors="replace").rstrip("\n"))
     return await proc.wait()
-    """Run stardust and write each line to the Output log as it arrives."""
-    log = app.query_one("#output", Log)
-    cmd = [STARDUST_BIN, *args]
-    env = os.environ.copy()
-    env["PYTHONUNBUFFERED"] = "1"
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-            env=env,
-        )
-    except FileNotFoundError:
-        log.write(f"{STARDUST_BIN} not found on PATH\n")
-        return 127
-    assert proc.stdout is not None
-    while True:
-        line = await proc.stdout.readline()
-        if not line:
-            break
-        log.write(line.decode(errors="replace").rstrip("\n"))
-    return await proc.wait()
 
 
 def parse_inventory(text: str) -> list[dict[str, str]]:
@@ -115,7 +94,6 @@ def parse_inventory(text: str) -> list[dict[str, str]]:
 
 
 def parse_platforms(text: str) -> list[dict[str, str]]:
-    """Best-effort parse of `stardust list` output."""
     plats: list[dict[str, str]] = []
     current: dict[str, str] | None = None
     for line in text.splitlines():
@@ -132,12 +110,22 @@ def parse_platforms(text: str) -> list[dict[str, str]]:
     return plats
 
 
+def queue_mark(line: str) -> str:
+    """Aegir-style status prefix: green ok, red fail, plain otherwise."""
+    low = line.lower()
+    if " fail" in low or " error" in low or line.strip().endswith(" 1"):
+        return "[red]✗[/] " + line
+    if " ok" in low or line.strip().endswith(" 0"):
+        return "[green]✓[/] " + line
+    return "  " + line
+
+
 class Sidebar(VerticalScroll):
-    """Right sidebar: queues + navigation (Aegir Eldir style)."""
+    """Right sidebar: Queues then Navigation (Eldir blocks)."""
 
     DEFAULT_CSS = """
     Sidebar {
-        width: 36;
+        width: 38;
         dock: right;
         background: $panel;
         border-left: solid $primary;
@@ -156,7 +144,7 @@ class Sidebar(VerticalScroll):
 
     def compose(self) -> ComposeResult:
         yield Label("Queues", classes="title")
-        yield Log(id="queues", highlight=True, max_lines=12)
+        yield Log(id="queues", highlight=True, max_lines=10)
         yield Label("Navigation", classes="title")
         yield Button("Sites", id="nav-sites", variant="primary")
         yield Button("Platforms", id="nav-platforms")
@@ -166,14 +154,14 @@ class Sidebar(VerticalScroll):
 
 
 class SiteForm(Vertical):
-    """Minimal site-add form (shells out; does not reimplement)."""
+    """Create-site form. Maps to stardust site-add PLATFORM PRODUCT [--host]."""
 
     DEFAULT_CSS = """
     SiteForm {
         height: auto;
         padding: 1;
         border: solid $primary;
-        margin: 1;
+        margin: 0 0 1 0;
     }
     SiteForm Input {
         margin-bottom: 1;
@@ -181,18 +169,18 @@ class SiteForm(Vertical):
     """
 
     def compose(self) -> ComposeResult:
-        yield Label("Add site (stardust site-add)")
+        yield Label("Create Site")
         yield Input(placeholder="Platform", id="form-plat")
         yield Input(placeholder="Site Name", id="form-prod")
-        yield Input(placeholder="Host (optional)", id="form-host")
+        yield Input(placeholder="Host (optional, defaults to SiteName.devel)", id="form-host")
         yield Button("Create Site", id="form-create", variant="success")
 
 
 class StardustApp(App[None]):
-    """Aegir-shaped Textual front-end for Stardust."""
+    """Eldir-shaped Textual front-end for Stardust."""
 
     TITLE = "Stardust"
-    SUB_TITLE = "CLI control plane"
+    SUB_TITLE = "aegir-style"
 
     CSS = """
     Screen {
@@ -209,9 +197,12 @@ class StardustApp(App[None]):
         height: 1fr;
         min-height: 6;
     }
-    #site-form {
+    #site-actions {
         height: auto;
-        dock: top;
+        margin: 1 0 0 0;
+    }
+    #site-actions Button {
+        margin-right: 1;
     }
     #status {
         dock: bottom;
@@ -231,6 +222,8 @@ class StardustApp(App[None]):
     ]
 
     status = reactive("ready")
+    selected_plat = reactive("")
+    selected_prod = reactive("")
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -238,8 +231,14 @@ class StardustApp(App[None]):
             with Vertical(id="main"):
                 with TabbedContent(id="tabs"):
                     with TabPane("Sites", id="tab-sites"):
-                        yield DataTable(id="sites-table", cursor_type="row", zebra_stripes=True)
                         yield SiteForm(id="site-form")
+                        yield DataTable(id="sites-table", cursor_type="row", zebra_stripes=True)
+                        with Horizontal(id="site-actions"):
+                            yield Button("Backup", id="act-backup")
+                            yield Button("Check", id="act-check")
+                            yield Button("Disable", id="act-disable")
+                            yield Button("Enable", id="act-enable")
+                            yield Button("Delete", id="act-delete", variant="error")
                     with TabPane("Platforms", id="tab-platforms"):
                         yield DataTable(id="platforms-table", cursor_type="row", zebra_stripes=True)
                     with TabPane("Output", id="tab-output"):
@@ -251,9 +250,9 @@ class StardustApp(App[None]):
 
     def on_mount(self) -> None:
         sites = self.query_one("#sites-table", DataTable)
-        sites.add_columns("Platform", "Site Name", "Branch", "Backup")
+        sites.add_columns("Site", "Platform", "Branch", "Backup")
         plats = self.query_one("#platforms-table", DataTable)
-        plats.add_columns("Platform", "Branch", "Site Names")
+        plats.add_columns("Platform", "Branch", "Sites")
         self.action_refresh()
 
     def watch_status(self, value: str) -> None:
@@ -264,7 +263,7 @@ class StardustApp(App[None]):
         self.run_worker(self._refresh_all, exclusive=True)
 
     def action_doctor(self) -> None:
-        self.run_worker(self._run_and_show("doctor"), exclusive=True)
+        self._start_cmd("doctor")
 
     def action_sites(self) -> None:
         self.query_one("#tabs", TabbedContent).active = "tab-sites"
@@ -273,40 +272,43 @@ class StardustApp(App[None]):
         self.query_one("#tabs", TabbedContent).active = "tab-platforms"
 
     async def _refresh_all(self) -> None:
-        # Queues
         _rc, log_out = await asyncio.to_thread(run_stardust, "log", "8")
         queues = self.query_one("#queues", Log)
         queues.clear()
         for line in log_out.splitlines()[-8:]:
-            queues.write(line)
+            queues.write(queue_mark(line))
 
-        # Sites from inventory
         _rc, inv = await asyncio.to_thread(run_stardust, "inventory")
         sites = self.query_one("#sites-table", DataTable)
         sites.clear()
         for row in parse_inventory(inv):
             sites.add_row(
-                row.get("platform", ""),
                 row.get("product", ""),
+                row.get("platform", ""),
                 row.get("branch", ""),
                 row.get("backup", ""),
             )
 
-        # Platforms from list
         _rc, lst = await asyncio.to_thread(run_stardust, "list")
         plats = self.query_one("#platforms-table", DataTable)
         plats.clear()
         for row in parse_platforms(lst):
             plats.add_row(row.get("name", ""), row.get("branch", ""), row.get("products", ""))
 
-        self.status = "ready  (q quit  r refresh  d doctor)"
+        self.status = "ready  (s sites  p platforms  d doctor  r refresh  q quit)"
+
+    def _start_cmd(self, *args: str) -> None:
+        self.status = f"starting: stardust {' '.join(args)}"
+        output = self.query_one("#output", Log)
+        output.clear()
+        output.write(f"$ stardust {' '.join(args)}")
+        self.query_one("#tabs", TabbedContent).active = "tab-output"
+        self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
 
     async def _run_and_show(self, *args: str) -> None:
         tabs = self.query_one("#tabs", TabbedContent)
         tabs.active = "tab-output"
         self.status = f"running: stardust {' '.join(args)}"
-        # Re-assert after the click handler returns so focus does not yank
-        # the user back to the Sites tab.
         await asyncio.sleep(0)
         tabs.active = "tab-output"
         rc = await stream_stardust(self, *args)
@@ -318,6 +320,21 @@ class StardustApp(App[None]):
             self.query_one("#form-prod", Input).value = ""
             self.query_one("#form-host", Input).value = ""
             self.action_refresh()
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        if event.data_table.id != "sites-table":
+            return
+        row = event.data_table.get_row(event.row_key)
+        # columns: Site, Platform, Branch, Backup
+        self.selected_prod = str(row[0])
+        self.selected_plat = str(row[1])
+        self.status = f"selected {self.selected_plat}/{self.selected_prod}"
+
+    def _act_on_selected(self, verb: str) -> None:
+        if not self.selected_plat or not self.selected_prod:
+            self.status = "select a site row first"
+            return
+        self._start_cmd(verb, self.selected_plat, self.selected_prod)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         bid = event.button.id or ""
@@ -341,14 +358,17 @@ class StardustApp(App[None]):
             args = ["site-add", plat, prod]
             if host:
                 args += ["--host", host]
-            # Immediate feedback — do not wait for the worker or the command.
-            self.status = f"starting: stardust {' '.join(args)}"
-            output = self.query_one("#output", Log)
-            output.clear()
-            output.write(f"$ stardust {' '.join(args)}\n")
-            output.write("(running — site-add can take a few minutes)\n")
-            self.query_one("#tabs", TabbedContent).active = "tab-output"
-            self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
+            self._start_cmd(*args)
+        elif bid == "act-backup":
+            self._act_on_selected("site-backup")
+        elif bid == "act-check":
+            self._act_on_selected("site-check")
+        elif bid == "act-disable":
+            self._act_on_selected("site-disable")
+        elif bid == "act-enable":
+            self._act_on_selected("site-enable")
+        elif bid == "act-delete":
+            self._act_on_selected("site-delete")
 
 
 def main() -> None:
