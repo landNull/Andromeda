@@ -1,15 +1,16 @@
 # shellcheck shell=sh
 
 write_gitignore() {
-  dest=$1
-  if [ -f "$dest" ]; then
+  # local name: dest is the platform path in the caller
+  target=$1
+  if [ -f "$target" ]; then
     return 0
   fi
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ write $dest"
+    echo "+ write $target"
     return 0
   fi
-  cat > "$dest" <<'EOF'
+  cat > "$target" <<'EOF'
 web/sites/*/settings.local.php
 files/
 files_private/
