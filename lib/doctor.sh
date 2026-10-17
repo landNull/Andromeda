@@ -160,4 +160,12 @@ cmd_doctor() {
   if [ -n "${LIBDIR:-}" ] && [ -f "$LIBDIR/common.sh" ]; then ok "lib $LIBDIR"; else bad "stardust-lib missing"; fail=1; fi
 
   phpbin=$(command -v php 2>/dev/null || true)
-  if [ -n "$phpbin" ]; then ok "php $phpbin"; else bad "
+  if [ -n "$phpbin" ]; then ok "php $phpbin"; else bad "php missing"; fail=1; fi
+
+  if [ "$fail" -ne 0 ]; then
+    echo "doctor: NOT READY"
+    return 1
+  fi
+  echo "doctor: READY"
+  return 0
+}
