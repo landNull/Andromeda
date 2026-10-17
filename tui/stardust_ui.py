@@ -205,6 +205,62 @@ class MigrateModal(ModalScreen[str | None]):
             self.dismiss(None)
 
 
+class DeleteConfirmModal(ModalScreen[bool]):
+    """First confirm: Yes or Cancel."""
+
+    DEFAULT_CSS = """
+    DeleteConfirmModal { align: center middle; }
+    DeleteConfirmModal Vertical {
+        width: 48; height: auto; padding: 1 2;
+        border: solid $error; background: $panel;
+    }
+    DeleteConfirmModal Button { margin: 0 0 1 0; }
+    """
+
+    def __init__(self, plat: str, prod: str) -> None:
+        super().__init__()
+        self.plat = plat
+        self.prod = prod
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label(f"Delete site {self.plat}/{self.prod}?")
+            yield Button("Yes", id="del-yes", variant="error")
+            yield Button("Cancel", id="del-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "del-yes")
+
+
+class DeleteTypeModal(ModalScreen[bool]):
+    """Second confirm: must type DELETE."""
+
+    DEFAULT_CSS = """
+    DeleteTypeModal { align: center middle; }
+    DeleteTypeModal Vertical {
+        width: 52; height: auto; padding: 1 2;
+        border: solid $error; background: $panel;
+    }
+    DeleteTypeModal Input { margin: 1 0; }
+    DeleteTypeModal Button { margin: 0 0 1 0; }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("Are you sure you want to delete?")
+            yield Label("Type DELETE in the field, then Confirm.")
+            yield Input(placeholder="DELETE", id="del-word")
+            yield Button("Confirm", id="del-confirm", variant="error")
+            yield Button("Cancel", id="del-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id != "del-confirm":
+            self.dismiss(False)
+            return
+        word = self.query_one("#del-word", Input).value.strip()
+        self.dismiss(word == "DELETE")
+
+
 class SiteForm(Vertical):
     """Create-site form. Maps to stardust site-add PLATFORM PRODUCT [--host]."""
 
@@ -520,7 +576,21 @@ class StardustApp(App[None]):
                 self._start_cmd("promote", self.selected_plat, "--to", target)
             self.push_screen(MigrateModal(), on_to)
         elif bid == "act-delete":
-            self._act_on_selected("site-delete")
+            if not self.selected_plat or not self.selected_prod:
+                self.status = "select a site row first"
+                return
+            plat, prod = self.selected_plat, self.selected_prod
+            def on_yes(yes: bool) -> None:
+                if not yes:
+                    self.status = "delete cancelled"
+                    return
+                def on_typed(ok: bool) -> None:
+                    if not ok:
+                        self.status = "delete cancelled (type DELETE to confirm)"
+                        return
+                    self._start_cmd("site-delete", plat, prod)
+                self.push_screen(DeleteTypeModal(), on_typed)
+            self.push_screen(DeleteConfirmModal(plat, prod), on_yes)
 
     def _queue_create(self, plat: str, prod: str, host: str) -> None:
         self.status = f"queued: {plat}/{prod}"
