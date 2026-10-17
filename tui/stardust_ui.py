@@ -170,7 +170,39 @@ class SudoModal(ModalScreen[str | None]):
         self.dismiss(event.value)
 
 
-class SiteForm(Vertical):
+class MigrateModal(ModalScreen[str | None]):
+    """Pick promote target. devel -> test, or test -> live."""
+
+    DEFAULT_CSS = """
+    MigrateModal {
+        align: center middle;
+    }
+    MigrateModal Vertical {
+        width: 40;
+        height: auto;
+        padding: 1 2;
+        border: solid $primary;
+        background: $panel;
+    }
+    MigrateModal Button {
+        margin: 0 0 1 0;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Label("Migrate platform")
+            yield Button("devel → test", id="mig-test", variant="primary")
+            yield Button("test → live", id="mig-live", variant="warning")
+            yield Button("Cancel", id="mig-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "mig-test":
+            self.dismiss("test")
+        elif event.button.id == "mig-live":
+            self.dismiss("live")
+        else:
+            self.dismiss(None)
     """Create-site form. Maps to stardust site-add PLATFORM PRODUCT [--host]."""
 
     DEFAULT_CSS = """
@@ -283,6 +315,7 @@ class StardustApp(App[None]):
                             yield Button("Check", id="act-check")
                             yield Button("Disable", id="act-disable")
                             yield Button("Enable", id="act-enable")
+                            yield Button("Migrate", id="act-migrate", variant="warning")
                             yield Button("Delete", id="act-delete", variant="error")
                     with TabPane("Platforms", id="tab-platforms"):
                         yield DataTable(id="platforms-table", cursor_type="row", zebra_stripes=True)
@@ -419,13 +452,16 @@ class StardustApp(App[None]):
         tabs.active = "tab-output"
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        if event.data_table.id != "sites-table":
-            return
-        row = event.data_table.get_row(event.row_key)
-        # columns: Site, Platform, Branch, Backup
-        self.selected_prod = str(row[0])
-        self.selected_plat = str(row[1])
-        self.status = f"selected {self.selected_plat}/{self.selected_prod}"
+        if event.data_table.id == "sites-table":
+            row = event.data_table.get_row(event.row_key)
+            self.selected_prod = str(row[0])
+            self.selected_plat = str(row[1])
+            self.status = f"selected {self.selected_plat}/{self.selected_prod}"
+        elif event.data_table.id == "platforms-table":
+            row = event.data_table.get_row(event.row_key)
+            self.selected_plat = str(row[0])
+            self.selected_prod = ""
+            self.status = f"selected platform {self.selected_plat}"
 
     def _act_on_selected(self, verb: str) -> None:
         if not self.selected_plat or not self.selected_prod:
@@ -470,6 +506,16 @@ class StardustApp(App[None]):
             self._act_on_selected("site-disable")
         elif bid == "act-enable":
             self._act_on_selected("site-enable")
+        elif bid == "act-migrate":
+            if not self.selected_plat:
+                self.status = "select a site or platform row first"
+                return
+            def on_to(target: str | None) -> None:
+                if not target:
+                    self.status = "migrate cancelled"
+                    return
+                self._start_cmd("promote", self.selected_plat, "--to", target)
+            self.push_screen(MigrateModal(), on_to)
         elif bid == "act-delete":
             self._act_on_selected("site-delete")
 
