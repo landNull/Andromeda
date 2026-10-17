@@ -394,7 +394,8 @@ class StardustApp(App[None]):
 
     def on_mount(self) -> None:
         sites = self.query_one("#sites-table", DataTable)
-        sites.add_columns("", "Site", "Platform", "Branch", "Backup")
+        sites.add_column("Sel", width=5)
+        sites.add_columns("Site", "Platform", "Branch", "Backup")
         plats = self.query_one("#platforms-table", DataTable)
         plats.add_columns("Platform", "Branch", "Sites")
         self.action_refresh()
@@ -422,7 +423,7 @@ class StardustApp(App[None]):
         self.checked.clear()
         for row in parse_inventory(inv):
             sites.add_row(
-                Text(" [ ] ", style="dim"),
+                "[ ]",
                 row.get("product", ""),
                 row.get("platform", ""),
                 row.get("branch", ""),
@@ -520,23 +521,21 @@ class StardustApp(App[None]):
         self.status = f"done (exit {rc})"
         tabs.active = "tab-output"
 
-    def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         if event.data_table.id != "sites-table":
             return
-        if event.coordinate.column != 0:
-            return
         table = event.data_table
-        row = table.get_row_at(event.coordinate.row)
+        row = table.get_row(event.row_key)
         prod, plat = str(row[1]), str(row[2])
         key = (plat, prod)
         if key in self.checked:
             self.checked.discard(key)
-            mark = Text(" [ ] ", style="dim")
+            mark = "[ ]"
         else:
             self.checked.add(key)
-            mark = Text(" [X] ", style="bold green")
-        table.update_cell_at(event.coordinate, mark)
-        self.status = f"checked {len(self.checked)}"
+            mark = "[X]"
+        table.update_cell(event.row_key, table.ordered_columns[0].key, mark)
+        self.status = f"checked {len(self.checked)}: {plat}/{prod}"
 
     def on_select_changed(self, event: Select.Changed) -> None:
         if event.select.id != "site-actions" or event.value is Select.BLANK:
