@@ -11,3 +11,6 @@ sites/*/settings*.php
 sites/*/files
 sites/*/private
 .aider*
+
+# CaptainRocket runtime state. Tool contract is contrib/captainrocket/.
+.captainrocket/
