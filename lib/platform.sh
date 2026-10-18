@@ -75,8 +75,9 @@ cmd_platform_add() {
     if [ "$DRYRUN" -eq 1 ]; then
       echo "+ cd $dest && $bee dl-core web"
     else
-      # dl-core creates the dest relative to cwd, not --root
-      as_root -u "$OWNER" sh -c "cd '$dest' && exec '$bee' dl-core web"
+      # dl-core creates the dest relative to cwd, not --root.
+      # Do not use sh -c: sudoers allows /usr/local/bin/bee, not /bin/sh.
+      ( cd "$dest" && as_root -u "$OWNER" "$bee" dl-core web )
     fi
   fi
 
