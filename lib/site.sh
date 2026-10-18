@@ -1,5 +1,23 @@
 # shellcheck shell=sh
 
+platform_has_other_site() {
+  # platform_has_other_site WEB SKIP_PRODUCT
+  # Bee install requires backdrop_installed=FALSE, so a second site cannot
+  # use `bee install`. Detect an already-installed sibling.
+  web=$1
+  skip=$2
+  [ -d "$web/sites" ] || return 1
+  for s in "$web/sites"/*; do
+    [ -d "$s" ] || continue
+    base=${s##*/}
+    case $base in default|all|"$skip") continue ;; esac
+    if [ -f "$s/.stardust-installed" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 ensure_settings_php() {
   root=$1
   product=$2
@@ -216,13 +234,34 @@ cmd_site_add() {
     echo "+ $bee --root=$web --site=$product install --db-name=$db --db-user=$user --auto"
   else
     if [ -f "$web/sites/$product/.stardust-installed" ]; then
-      echo "bee install already marked for $product — skip"
+      echo "install already marked for $product — skip"
+    elif platform_has_other_site "$web" "$product"; then
+      # Bee install refuses once any site on this root is installed.
+      echo "platform already has a site — Bee install would refuse"
+      echo "running core/scripts/install.sh --url=$host"
+      phpbin=$(command -v php || true)
+      [ -n "$phpbin" ] || phpbin=php
+      as_root -u "$OWNER" "$phpbin" "$web/core/scripts/install.sh" \
+        --url="$host" \
+        --db-url="mysql://${user}:${pass}@localhost/${db}" \
+        --site-name="$title" \
+        --account-name=admin \
+        --account-pass="$pass" \
+        --account-mail="admin@${host}" \
+        --site-mail="admin@${host}" || {
+        echo "$PROG: install.sh failed for $product" >&2
+        return 1
+      }
+      as_root touch "$web/sites/$product/.stardust-installed"
+      run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
     else
-      # Bee refuses install if config/active is not empty
       run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" "$bee" --root="$web" --site="$product" install \
         --db-name="$db" --db-user="$user" --db-pass="$pass" \
-        --site-name="$title" --auto || true
+        --site-name="$title" --auto || {
+        echo "$PROG: bee install failed for $product" >&2
+        return 1
+      }
       as_root touch "$web/sites/$product/.stardust-installed"
       run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
     fi

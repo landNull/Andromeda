@@ -603,7 +603,7 @@ class StardustApp(App[None]):
             emit(self, f"✓ platform {plat} created")
         else:
             emit(self, f"✓ platform {plat} already exists")
-            emit(self, "  another site on this platform is allowed")
+            emit(self, "  another site is allowed — Bee install is skipped, install.sh is used")
         set_progress(self, 1, 3, "platform ready")
 
         if not platform_exists(plat):
