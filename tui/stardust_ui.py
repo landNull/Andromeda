@@ -85,11 +85,15 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
             *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
+            stdin=asyncio.subprocess.DEVNULL,
+            start_new_session=True,
             env=env,
         )
     except FileNotFoundError:
         log.write(f"{STARDUST_BIN} not found on PATH")
         return 127
+    ui_log(f"stream pid={proc.pid} bin={STARDUST_BIN}")
+    log.write(f"(pid {proc.pid})")
     assert proc.stdout is not None
     while True:
         line = await proc.stdout.readline()

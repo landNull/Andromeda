@@ -219,9 +219,9 @@ dispatch() {
         return 1
       fi
       if command -v uv >/dev/null 2>&1; then
-        exec uv run --with textual "$TUI" "$@"
+        STARDUST_BIN=$HERE/stardust exec uv run --with textual "$TUI" "$@"
       else
-        exec python3 "$TUI" "$@"
+        STARDUST_BIN=$HERE/stardust exec python3 "$TUI" "$@"
       fi
       ;;
     backup-all) cmd_backup_all ;;
