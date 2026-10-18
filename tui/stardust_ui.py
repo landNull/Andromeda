@@ -603,6 +603,7 @@ class StardustApp(App[None]):
             emit(self, f"✓ platform {plat} created")
         else:
             emit(self, f"✓ platform {plat} already exists")
+            emit(self, "  another site on this platform is allowed")
         set_progress(self, 1, 3, "platform ready")
 
         if not platform_exists(plat):
@@ -611,19 +612,11 @@ class StardustApp(App[None]):
             self.status = "✗ queue stopped: platform not ready"
             return
 
-        stop = asyncio.Event()
-        self.run_worker(spin(self, "2/3 health check", stop), exclusive=False)
+        # Doctor is host-wide and does not decide whether a site may be added.
+        # Skip it when the platform is already here so site-add actually runs.
         emit(self, "")
-        emit(self, "[2/3] health check (advisory — does not block)")
-        emit(self, "  running: stardust doctor")
-        self.status = "2/3 doctor"
-        rc = await stream_stardust(self, "doctor")
-        stop.set()
-        if rc == 0:
-            emit(self, "✓ doctor READY — host can take the site")
-        else:
-            emit(self, f"⚠ doctor NOT READY (exit {rc}) — continuing")
-        set_progress(self, 2, 3, "doctor done")
+        emit(self, "[2/3] health check skipped — platform is already on this host")
+        set_progress(self, 2, 3, "ready for site-add")
 
         site_args = ["site-add", plat, prod]
         if host:
