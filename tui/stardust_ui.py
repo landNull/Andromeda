@@ -155,20 +155,20 @@ def platform_exists(name: str) -> bool:
 
 
 def out(log: Log, text: str) -> None:
-    """Write each message on its own line, colored by result."""
+    """One line each. OK green, WARNING yellow, FAILURE red."""
     for part in re.split(r"[\r\n]+", text):
         if not part:
             continue
         low = part.lower()
         if any(w in low for w in ("fail", "error", "refused", "not ready", "exit 1", "exit 2")):
-            style = "bold red"
+            line = Text.assemble(("FAILURE ", "bold red"), (part, "red"))
         elif any(w in low for w in ("warn", "warning", "advisory")):
-            style = "bold yellow"
-        elif any(w in low for w in (" ok", "ok ", "ready", "success", "exit 0", "✔", "deleted")):
-            style = "bold green"
+            line = Text.assemble(("WARNING ", "bold yellow"), (part, "yellow"))
+        elif any(w in low for w in (" ok", "ok ", "ready", "success", "exit 0", "✔", "deleted", "exists")):
+            line = Text.assemble(("OK ", "bold green"), (part, "green"))
         else:
-            style = ""
-        log.write_line(Text(part, style=style) if style else part)
+            line = part
+        log.write_line(line)
 
 
 class SudoModal(ModalScreen[str | None]):
@@ -509,9 +509,10 @@ class StardustApp(App[None]):
         out(log, "  2. health check")
         out(log, "  3. create site")
         out(log, "")
+        out(log, "step 1: checking platform")
 
-        if not platform_exists(plat):
-            out(log, f"--- step 1: stardust platform-add {plat}")
+        if not await asyncio.to_thread(platform_exists, plat):
+            out(log, f"step 1: stardust platform-add {plat}")
             self.status = f"queue 1/3: platform-add {plat}"
             rc = await stream_stardust(self, "platform-add", plat)
             out(log, f"(platform-add exit {rc})")
@@ -520,9 +521,9 @@ class StardustApp(App[None]):
                 tabs.active = "tab-output"
                 return
         else:
-            out(log, f"--- step 1: platform {plat} already exists")
+            out(log, f"step 1: platform {plat} already exists")
 
-        if not platform_exists(plat):
+        if not await asyncio.to_thread(platform_exists, plat):
             out(log, f"queue stopped: platform {plat} still missing — site-add would fail")
             self.status = "queue stopped: platform not ready"
             tabs.active = "tab-output"
