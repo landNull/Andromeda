@@ -1,0 +1,17 @@
+# Spoken phrase -> module. Used by --intent and the Capcom skill.
+# The runner also matches substrings in resolve_intent().
+daily: run the daily tests
+daily: run daily
+daily: webadmin day
+platform: check the platform
+platform: run platform tests
+site: check the site
+site: run site tests
+security: check security
+security: run security tests
+diagnose: diagnose the stack
+diagnose: run diagnose
+lint: lint the scripts
+heal: heal the scripts
+all: run all the tests
+all: run everything
