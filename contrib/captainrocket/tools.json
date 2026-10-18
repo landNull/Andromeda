@@ -1,0 +1,35 @@
+{
+  "schema": "captainrocket.tools/v1",
+  "repo": "github.com/landNull/Stardust",
+  "cwd": "{repo}",
+  "tools": [
+    {
+      "name": "stardust-tests",
+      "summary": "Run Stardust test modules the way a webadmin does.",
+      "argv": ["./tests/run-test.sh", "--json", "--speak"],
+      "intents": [
+        "run the daily tests",
+        "run all the tests",
+        "diagnose the stack",
+        "check the platform",
+        "check the site",
+        "check security"
+      ],
+      "speak_prefix": "SPEAK:",
+      "json_line": true,
+      "exit": { "0": "pass", "1": "fail", "2": "usage" }
+    },
+    {
+      "name": "stardust-daily",
+      "summary": "One day of webadmin work: doctor, site-add, check, backup, restore, clone.",
+      "argv": ["./tests/run-test.sh", "--json", "--speak", "-n", "daily"],
+      "intents": ["run the daily tests", "webadmin day"]
+    },
+    {
+      "name": "stardust-diagnose",
+      "summary": "Host groups, deploy user, platforms dir, CLI present.",
+      "argv": ["./tests/run-test.sh", "--json", "--speak", "--diagnose"],
+      "intents": ["diagnose the stack", "check the host"]
+    }
+  ]
+}

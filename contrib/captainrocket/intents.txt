@@ -1,0 +1,12 @@
+# Phrase -> runner flags. Same map as tests/intents.txt.
+run the daily tests: --json --speak -n daily
+webadmin day: --json --speak -n daily
+run all the tests: --json --speak --all
+run everything: --json --speak --all
+diagnose the stack: --json --speak --diagnose
+check the host: --json --speak --diagnose
+check the platform: --json --speak -n platform
+check the site: --json --speak -n site
+check security: --json --speak -n security
+lint the scripts: --json --speak --lint
+heal the scripts: --json --speak --heal
