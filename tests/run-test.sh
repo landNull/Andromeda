@@ -6,10 +6,11 @@
 #   ./tests/run-test.sh                 # prompt, then --all
 #   ./tests/run-test.sh --all
 #   ./tests/run-test.sh -n platform
-#   ./tests/run-test.sh -n site
+#   ./tests/run-test.sh -n daily
 #   ./tests/run-test.sh --diagnose
 #   ./tests/run-test.sh --lint
-#   ./tests/run-test.sh --heal
+#   ./tests/run-test.sh --json --speak -n daily
+#   ./tests/run-test.sh --intent "run the daily tests"
 
 set -u
 
@@ -29,11 +30,15 @@ RUN_ALL=0
 RUN_PLATFORM=0
 RUN_SITE=0
 RUN_SECURITY=0
+RUN_DAILY=0
 RUN_DIAGNOSE=0
 RUN_LINT=0
 RUN_HEAL=0
+RUN_JSON=0
+RUN_SPEAK=0
 DRYRUN=0
 MODULE=""
+INTENT=""
 
 # Defaults — overridden by prompt or flags
 PLATFORM_NAME="${PLATFORM_NAME:-smoke}"
@@ -48,11 +53,14 @@ Interactive Stardust test runner. Prompts for values when needed.
 
 Options:
   --all              Prompt, then run all modules
-  -n, --module NAME  Run one module: platform, site, security
+  -n, --module NAME  Run one module: platform, site, security, daily
   --diagnose         Stack checks only
   --lint             posaxe syntax and pattern checks
   --heal             posaxe safe fixes, then check
   --dry-run          Preview module runs
+  --json             One JSON object per step (Capcom / LLM)
+  --speak            One SPEAK: line for a voice assistant
+  --intent PHRASE    Map a spoken phrase to a module
   -h, --help         This help
 
 Environment overrides (skip prompt if set):
@@ -75,7 +83,10 @@ prompt() {
 }
 
 need_prompts() {
-    [ "$RUN_ALL" -eq 1 ] || [ "$RUN_PLATFORM" -eq 1 ] || [ "$RUN_SITE" -eq 1 ]
+    [ "$RUN_JSON" -eq 1 ] && return 1
+    [ "$RUN_SPEAK" -eq 1 ] && return 1
+    [ -t 0 ] || return 1
+    [ "$RUN_ALL" -eq 1 ] || [ "$RUN_PLATFORM" -eq 1 ] || [ "$RUN_SITE" -eq 1 ] || [ "$RUN_DAILY" -eq 1 ]
 }
 
 while [[ $# -gt 0 ]]; do
@@ -88,22 +99,59 @@ while [[ $# -gt 0 ]]; do
         --platform) RUN_PLATFORM=1; shift ;;
         --site) RUN_SITE=1; shift ;;
         --security) RUN_SECURITY=1; shift ;;
+        --daily) RUN_DAILY=1; shift ;;
         --dry-run) DRYRUN=1; shift ;;
+        --json) RUN_JSON=1; shift ;;
+        --speak) RUN_SPEAK=1; shift ;;
+        --intent) INTENT="$2"; shift 2 ;;
         -h|--help) usage; exit 0 ;;
         *) echo "$PROG: unknown argument $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
+resolve_intent() {
+    # maps a spoken phrase to a module. See tests/intents.txt.
+    local p
+    p=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+    case "$p" in
+        *daily*|*webadmin*|*web\ admin*) echo daily ;;
+        *platform*) echo platform ;;
+        *site*|*lifecycle*) echo site ;;
+        *security*|*contract*) echo security ;;
+        *diagnos*|*stack*) echo diagnose ;;
+        *lint*|*posaxe*) echo lint ;;
+        *heal*) echo heal ;;
+        *all*|*everything*) echo all ;;
+        *) echo "" ;;
+    esac
+}
+
+if [ -n "$INTENT" ]; then
+    resolved=$(resolve_intent "$INTENT")
+    case "$resolved" in
+        daily) RUN_DAILY=1 ;;
+        platform) RUN_PLATFORM=1 ;;
+        site) RUN_SITE=1 ;;
+        security) RUN_SECURITY=1 ;;
+        diagnose) RUN_DIAGNOSE=1 ;;
+        lint) RUN_LINT=1 ;;
+        heal) RUN_HEAL=1 ;;
+        all) RUN_ALL=1 ;;
+        *) echo "$PROG: no module for intent: $INTENT" >&2; exit 2 ;;
+    esac
+fi
+
 case "$MODULE" in
     platform) RUN_PLATFORM=1 ;;
     site) RUN_SITE=1 ;;
     security) RUN_SECURITY=1 ;;
+    daily) RUN_DAILY=1 ;;
     "") ;;
     *) echo "$PROG: unknown module $MODULE" >&2; exit 2 ;;
 esac
 
 if [ $RUN_ALL -eq 0 ] && [ $RUN_PLATFORM -eq 0 ] && [ $RUN_SITE -eq 0 ] && \
-   [ $RUN_SECURITY -eq 0 ] && [ $RUN_DIAGNOSE -eq 0 ] && \
+   [ $RUN_SECURITY -eq 0 ] && [ $RUN_DAILY -eq 0 ] && [ $RUN_DIAGNOSE -eq 0 ] && \
    [ $RUN_LINT -eq 0 ] && [ $RUN_HEAL -eq 0 ]; then
     RUN_ALL=1
 fi
@@ -150,6 +198,17 @@ fi
 
 FAILED=0
 PASSED=0
+
+emit_json() {
+    # emit_json module status what
+    [ "$RUN_JSON" -eq 1 ] || return 0
+    printf '{"module":"%s","status":"%s","what":"%s"}\n' "$1" "$2" "$3"
+}
+
+emit_speak() {
+    [ "$RUN_SPEAK" -eq 1 ] || return 0
+    printf 'SPEAK: %s\n' "$1"
+}
 
 error_block() {
     echo ""
@@ -267,11 +326,13 @@ run_module() {
     echo "INFO PLATFORM=$PLATFORM_NAME DOMAIN=$DOMAIN SITE=$SITE_NAME ENV=$ENV_NAME"
     if [ "$DRYRUN" -eq 1 ]; then
         echo "DRY-RUN would run: bash $mod_path"
+        emit_json "$mod_name" "dry-run" "would run $mod_path"
         PASSED=$((PASSED + 1))
         return 0
     fi
     if PLATFORM_NAME="$PLATFORM_NAME" DOMAIN="$DOMAIN" SITE_NAME="$SITE_NAME" ENV_NAME="$ENV_NAME" bash "$mod_path"; then
         echo "PASS MODULE=$mod_name"
+        emit_json "$mod_name" "pass" "module completed"
         PASSED=$((PASSED + 1))
     else
         echo ""
@@ -284,6 +345,7 @@ run_module() {
         echo ""
         echo "INFO re-running posaxe after module failure"
         run_posaxe check
+        emit_json "$mod_name" "fail" "module exited non-zero"
         FAILED=$((FAILED + 1))
     fi
 }
@@ -292,10 +354,12 @@ if [ "$RUN_ALL" -eq 1 ]; then
     run_module "${SCRIPT_DIR}/security_tests/00_permissions_and_contracts.sh" "Security and contracts"
     run_module "${SCRIPT_DIR}/platform_tests/00_platform_lifecycle.sh" "Platform lifecycle"
     run_module "${SCRIPT_DIR}/site_tests/00_site_lifecycle.sh" "Site lifecycle"
+    run_module "${SCRIPT_DIR}/daily_tests/00_daily_webadmin.sh" "Daily webadmin"
 else
     [ "$RUN_SECURITY" -eq 1 ] && run_module "${SCRIPT_DIR}/security_tests/00_permissions_and_contracts.sh" "Security and contracts"
     [ "$RUN_PLATFORM" -eq 1 ] && run_module "${SCRIPT_DIR}/platform_tests/00_platform_lifecycle.sh" "Platform lifecycle"
     [ "$RUN_SITE" -eq 1 ] && run_module "${SCRIPT_DIR}/site_tests/00_site_lifecycle.sh" "Site lifecycle"
+    [ "$RUN_DAILY" -eq 1 ] && run_module "${SCRIPT_DIR}/daily_tests/00_daily_webadmin.sh" "Daily webadmin"
 fi
 
 echo ""
@@ -305,4 +369,10 @@ echo " Passed: $PASSED"
 echo " Failed: $FAILED"
 echo " Log: $LOG_FILE"
 echo "=========================================================="
+emit_json "summary" "$([ "$FAILED" -eq 0 ] && echo pass || echo fail)" "passed=$PASSED failed=$FAILED"
+if [ "$FAILED" -eq 0 ]; then
+    emit_speak "Stardust tests passed. $PASSED checks, 0 failed."
+else
+    emit_speak "Stardust tests failed. $PASSED passed, $FAILED failed. See the log."
+fi
 [ "$FAILED" -eq 0 ] && exit 0 || exit 1
