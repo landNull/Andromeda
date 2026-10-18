@@ -34,7 +34,7 @@ die_door() {
 load_conf() {
   HOST=""
   PORT=""
-  TIMEOUT="3"
+  TIMEOUT="5"
   for f in \
     "${CAPCOM_CONF:-}" \
     "$CONF_FILE" \
@@ -101,8 +101,8 @@ load_conf
 # Name first. starhq.knarr only resolves on the knarr LAN via dnsmasq.
 resolves "$HOST" || die_lan
 
-# Door second. A closed port is not "off the LAN."
-port_open "$HOST" "$PORT" || die_door
+# No port probe. The door is single-threaded; a probe connection blocks
+# the real request and curl times out. curl itself is the open check.
 
 save_conf
 
