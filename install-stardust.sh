@@ -682,6 +682,11 @@ ship_tools() {
   install_tool "$BINDIR/stardust" /usr/local/bin/stardust 0755
   install_tool "$BINDIR/stardust-priv" /usr/local/sbin/stardust-priv 0750
   install_tool "$BINDIR/stardust-menu" /usr/local/bin/stardust-menu 0755
+  if [ -f "$HERE/tui/stardust_ui.py" ]; then
+    run_root mkdir -p /usr/local/share/stardust/tui
+    run_root install -m 0644 "$HERE/tui/stardust_ui.py" /usr/local/share/stardust/tui/stardust_ui.py
+    echo "installed Textual UI"
+  fi
   if [ -x "$TUIDIR/stardust-tui" ]; then
     install_tool "$TUIDIR/stardust-tui" /usr/local/bin/stardust-tui 0755
   elif [ -d "$TUIDIR" ] && [ -f "$TUIDIR/main.go" ] && command -v go >/dev/null 2>&1; then

@@ -201,13 +201,23 @@ dispatch() {
     site-delete) cmd_site_delete "$@" ;;
     inventory) cmd_inventory ;;
     ui)
-      # Textual front-end; replaces the old Go Bubble Tea TUI
-      TUI="$HERE/../tui/stardust_ui.py"
-      if [ ! -f "$TUI" ]; then
-        echo "$PROG: missing $TUI" >&2
+      # Textual front-end. Repo layout is ../tui; installed copy is under share.
+      TUI=""
+      for cand in \
+        "$HERE/../tui/stardust_ui.py" \
+        /usr/local/share/stardust/tui/stardust_ui.py \
+        /usr/local/lib/stardust/tui/stardust_ui.py
+      do
+        if [ -f "$cand" ]; then
+          TUI=$cand
+          break
+        fi
+      done
+      if [ -z "$TUI" ]; then
+        echo "$PROG: missing Textual UI (tui/stardust_ui.py)" >&2
+        echo "$PROG: run from the repo: $HERE/stardust ui" >&2
         return 1
       fi
-      # Prefer uv when available (no pre-install needed); else plain python3
       if command -v uv >/dev/null 2>&1; then
         exec uv run --with textual "$TUI" "$@"
       else
