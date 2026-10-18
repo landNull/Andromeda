@@ -166,6 +166,8 @@ if ! in_group www-admin || ! in_group stardust; then
     echo "WHAT: Current user is missing group www-admin or stardust."
     echo "WHY: Mutating Stardust commands require both groups. A sudo shell would create root-owned files and break Bee."
     echo "FIX: sudo usermod -aG www-admin,stardust \$USER ; then log out and log back in. Do not run this script under sudo."
+    printf '%s\n' '{"module":"host","status":"fail","what":"missing www-admin or stardust"}'
+    printf 'SPEAK: Cannot run. You are not in www-admin and stardust. Log out and back in after usermod.\n'
     exit 1
 fi
 
@@ -311,6 +313,12 @@ if [ "$RUN_DIAGNOSE" -eq 1 ]; then
     echo "Diagnosis only."
     echo "Passed: $PASSED  Failed: $FAILED"
     echo "Log: $LOG_FILE"
+    emit_json "diagnose" "$([ "$FAILED" -eq 0 ] && echo pass || echo fail)" "passed=$PASSED failed=$FAILED"
+    if [ "$FAILED" -eq 0 ]; then
+        emit_speak "Diagnosis passed. $PASSED checks, 0 failed."
+    else
+        emit_speak "Diagnosis failed. $PASSED passed, $FAILED failed."
+    fi
     [ "$FAILED" -eq 0 ] && exit 0 || exit 1
 fi
 
