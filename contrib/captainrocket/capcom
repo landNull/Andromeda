@@ -114,7 +114,8 @@ device=$(uname -n 2>/dev/null || echo unknown)
 body=$(printf '{"text":"%s","project":"%s","device":"%s"}\n' "$phrase" "$root" "$device")
 
 if command -v curl >/dev/null 2>&1; then
-  curl -fsS --max-time "$TIMEOUT" \
+  # -4: Termux curl prefers IPv6 and times out. The door is IPv4.
+  curl -4 -fsS --max-time "$TIMEOUT" \
     -H 'Content-Type: application/json' \
     -d "$body" \
     "http://$HOST:$PORT/speak" || die_door
