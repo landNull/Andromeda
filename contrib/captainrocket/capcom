@@ -52,6 +52,10 @@ load_conf() {
 
 resolves() {
   # dnsmasq on knarr answers for starhq.knarr. Off the LAN it does not.
+  # python3 first: Termux has no getent.
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import socket,sys; socket.gethostbyname(sys.argv[1])' "$1" >/dev/null 2>&1 && return 0
+  fi
   if command -v getent >/dev/null 2>&1; then
     getent hosts "$1" >/dev/null 2>&1 && return 0
   fi
