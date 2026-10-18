@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import subprocess
 import traceback
 from datetime import datetime, timezone
 
 UI_LOG = os.environ.get("STARDUST_UI_LOG", "/tmp/stardust-ui.log")
+ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
 def ui_log(msg: str) -> None:
@@ -104,7 +106,7 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
             continue
         if not line:
             break
-        text = line.decode(errors="replace").rstrip("\n")
+        text = ANSI.sub("", line.decode(errors="replace")).rstrip("\n")
         ui_log(f"stream: {text}")
         log.write(text)
     return await proc.wait()
