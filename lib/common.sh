@@ -412,9 +412,19 @@ ok() { printf '  ok    %s\n' "$1"; }
 bad() { printf '  FAIL  %s\n' "$1"; }
 note() { printf '  note  %s\n' "$1"; }
 
-# Root only when needed. Prefer sudo -n (NOPASSWD). Password prompt
-# only if no silent path exists.
+# Root only when needed. Prefer sudo -n (NOPASSWD).
+# Capcom mode (STARDUST_SPEAK or STARDUST_JSON) never prompts.
+# deploy is a system account: never authenticate as deploy.
 as_root() {
+  capcom=0
+  if [ -n "${STARDUST_SPEAK:-}" ] || [ -n "${STARDUST_JSON:-}" ]; then
+    capcom=1
+  fi
+  refuse() {
+    printf 'SPEAK: sudo needs a password. Capcom cannot type one. Add NOPASSWD for stardust-priv bee git crdir.\n' >&2
+    printf '%s\n' '{"module":"sudo","status":"fail","what":"NOPASSWD missing"}' >&2
+    return 1
+  }
   if [ "$(id -u)" -eq 0 ]; then
     "$@"
     return $?
@@ -430,6 +440,10 @@ as_root() {
       sudo -n -u "$tgt" "$@"
       return $?
     fi
+    if [ "$capcom" -eq 1 ]; then
+      refuse
+      return 1
+    fi
     if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
       echo "sudo -A -u $tgt $*" >&2
       SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A -u "$tgt" "$@"
@@ -441,6 +455,10 @@ as_root() {
   if have sudo && sudo -n true >/dev/null 2>&1; then
     sudo -n "$@"
     return $?
+  fi
+  if [ "$capcom" -eq 1 ]; then
+    refuse
+    return 1
   fi
   if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
     echo "sudo -A (askpass) $*" >&2

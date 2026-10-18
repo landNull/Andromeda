@@ -70,6 +70,9 @@ fi
 
 # Filter to JSON lines and the SPEAK line so Capcom does not see the human log.
 # Capture the runner exit, not awk's.
+# Capcom mode: as_root must not prompt.
+export STARDUST_SPEAK=1
+export STARDUST_JSON=1
 cd "$REPO"
 tmp=$(mktemp)
 set +e
