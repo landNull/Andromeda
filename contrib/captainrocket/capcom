@@ -73,8 +73,8 @@ phrase=$1
 root=$(project_root)
 device=$(uname -n 2>/dev/null || echo unknown)
 
-# One JSON line in, one SPEAK line and JSON lines out.
-body=$(printf '{"phrase":"%s","project":"%s","device":"%s"}\n' "$phrase" "$root" "$device")
+# Door expects {"text": "..."}. See CaptainRocket modules/door.py.
+body=$(printf '{"text":"%s","project":"%s","device":"%s"}\n' "$phrase" "$root" "$device")
 
 if command -v curl >/dev/null 2>&1; then
   curl -fsS --max-time "$TIMEOUT" \

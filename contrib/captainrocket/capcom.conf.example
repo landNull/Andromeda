@@ -1,5 +1,5 @@
 # Capcom on the knarr LAN. Copy to $HOME/.config/stardust/capcom.conf
 # and set the real address. Do not commit a real IP.
 CAPCOM_HOST=starhq.knarr
-CAPCOM_PORT=8765
+CAPCOM_PORT=8000
 CAPCOM_TIMEOUT=3
