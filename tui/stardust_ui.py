@@ -160,11 +160,11 @@ def out(log: Log, text: str) -> None:
         if not part:
             continue
         low = part.lower()
-        if any(w in low for w in ("fail", "error", "refused", "not ready", "exit 1", "exit 2")):
+        if part.startswith("✗") or any(w in low for w in ("fail", "error", "refused", "not ready", "exit 1", "exit 2")):
             line = Text.assemble(("FAILURE ", "bold red"), (part, "red"))
-        elif any(w in low for w in ("warn", "warning", "advisory")):
+        elif part.startswith("⚠") or any(w in low for w in ("warn", "warning", "advisory")):
             line = Text.assemble(("WARNING ", "bold yellow"), (part, "yellow"))
-        elif any(w in low for w in (" ok", "ok ", "ready", "success", "exit 0", "✔", "deleted", "exists")):
+        elif part.startswith("✓") or any(w in low for w in (" ok", "ok ", "ready", "success", "exit 0", "deleted", "exists")):
             line = Text.assemble(("OK ", "bold green"), (part, "green"))
         else:
             line = part
@@ -177,6 +177,27 @@ def emit(app: "StardustApp", text: str) -> None:
     if isinstance(screen, LogModal):
         out(screen.query_one("#modal-log", Log), text)
     out(app.query_one("#output", Log), text)
+
+
+def set_progress(app: "StardustApp", done: int, total: int, label: str) -> None:
+    """Progress bar in the log modal, if it is open."""
+    width = 20
+    filled = int(width * done / total) if total else 0
+    bar = "#" * filled + "-" * (width - filled)
+    text = f"[{bar}] {done}/{total} {label}"
+    screen = app.screen
+    if isinstance(screen, LogModal):
+        screen.query_one("#log-progress", Static).update(text)
+
+
+async def spin(app: "StardustApp", label: str, stop: asyncio.Event) -> None:
+    """Animate the status line until stop is set."""
+    frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+    i = 0
+    while not stop.is_set():
+        app.status = f"{frames[i % len(frames)]} {label}"
+        i += 1
+        await asyncio.sleep(0.12)
 
 
 class LogModal(ModalScreen[None]):
@@ -217,6 +238,7 @@ class LogModal(ModalScreen[None]):
             with Horizontal(id="log-head"):
                 yield Label(self.log_title)
                 yield Button("x", id="log-x", variant="error")
+            yield Static("[--------------------] 0/3 waiting", id="log-progress")
             yield Log(id="modal-log", highlight=True)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -557,52 +579,71 @@ class StardustApp(App[None]):
         log = self.query_one("#output", Log)
         tabs.active = "tab-output"
         log.clear()
-        emit(self, f"queue: create site {plat}/{prod}")
-        emit(self, "  1. ensure platform")
-        emit(self, "  2. health check")
-        emit(self, "  3. create site")
+        emit(self, f"create site {plat}/{prod}" + (f" host={host}" if host else ""))
+        emit(self, "a site cannot exist without a platform")
         emit(self, "")
-        emit(self, "step 1: checking platform")
+        set_progress(self, 0, 3, "starting")
 
-        if not await asyncio.to_thread(platform_exists, plat):
-            emit(self, f"step 1: stardust platform-add {plat}")
-            self.status = f"queue 1/3: platform-add {plat}"
+        stop = asyncio.Event()
+        self.run_worker(spin(self, f"1/3 checking platform {plat}", stop), exclusive=False)
+        emit(self, f"[1/3] ensure platform {plat}")
+        emit(self, "  running: stardust list")
+        exists = await asyncio.to_thread(platform_exists, plat)
+        stop.set()
+        if not exists:
+            emit(self, f"  platform {plat} is not on this host")
+            emit(self, f"  running: stardust platform-add {plat}")
+            self.status = f"1/3 platform-add {plat}"
             rc = await stream_stardust(self, "platform-add", plat)
-            emit(self, f"(platform-add exit {rc})")
             if rc != 0:
-                self.status = f"queue stopped: platform-add exit {rc}"
-                tabs.active = "tab-output"
+                emit(self, f"✗ platform-add failed (exit {rc})")
+                set_progress(self, 0, 3, "failed")
+                self.status = f"✗ queue stopped: platform-add exit {rc}"
                 return
+            emit(self, f"✓ platform {plat} created")
         else:
-            emit(self, f"step 1: platform {plat} already exists")
+            emit(self, f"✓ platform {plat} already exists")
+        set_progress(self, 1, 3, "platform ready")
 
         if not await asyncio.to_thread(platform_exists, plat):
-            emit(self, f"queue stopped: platform {plat} still missing — site-add would fail")
-            self.status = "queue stopped: platform not ready"
-            tabs.active = "tab-output"
+            emit(self, f"✗ platform {plat} still missing — site-add would fail")
+            set_progress(self, 1, 3, "failed")
+            self.status = "✗ queue stopped: platform not ready"
             return
 
-        emit(self, "--- step 2: stardust doctor (advisory)")
-        self.status = "queue 2/3: doctor"
+        stop = asyncio.Event()
+        self.run_worker(spin(self, "2/3 health check", stop), exclusive=False)
+        emit(self, "")
+        emit(self, "[2/3] health check (advisory — does not block)")
+        emit(self, "  running: stardust doctor")
+        self.status = "2/3 doctor"
         rc = await stream_stardust(self, "doctor")
+        stop.set()
         if rc == 0:
-            emit(self, "doctor: READY — host can take the site")
+            emit(self, "✓ doctor READY — host can take the site")
         else:
-            emit(self, 
-                f"doctor: NOT READY (exit {rc}) — shown above; "
-                "continuing because the platform exists. "
-                "Fix host issues separately if site-add fails."
-            )
-        emit(self, f"(doctor exit {rc})")
+            emit(self, f"⚠ doctor NOT READY (exit {rc}) — continuing")
+        set_progress(self, 2, 3, "doctor done")
 
         site_args = ["site-add", plat, prod]
         if host:
             site_args += ["--host", host]
-        emit(self, f"--- step 3: stardust {' '.join(site_args)}")
-        self.status = f"queue 3/3: site-add {plat}/{prod}"
+        stop = asyncio.Event()
+        self.run_worker(spin(self, f"3/3 site-add {plat}/{prod}", stop), exclusive=False)
+        emit(self, "")
+        emit(self, f"[3/3] create site {plat}/{prod}")
+        emit(self, f"  running: stardust {' '.join(site_args)}")
+        self.status = f"3/3 site-add {plat}/{prod}"
         rc = await stream_stardust(self, *site_args)
-        emit(self, f"(site-add exit {rc})")
-        self.status = f"queue done (exit {rc})"
+        stop.set()
+        if rc == 0:
+            emit(self, f"✓ site {plat}/{prod} created")
+            set_progress(self, 3, 3, "done")
+            self.status = f"✓ created {plat}/{prod}"
+        else:
+            emit(self, f"✗ site-add failed (exit {rc})")
+            set_progress(self, 2, 3, "failed")
+            self.status = f"✗ site-add exit {rc}"
         tabs.active = "tab-output"
         if rc == 0:
             self.query_one("#form-plat", Input).value = ""
