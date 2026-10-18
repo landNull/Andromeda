@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# daily_tests/00_daily_webadmin.sh — a day in the life of a Stardust webadmin.
+# Uses the real CLI the same way an operator does. Creates its own platform
+# and product, exercises the daily verbs, then removes them.
+set -euo pipefail
+
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+REPO=$(CDPATH= cd -- "$HERE/../.." && pwd)
+export PATH="$REPO/bin:$PATH"
+
+PLAT="${PLATFORM_NAME:-dailyplat-$$}"
+PROD="${SITE_NAME:-www$$}"
+PREVIEW="${PROD}-preview"
+HOST="${PROD}.devel"
+PREVIEW_HOST="${PREVIEW}.devel"
+TITLE="Daily ${PROD}"
+
+echo "==> [TEST] Daily webadmin flow"
+echo "--> platform=$PLAT product=$PROD host=$HOST"
+
+cleanup() {
+    echo "--> cleanup"
+    stardust site-delete "$PLAT" "$PREVIEW" --force >/dev/null 2>&1 || true
+    stardust site-delete "$PLAT" "$PROD" --force >/dev/null 2>&1 || true
+    rm -rf "/srv/platforms/$PLAT" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Morning health. doctor may exit 1 if the host is NOT READY; record it, do not abort.
+echo "--> doctor"
+if stardust doctor; then
+    echo "OK doctor READY"
+else
+    echo "NOTE doctor NOT READY (continuing; host may still serve sites)"
+fi
+
+echo "--> platform-add $PLAT"
+stardust platform-add "$PLAT"
+
+echo "--> site-add $PLAT $PROD --host $HOST"
+stardust site-add "$PLAT" "$PROD" --host "$HOST" --name "$TITLE"
+
+echo "--> inventory"
+stardust inventory
+
+echo "--> site-check $PLAT $PROD"
+stardust site-check "$PLAT" "$PROD" --host "$HOST"
+
+echo "--> site-disable / site-enable"
+stardust site-disable "$PLAT" "$PROD"
+stardust site-enable "$PLAT" "$PROD"
+
+echo "--> bee cc all / status"
+stardust bee "$PLAT" "$PROD" cc all
+stardust bee "$PLAT" "$PROD" status
+
+echo "--> site-backup"
+stardust site-backup "$PLAT" "$PROD"
+
+echo "--> site-restore (latest)"
+stardust site-restore "$PLAT" "$PROD"
+
+echo "--> site-clone to $PREVIEW"
+stardust site-clone "$PLAT" "$PROD" "$PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
+stardust site-check "$PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
+
+echo "--> site-delete preview"
+stardust site-delete "$PLAT" "$PREVIEW" --force
+
+echo "--> log / last"
+stardust log 10 || true
+stardust last || true
+
+echo "PASS: Daily webadmin flow completed."
