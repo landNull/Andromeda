@@ -267,7 +267,8 @@ class SudoModal(ModalScreen[str | None]):
 
     def compose(self) -> ComposeResult:
         with Vertical():
-            yield Label("sudo password (for stardust-priv / bee)")
+            yield Label("sudo password")
+            yield Label("For host commands only. Bee is not a login.")
             yield Input(placeholder="password", password=True, id="sudo-pass")
             yield Button("OK", id="sudo-ok", variant="primary")
             yield Button("Cancel", id="sudo-cancel")
