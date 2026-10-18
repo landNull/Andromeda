@@ -61,6 +61,9 @@ def run_stardust(*args: str, timeout: int = 60) -> tuple[int, str]:
             text=True,
             timeout=timeout,
             check=False,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            env={**os.environ, "PYTHONUNBUFFERED": "1"},
         )
         out = (result.stdout or "") + (result.stderr or "")
         return result.returncode, out.strip() or "(no output)"
@@ -146,12 +149,8 @@ def parse_platforms(text: str) -> list[dict[str, str]]:
 
 
 def platform_exists(name: str) -> bool:
-    """True if `stardust list` shows this platform."""
-    _rc, text = run_stardust("list")
-    for row in parse_platforms(text):
-        if row.get("name") == name:
-            return True
-    return False
+    """True if the platform directory is on this host. No shell-out."""
+    return os.path.isdir(os.path.join("/srv/platforms", name))
 
 
 def out(log: Log, text: str) -> None:
@@ -588,8 +587,8 @@ class StardustApp(App[None]):
         stop = asyncio.Event()
         self.run_worker(spin(self, f"1/3 checking platform {plat}", stop), exclusive=False)
         emit(self, f"[1/3] ensure platform {plat}")
-        emit(self, "  running: stardust list")
-        exists = await asyncio.to_thread(platform_exists, plat)
+        emit(self, f"  looking for /srv/platforms/{plat}")
+        exists = platform_exists(plat)
         stop.set()
         if not exists:
             emit(self, f"  platform {plat} is not on this host")
@@ -606,7 +605,7 @@ class StardustApp(App[None]):
             emit(self, f"✓ platform {plat} already exists")
         set_progress(self, 1, 3, "platform ready")
 
-        if not await asyncio.to_thread(platform_exists, plat):
+        if not platform_exists(plat):
             emit(self, f"✗ platform {plat} still missing — site-add would fail")
             set_progress(self, 1, 3, "failed")
             self.status = "✗ queue stopped: platform not ready"
