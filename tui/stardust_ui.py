@@ -96,10 +96,17 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
     log.write(f"(pid {proc.pid})")
     assert proc.stdout is not None
     while True:
-        line = await proc.stdout.readline()
+        try:
+            line = await asyncio.wait_for(proc.stdout.readline(), timeout=15)
+        except asyncio.TimeoutError:
+            ui_log(f"stream pid={proc.pid} still waiting (no output 15s)")
+            log.write("(still running — no output for 15s)")
+            continue
         if not line:
             break
-        log.write(line.decode(errors="replace").rstrip("\n"))
+        text = line.decode(errors="replace").rstrip("\n")
+        ui_log(f"stream: {text}")
+        log.write(text)
     return await proc.wait()
 
 
@@ -354,6 +361,7 @@ class StardustApp(App[None]):
     selected_plat = reactive("")
     selected_prod = reactive("")
     sudo_askpass = ""
+    sudo_secret = ""
     checked: set[tuple[str, str]] = set()
 
     def sudo_nopasswd(self) -> bool:
@@ -370,20 +378,29 @@ class StardustApp(App[None]):
 
     def set_sudo_askpass(self, password: str) -> None:
         import tempfile
+        secret = tempfile.mktemp(prefix="stardust-sudo-")
         path = tempfile.mktemp(prefix="stardust-askpass-")
+        with open(secret, "w", encoding="utf-8") as fh:
+            fh.write(password)
+            if not password.endswith("\n"):
+                fh.write("\n")
+        os.chmod(secret, 0o600)
         with open(path, "w", encoding="utf-8") as fh:
-            fh.write("#!/bin/sh\nprintf '%s\\n' " + repr(password) + "\n")
+            fh.write("#!/bin/sh\ncat " + repr(secret) + "\n")
         os.chmod(path, 0o700)
         self.sudo_askpass = path
+        self.sudo_secret = secret
         ui_log(f"askpass written {path}")
 
     def clear_sudo_askpass(self) -> None:
-        if self.sudo_askpass and os.path.exists(self.sudo_askpass):
-            try:
-                os.remove(self.sudo_askpass)
-            except OSError:
-                pass
+        for path in (self.sudo_askpass, self.sudo_secret):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
         self.sudo_askpass = ""
+        self.sudo_secret = ""
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)

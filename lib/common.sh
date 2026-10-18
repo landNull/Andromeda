@@ -431,6 +431,7 @@ as_root() {
       return $?
     fi
     if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+      echo "sudo -A -u $tgt $*" >&2
       SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A -u "$tgt" "$@"
       return $?
     fi
@@ -442,6 +443,7 @@ as_root() {
     return $?
   fi
   if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+    echo "sudo -A (askpass) $*" >&2
     SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A "$@"
     return $?
   fi
