@@ -155,10 +155,20 @@ def platform_exists(name: str) -> bool:
 
 
 def out(log: Log, text: str) -> None:
-    """Write each message on its own line."""
+    """Write each message on its own line, colored by result."""
     for part in re.split(r"[\r\n]+", text):
-        if part:
-            log.write_line(part)
+        if not part:
+            continue
+        low = part.lower()
+        if any(w in low for w in ("fail", "error", "refused", "not ready", "exit 1", "exit 2")):
+            style = "bold red"
+        elif any(w in low for w in ("warn", "warning", "advisory")):
+            style = "bold yellow"
+        elif any(w in low for w in (" ok", "ok ", "ready", "success", "exit 0", "✔", "deleted")):
+            style = "bold green"
+        else:
+            style = ""
+        log.write_line(Text(part, style=style) if style else part)
     """Aegir-style status prefix: green ok, red fail, plain otherwise."""
     low = line.lower()
     if " fail" in low or " error" in low or line.strip().endswith(" 1"):
