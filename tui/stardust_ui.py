@@ -169,13 +169,6 @@ def out(log: Log, text: str) -> None:
         else:
             style = ""
         log.write_line(Text(part, style=style) if style else part)
-    """Aegir-style status prefix: green ok, red fail, plain otherwise."""
-    low = line.lower()
-    if " fail" in low or " error" in low or line.strip().endswith(" 1"):
-        return "[red]✗[/] " + line
-    if " ok" in low or line.strip().endswith(" 0"):
-        return "[green]✓[/] " + line
-    return "  " + line
 
 
 class SudoModal(ModalScreen[str | None]):
