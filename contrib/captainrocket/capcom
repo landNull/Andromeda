@@ -1,0 +1,90 @@
+#!/bin/sh
+# contrib/captainrocket/capcom — call Capcom on the knarr LAN.
+# Run from any project under $HOME/Apps, on any device.
+#
+#   capcom diagnose
+#   capcom "run the daily tests"
+#
+# Config (first found):
+#   $CAPCOM_CONF
+#   $HOME/.config/stardust/capcom.conf
+#   ./contrib/captainrocket/capcom.conf
+#
+# If the LAN host:port does not answer:
+#   you're not connected to the knarr LAN.
+
+set -eu
+
+PROG=${0##*/}
+
+die_lan() {
+  printf '%s\n' "you're not connected to the knarr LAN."
+  exit 2
+}
+
+load_conf() {
+  HOST=""
+  PORT=""
+  TIMEOUT="3"
+  for f in \
+    "${CAPCOM_CONF:-}" \
+    "$HOME/.config/stardust/capcom.conf" \
+    "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/capcom.conf"
+  do
+    [ -n "$f" ] && [ -f "$f" ] || continue
+    # shellcheck disable=SC1090
+    . "$f"
+    break
+  done
+  HOST="${CAPCOM_HOST:-${HOST:-}}"
+  PORT="${CAPCOM_PORT:-${PORT:-}}"
+  TIMEOUT="${CAPCOM_TIMEOUT:-$TIMEOUT}"
+  if [ -z "$HOST" ] || [ -z "$PORT" ]; then
+    printf 'SPEAK: Capcom host or port is not set.\n'
+    exit 2
+  fi
+}
+
+on_lan() {
+  # TCP connect. Works on the LAN. Fails off it, or if Capcom is down.
+  if command -v nc >/dev/null 2>&1; then
+    nc -z -w "$TIMEOUT" "$HOST" "$PORT" >/dev/null 2>&1 && return 0
+  fi
+  # Busybox nc (Termux) uses -w differently; try a bash /dev/tcp fallback.
+  if command -v bash >/dev/null 2>&1; then
+    timeout "$TIMEOUT" bash -c "echo >/dev/tcp/$HOST/$PORT" >/dev/null 2>&1 && return 0
+  fi
+  return 1
+}
+
+project_root() {
+  git rev-parse --show-toplevel 2>/dev/null || pwd
+}
+
+if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
+  printf 'SPEAK: Say a phrase. For example, diagnose the stack.\n'
+  exit 2
+fi
+
+load_conf
+on_lan || die_lan
+
+phrase=$1
+root=$(project_root)
+device=$(uname -n 2>/dev/null || echo unknown)
+
+# One JSON line in, one SPEAK line and JSON lines out.
+body=$(printf '{"phrase":"%s","project":"%s","device":"%s"}\n' "$phrase" "$root" "$device")
+
+if command -v curl >/dev/null 2>&1; then
+  curl -fsS --max-time "$TIMEOUT" \
+    -H 'Content-Type: application/json' \
+    -d "$body" \
+    "http://$HOST:$PORT/speak" || die_lan
+  printf '\n'
+  exit 0
+fi
+
+# No curl: raw TCP, one line in, lines out until the server closes.
+printf '%s\n' "$body" | nc -w "$TIMEOUT" "$HOST" "$PORT" || die_lan
+exit 0
