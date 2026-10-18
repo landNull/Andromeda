@@ -92,23 +92,23 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
             env=env,
         )
     except FileNotFoundError:
-        log.write(f"{STARDUST_BIN} not found on PATH")
+        out(log, f"{STARDUST_BIN} not found on PATH")
         return 127
     ui_log(f"stream pid={proc.pid} bin={STARDUST_BIN}")
-    log.write(f"(pid {proc.pid})")
+    out(log, f"(pid {proc.pid})")
     assert proc.stdout is not None
     while True:
         try:
             line = await asyncio.wait_for(proc.stdout.readline(), timeout=15)
         except asyncio.TimeoutError:
             ui_log(f"stream pid={proc.pid} still waiting (no output 15s)")
-            log.write("(still running — no output for 15s)")
+            out(log, "(still running — no output for 15s)")
             continue
         if not line:
             break
         text = ANSI.sub("", line.decode(errors="replace")).rstrip("\n")
         ui_log(f"stream: {text}")
-        log.write(text)
+        out(log, text)
     return await proc.wait()
 
 
@@ -154,7 +154,11 @@ def platform_exists(name: str) -> bool:
     return False
 
 
-def queue_mark(line: str) -> str:
+def out(log: Log, text: str) -> None:
+    """Write each message on its own line."""
+    for part in re.split(r"[\r\n]+", text):
+        if part:
+            log.write_line(part)
     """Aegir-style status prefix: green ok, red fail, plain otherwise."""
     low = line.lower()
     if " fail" in low or " error" in low or line.strip().endswith(" 1"):
@@ -481,7 +485,7 @@ class StardustApp(App[None]):
         self.status = f"starting: stardust {' '.join(args)}"
         output = self.query_one("#output", Log)
         output.clear()
-        output.write(f"$ stardust {' '.join(args)}")
+        out(output, f"$ stardust {' '.join(args)}")
         self.query_one("#tabs", TabbedContent).active = "tab-output"
         self.run_worker(self._run_and_show(*args), exclusive=False, group="cmd")
 
@@ -497,50 +501,50 @@ class StardustApp(App[None]):
         log = self.query_one("#output", Log)
         tabs.active = "tab-output"
         log.clear()
-        log.write(f"queue: create site {plat}/{prod}")
-        log.write("  1. ensure platform")
-        log.write("  2. health check")
-        log.write("  3. create site")
-        log.write("")
+        out(log, f"queue: create site {plat}/{prod}")
+        out(log, "  1. ensure platform")
+        out(log, "  2. health check")
+        out(log, "  3. create site")
+        out(log, "")
 
         if not platform_exists(plat):
-            log.write(f"--- step 1: stardust platform-add {plat}")
+            out(log, f"--- step 1: stardust platform-add {plat}")
             self.status = f"queue 1/3: platform-add {plat}"
             rc = await stream_stardust(self, "platform-add", plat)
-            log.write(f"(platform-add exit {rc})")
+            out(log, f"(platform-add exit {rc})")
             if rc != 0:
                 self.status = f"queue stopped: platform-add exit {rc}"
                 tabs.active = "tab-output"
                 return
         else:
-            log.write(f"--- step 1: platform {plat} already exists")
+            out(log, f"--- step 1: platform {plat} already exists")
 
         if not platform_exists(plat):
-            log.write(f"queue stopped: platform {plat} still missing — site-add would fail")
+            out(log, f"queue stopped: platform {plat} still missing — site-add would fail")
             self.status = "queue stopped: platform not ready"
             tabs.active = "tab-output"
             return
 
-        log.write("--- step 2: stardust doctor (advisory)")
+        out(log, "--- step 2: stardust doctor (advisory)")
         self.status = "queue 2/3: doctor"
         rc = await stream_stardust(self, "doctor")
         if rc == 0:
-            log.write("doctor: READY — host can take the site")
+            out(log, "doctor: READY — host can take the site")
         else:
-            log.write(
+            out(log, 
                 f"doctor: NOT READY (exit {rc}) — shown above; "
                 "continuing because the platform exists. "
                 "Fix host issues separately if site-add fails."
             )
-        log.write(f"(doctor exit {rc})")
+        out(log, f"(doctor exit {rc})")
 
         site_args = ["site-add", plat, prod]
         if host:
             site_args += ["--host", host]
-        log.write(f"--- step 3: stardust {' '.join(site_args)}")
+        out(log, f"--- step 3: stardust {' '.join(site_args)}")
         self.status = f"queue 3/3: site-add {plat}/{prod}"
         rc = await stream_stardust(self, *site_args)
-        log.write(f"(site-add exit {rc})")
+        out(log, f"(site-add exit {rc})")
         self.status = f"queue done (exit {rc})"
         tabs.active = "tab-output"
         if rc == 0:
@@ -556,7 +560,7 @@ class StardustApp(App[None]):
         await asyncio.sleep(0)
         tabs.active = "tab-output"
         rc = await stream_stardust(self, *args)
-        self.query_one("#output", Log).write(f"\n(exit {rc})")
+        out(self.query_one("#output", Log), f"(exit {rc})")
         self.status = f"done (exit {rc})"
         tabs.active = "tab-output"
 
@@ -658,9 +662,7 @@ class StardustApp(App[None]):
                     ui_log(f"askpass={self.sudo_askpass}")
                     self.status = f"password ok — starting {plat}/{prod}"
                     self.query_one("#tabs", TabbedContent).active = "tab-output"
-                    self.query_one("#output", Log).write(
-                        f"password accepted. log: {UI_LOG}"
-                    )
+                    out(self.query_one("#output", Log), f"password accepted. log: {UI_LOG}")
                     # Do not start work in the modal callback — that freezes.
                     self.run_worker(
                         self._queue_create_later(plat, prod, host),
