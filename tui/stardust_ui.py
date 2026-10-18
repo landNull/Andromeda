@@ -92,23 +92,23 @@ async def stream_stardust(app: "StardustApp", *args: str) -> int:
             env=env,
         )
     except FileNotFoundError:
-        out(log, f"{STARDUST_BIN} not found on PATH")
+        emit(app, f"{STARDUST_BIN} not found on PATH")
         return 127
     ui_log(f"stream pid={proc.pid} bin={STARDUST_BIN}")
-    out(log, f"(pid {proc.pid})")
+    emit(app, f"(pid {proc.pid})")
     assert proc.stdout is not None
     while True:
         try:
             line = await asyncio.wait_for(proc.stdout.readline(), timeout=15)
         except asyncio.TimeoutError:
             ui_log(f"stream pid={proc.pid} still waiting (no output 15s)")
-            out(log, "(still running — no output for 15s)")
+            emit(app, "(still running — no output for 15s)")
             continue
         if not line:
             break
         text = ANSI.sub("", line.decode(errors="replace")).rstrip("\n")
         ui_log(f"stream: {text}")
-        out(log, text)
+        emit(app, text)
     return await proc.wait()
 
 
@@ -169,6 +169,59 @@ def out(log: Log, text: str) -> None:
         else:
             line = part
         log.write_line(line)
+
+
+def emit(app: "StardustApp", text: str) -> None:
+    """Write to the log modal if it is open, and always to the Output tab."""
+    screen = app.screen
+    if isinstance(screen, LogModal):
+        out(screen.query_one("#modal-log", Log), text)
+    out(app.query_one("#output", Log), text)
+
+
+class LogModal(ModalScreen[None]):
+    """Scrolling command log over the form. X in the upper right closes it."""
+
+    DEFAULT_CSS = """
+    LogModal {
+        align: center middle;
+    }
+    LogModal #log-box {
+        width: 92%;
+        height: 86%;
+        border: solid $primary;
+        background: $surface;
+        padding: 0 1 1 1;
+    }
+    LogModal #log-head {
+        height: 3;
+        padding: 0 1;
+    }
+    LogModal #log-x {
+        dock: right;
+        width: 5;
+        min-width: 5;
+    }
+    LogModal Log {
+        height: 1fr;
+        border: solid $panel;
+    }
+    """
+
+    def __init__(self, title: str) -> None:
+        super().__init__()
+        self.log_title = title
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="log-box"):
+            with Horizontal(id="log-head"):
+                yield Label(self.log_title)
+                yield Button("x", id="log-x", variant="error")
+            yield Log(id="modal-log", highlight=True)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "log-x":
+            self.dismiss()
 
 
 class SudoModal(ModalScreen[str | None]):
@@ -504,51 +557,51 @@ class StardustApp(App[None]):
         log = self.query_one("#output", Log)
         tabs.active = "tab-output"
         log.clear()
-        out(log, f"queue: create site {plat}/{prod}")
-        out(log, "  1. ensure platform")
-        out(log, "  2. health check")
-        out(log, "  3. create site")
-        out(log, "")
-        out(log, "step 1: checking platform")
+        emit(self, f"queue: create site {plat}/{prod}")
+        emit(self, "  1. ensure platform")
+        emit(self, "  2. health check")
+        emit(self, "  3. create site")
+        emit(self, "")
+        emit(self, "step 1: checking platform")
 
         if not await asyncio.to_thread(platform_exists, plat):
-            out(log, f"step 1: stardust platform-add {plat}")
+            emit(self, f"step 1: stardust platform-add {plat}")
             self.status = f"queue 1/3: platform-add {plat}"
             rc = await stream_stardust(self, "platform-add", plat)
-            out(log, f"(platform-add exit {rc})")
+            emit(self, f"(platform-add exit {rc})")
             if rc != 0:
                 self.status = f"queue stopped: platform-add exit {rc}"
                 tabs.active = "tab-output"
                 return
         else:
-            out(log, f"step 1: platform {plat} already exists")
+            emit(self, f"step 1: platform {plat} already exists")
 
         if not await asyncio.to_thread(platform_exists, plat):
-            out(log, f"queue stopped: platform {plat} still missing — site-add would fail")
+            emit(self, f"queue stopped: platform {plat} still missing — site-add would fail")
             self.status = "queue stopped: platform not ready"
             tabs.active = "tab-output"
             return
 
-        out(log, "--- step 2: stardust doctor (advisory)")
+        emit(self, "--- step 2: stardust doctor (advisory)")
         self.status = "queue 2/3: doctor"
         rc = await stream_stardust(self, "doctor")
         if rc == 0:
-            out(log, "doctor: READY — host can take the site")
+            emit(self, "doctor: READY — host can take the site")
         else:
-            out(log, 
+            emit(self, 
                 f"doctor: NOT READY (exit {rc}) — shown above; "
                 "continuing because the platform exists. "
                 "Fix host issues separately if site-add fails."
             )
-        out(log, f"(doctor exit {rc})")
+        emit(self, f"(doctor exit {rc})")
 
         site_args = ["site-add", plat, prod]
         if host:
             site_args += ["--host", host]
-        out(log, f"--- step 3: stardust {' '.join(site_args)}")
+        emit(self, f"--- step 3: stardust {' '.join(site_args)}")
         self.status = f"queue 3/3: site-add {plat}/{prod}"
         rc = await stream_stardust(self, *site_args)
-        out(log, f"(site-add exit {rc})")
+        emit(self, f"(site-add exit {rc})")
         self.status = f"queue done (exit {rc})"
         tabs.active = "tab-output"
         if rc == 0:
@@ -653,7 +706,7 @@ class StardustApp(App[None]):
                 self.status = "platform and site name required"
                 return
             if self.sudo_nopasswd() or self.sudo_askpass:
-                self._queue_create(plat, prod, host)
+                self._open_log_and_queue(plat, prod, host)
             else:
                 def on_pass(pw: str | None) -> None:
                     ui_log("sudo modal dismissed")
@@ -664,15 +717,7 @@ class StardustApp(App[None]):
                     ui_log("sudo password received, writing askpass")
                     self.set_sudo_askpass(pw)
                     ui_log(f"askpass={self.sudo_askpass}")
-                    self.status = f"password ok — starting {plat}/{prod}"
-                    self.query_one("#tabs", TabbedContent).active = "tab-output"
-                    out(self.query_one("#output", Log), f"password accepted. log: {UI_LOG}")
-                    # Do not start work in the modal callback — that freezes.
-                    self.run_worker(
-                        self._queue_create_later(plat, prod, host),
-                        exclusive=False,
-                        group="cmd",
-                    )
+                    self.call_later(self._open_log_and_queue, plat, prod, host)
                 self.push_screen(SudoModal(), on_pass)
 
     def _confirm_delete(self, plat: str, prod: str) -> None:
@@ -718,11 +763,12 @@ class StardustApp(App[None]):
             ui_log("queue worker exception:\n" + traceback.format_exc())
             self.status = f"error — see {UI_LOG}"
 
-    def _queue_create(self, plat: str, prod: str, host: str) -> None:
+    def _open_log_and_queue(self, plat: str, prod: str, host: str) -> None:
+        """Pop the scrolling log over the form, then run the create queue."""
         self.status = f"queued: {plat}/{prod}"
-        self.query_one("#tabs", TabbedContent).active = "tab-output"
+        self.push_screen(LogModal(f"Create {plat}/{prod}"))
         self.run_worker(
-            self._create_site_queue(plat, prod, host),
+            self._queue_create_later(plat, prod, host),
             exclusive=False,
             group="cmd",
         )
