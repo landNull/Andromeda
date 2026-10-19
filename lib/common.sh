@@ -318,9 +318,9 @@ NOTIFY=${NOTIFY:-}
 HOOKS=${HOOKS:-$STARDUST_ROOT/hooks}
 
 run_hooks() {
-  name=$1
+  hook_name=$1
   shift
-  dir=$HOOKS/${name}.d
+  dir=$HOOKS/${hook_name}.d
   [ -d "$dir" ] || return 0
   for h in "$dir"/*; do
     [ -x "$h" ] || continue
