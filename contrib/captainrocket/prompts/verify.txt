@@ -1,0 +1,8 @@
+Does the code below satisfy the contract?
+Language/Runtime: {{LANG}}
+Contract:
+- Inputs: {{INPUTS}}
+- Output: {{OUTPUT}}
+Code:
+{{CODE}}
+Answer with exactly one line: YES or NO followed by a short reason.

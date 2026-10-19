@@ -1,0 +1,12 @@
+Task: Fix the code so it satisfies the contract and passes the check.
+Language/Runtime: {{LANG}}
+Contract:
+- Inputs: {{INPUTS}}
+- Output: {{OUTPUT}}
+Current code:
+{{CODE}}
+Check output:
+{{CHECK}}
+Constraints:
+- Return ONLY the corrected implementation inside a markdown fence.
+- Do not explain. Do not add features that were not requested.

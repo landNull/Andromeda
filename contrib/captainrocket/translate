@@ -1,0 +1,47 @@
+#!/bin/sh
+# contrib/captainrocket/translate — fill a formula with a focused task.
+#
+#   translate generate TASK="write a name-based vhost" LANG="POSIX /bin/sh IEEE 1003.1" INPUTS="platform name" OUTPUT="exit 0 on success"
+#
+# Reads prompts/<formula>.txt from the same directory and substitutes {{KEY}}
+# placeholders. Missing keys are left as-is. Prints the filled prompt to stdout.
+
+set -eu
+
+PROG=${0##*/}
+HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+PROMPTS="$HERE/prompts"
+
+usage() {
+  printf 'Usage: %s FORMULA KEY=value [KEY=value ...]\n' "$PROG"
+  printf 'Formulas: generate review verify\n'
+  exit 2
+}
+
+[ $# -ge 1 ] || usage
+
+formula=$1
+shift
+
+case "$formula" in
+  generate|review|verify) ;;
+  *) printf '%s: unknown formula %s\n' "$PROG" "$formula" >&2; exit 2 ;;
+esac
+
+tpl="$PROMPTS/$formula.txt"
+[ -f "$tpl" ] || { printf '%s: missing %s\n' "$PROG" "$tpl" >&2; exit 2; }
+
+# Build a sed script from the KEY=value pairs. Values may contain slashes
+# or newlines; we use a delimiter that is unlikely in the values.
+sed_script=$(mktemp)
+trap 'rm -f "$sed_script"' EXIT
+
+for pair in "$@"; do
+  key=${pair%%=*}
+  val=${pair#*=}
+  # Escape sed specials in the value.
+  val=$(printf '%s' "$val" | sed 's/[\\&|]/\\&/g')
+  printf 's|{{%s}}|%s|g\n' "$key" "$val" >> "$sed_script"
+done
+
+sed -f "$sed_script" "$tpl"

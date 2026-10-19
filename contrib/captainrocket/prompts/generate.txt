@@ -1,0 +1,8 @@
+Task: {{TASK}}
+Language/Runtime: {{LANG}}
+Contract:
+- Inputs: {{INPUTS}}
+- Output: {{OUTPUT}}
+Constraints:
+- Pure functions only. Zero globals or unrequested third-party dependencies.
+- Output ONLY the implementation inside a markdown fence. Zero explanations, greetings, or conversational remarks.
