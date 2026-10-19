@@ -87,10 +87,11 @@ tiny_prompt() {
   printf '%s' 'Reply with the single word OK.'
 }
 
-call_one() {
-  # $1 tag  $2 out file
-  tag=$1
-  out=$2
+# Launch curl in the current shell so $! is waitable.
+# Do not wrap this in $(...) or the background job dies with the subshell.
+launch_curl() {
+  # $1 out file
+  out=$1
   body=$(printf '%s' "$(tiny_prompt)" | python3 -c '
 import json,sys
 p=sys.stdin.read()
@@ -98,7 +99,7 @@ print(json.dumps({"model":sys.argv[1],"prompt":p,"stream":False}))
 ' "$MODEL")
   curl -sS -m "$TIMEOUT" -H 'Content-Type: application/json' \
     -d "$body" "$ENDPOINT/api/generate" > "$out" 2>&1 &
-  echo $!
+  LAST_PID=$!
 }
 
 cleanup() {
@@ -130,11 +131,15 @@ fi
 # Wave 1: sequential baseline
 printf '\n---- WAVE 1: sequential ----\n'
 out1=$(mktemp)
-pid1=$(call_one seq "$out1")
+launch_curl "$out1"
+pid1=$LAST_PID
 if wait "$pid1" 2>/dev/null; then
   printf 'OK sequential (pid %s)\n' "$pid1"
 else
-  printf 'FAIL sequential\n'
+  printf 'FAIL sequential (pid %s)\n' "$pid1"
+  printf '%s\n' '--- curl output ---'
+  cat "$out1" 2>/dev/null || true
+  printf '%s\n' '--- end ---'
   rm -f "$out1"
   exit 0
 fi
@@ -150,8 +155,10 @@ fi
 printf '\n---- WAVE 2: 2 concurrent ----\n'
 outa=$(mktemp)
 outb=$(mktemp)
-pida=$(call_one a "$outa")
-pidb=$(call_one b "$outb")
+launch_curl "$outa"
+pida=$LAST_PID
+launch_curl "$outb"
+pidb=$LAST_PID
 printf 'launched pids %s %s\n' "$pida" "$pidb"
 
 # Wait with a hard wall clock
