@@ -1,0 +1,5 @@
+name = Entity UI (stub)
+description = Empty D7 stub. Enable before the backdrop-ready dump.
+core = 7.x
+package = Stress stubs
+version = 1.0
