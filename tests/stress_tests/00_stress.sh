@@ -354,7 +354,9 @@ fi
 # 19. Drop the bad module into the Backdrop platform so Bee can see it.
 step "19 install stress_bad into Backdrop platform"
 if [ -d "$PLATFORMS/$OLD_PLAT/web/modules" ]; then
-    sudo -u deploy cp -a "$HERE/modules/stress_bad" "$PLATFORMS/$OLD_PLAT/web/modules/"
+    # deploy cannot read the operator home. Copy as root, then hand it to deploy.
+    sudo cp -a "$HERE/modules/stress_bad" "$PLATFORMS/$OLD_PLAT/web/modules/"
+    sudo chown -R deploy:www-admin "$PLATFORMS/$OLD_PLAT/web/modules/stress_bad"
     echo "OK stress_bad in $PLATFORMS/$OLD_PLAT/web/modules"
     echo "Autocomplete path: stress-bad/autocomplete (callback is broken on purpose)"
     echo "Bee: stardust bee $OLD_PLAT $PROD en stress_bad   # will fail until Capcom fixes the include"
