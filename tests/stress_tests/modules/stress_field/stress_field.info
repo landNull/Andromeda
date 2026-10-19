@@ -1,0 +1,5 @@
+name = Stress Field
+description = Custom field type with no Backdrop port. Conversion must uninstall or port this.
+package = Stress
+version = 1.0
+core = 7.x
