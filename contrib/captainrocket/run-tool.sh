@@ -54,12 +54,19 @@ if [ -z "$flags" ]; then
     security) flags="--json --speak -n security" ;;
     lint) flags="--json --speak --lint" ;;
     heal) flags="--json --speak --heal" ;;
+    complete*|starcoder*|finish*) flags="--starcoder" ;;
     *)
       printf 'SPEAK: No Stardust tool matches that phrase.\n'
       printf '%s\n' '{"module":"usage","status":"fail","what":"unknown phrase"}'
       exit 2
       ;;
   esac
+fi
+
+if [ "$flags" = "--starcoder" ]; then
+  # Hand the remaining args (or stdin) to the completion tool.
+  shift
+  exec "$HERE/starcoder-complete.sh" "$@"
 fi
 
 if [ ! -x "$RUNNER" ]; then

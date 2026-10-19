@@ -6,7 +6,11 @@
     {
       "name": "stardust-tests",
       "summary": "Run Stardust test modules the way a webadmin does.",
-      "argv": ["./tests/run-test.sh", "--json", "--speak"],
+      "argv": [
+        "./tests/run-test.sh",
+        "--json",
+        "--speak"
+      ],
       "intents": [
         "run the daily tests",
         "run all the tests",
@@ -17,19 +21,59 @@
       ],
       "speak_prefix": "SPEAK:",
       "json_line": true,
-      "exit": { "0": "pass", "1": "fail", "2": "usage" }
+      "exit": {
+        "0": "pass",
+        "1": "fail",
+        "2": "usage"
+      }
     },
     {
       "name": "stardust-daily",
       "summary": "One day of webadmin work: doctor, site-add, check, backup, restore, clone.",
-      "argv": ["./tests/run-test.sh", "--json", "--speak", "-n", "daily"],
-      "intents": ["run the daily tests", "webadmin day"]
+      "argv": [
+        "./tests/run-test.sh",
+        "--json",
+        "--speak",
+        "-n",
+        "daily"
+      ],
+      "intents": [
+        "run the daily tests",
+        "webadmin day"
+      ]
     },
     {
       "name": "stardust-diagnose",
       "summary": "Host groups, deploy user, platforms dir, CLI present.",
-      "argv": ["./tests/run-test.sh", "--json", "--speak", "--diagnose"],
-      "intents": ["diagnose the stack", "check the host"]
+      "argv": [
+        "./tests/run-test.sh",
+        "--json",
+        "--speak",
+        "--diagnose"
+      ],
+      "intents": [
+        "diagnose the stack",
+        "check the host"
+      ]
+    },
+    {
+      "name": "starcoder-complete",
+      "summary": "Complete a code prefix with starcoder2 (raw completion).",
+      "argv": [
+        "./contrib/captainrocket/starcoder-complete.sh"
+      ],
+      "intents": [
+        "complete this code",
+        "finish this function",
+        "starcoder complete"
+      ],
+      "speak_prefix": "SPEAK:",
+      "json_line": false,
+      "exit": {
+        "0": "pass",
+        "1": "fail",
+        "2": "usage"
+      }
     }
   ]
 }

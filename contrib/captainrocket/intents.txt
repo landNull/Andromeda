@@ -10,3 +10,6 @@ check the site: --json --speak -n site
 check security: --json --speak -n security
 lint the scripts: --json --speak --lint
 heal the scripts: --json --speak --heal
+complete this code: --starcoder
+finish this function: --starcoder
+starcoder complete: --starcoder
