@@ -31,6 +31,7 @@ RUN_PLATFORM=0
 RUN_SITE=0
 RUN_SECURITY=0
 RUN_DAILY=0
+RUN_STRESS=0
 RUN_DIAGNOSE=0
 RUN_LINT=0
 RUN_HEAL=0
@@ -53,7 +54,7 @@ Interactive Stardust test runner. Prompts for values when needed.
 
 Options:
   --all              Prompt, then run all modules
-  -n, --module NAME  Run one module: platform, site, security, daily
+  -n, --module NAME  Run one module: platform, site, security, daily, stress
   --diagnose         Stack checks only
   --lint             posaxe syntax and pattern checks
   --heal             posaxe safe fixes, then check
@@ -100,6 +101,7 @@ while [[ $# -gt 0 ]]; do
         --site) RUN_SITE=1; shift ;;
         --security) RUN_SECURITY=1; shift ;;
         --daily) RUN_DAILY=1; shift ;;
+        --stress) RUN_STRESS=1; shift ;;
         --dry-run) DRYRUN=1; shift ;;
         --json) RUN_JSON=1; shift ;;
         --speak) RUN_SPEAK=1; shift ;;
@@ -115,6 +117,7 @@ resolve_intent() {
     p=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
     case "$p" in
         *daily*|*webadmin*|*web\ admin*) echo daily ;;
+        *stress*|*upgrade*|*migrate*) echo stress ;;
         *platform*) echo platform ;;
         *site*|*lifecycle*) echo site ;;
         *security*|*contract*) echo security ;;
@@ -130,6 +133,7 @@ if [ -n "$INTENT" ]; then
     resolved=$(resolve_intent "$INTENT")
     case "$resolved" in
         daily) RUN_DAILY=1 ;;
+        stress) RUN_STRESS=1 ;;
         platform) RUN_PLATFORM=1 ;;
         site) RUN_SITE=1 ;;
         security) RUN_SECURITY=1 ;;
@@ -146,12 +150,13 @@ case "$MODULE" in
     site) RUN_SITE=1 ;;
     security) RUN_SECURITY=1 ;;
     daily) RUN_DAILY=1 ;;
+    stress) RUN_STRESS=1 ;;
     "") ;;
     *) echo "$PROG: unknown module $MODULE" >&2; exit 2 ;;
 esac
 
 if [ $RUN_ALL -eq 0 ] && [ $RUN_PLATFORM -eq 0 ] && [ $RUN_SITE -eq 0 ] && \
-   [ $RUN_SECURITY -eq 0 ] && [ $RUN_DAILY -eq 0 ] && [ $RUN_DIAGNOSE -eq 0 ] && \
+   [ $RUN_SECURITY -eq 0 ] && [ $RUN_DAILY -eq 0 ] && [ $RUN_STRESS -eq 0 ] && \
    [ $RUN_LINT -eq 0 ] && [ $RUN_HEAL -eq 0 ]; then
     RUN_ALL=1
 fi
@@ -368,6 +373,7 @@ else
     [ "$RUN_PLATFORM" -eq 1 ] && run_module "${SCRIPT_DIR}/platform_tests/00_platform_lifecycle.sh" "Platform lifecycle"
     [ "$RUN_SITE" -eq 1 ] && run_module "${SCRIPT_DIR}/site_tests/00_site_lifecycle.sh" "Site lifecycle"
     [ "$RUN_DAILY" -eq 1 ] && run_module "${SCRIPT_DIR}/daily_tests/00_daily_webadmin.sh" "Daily webadmin"
+    [ "$RUN_STRESS" -eq 1 ] && run_module "${SCRIPT_DIR}/stress_tests/00_stress.sh" "Stress"
 fi
 
 echo ""
