@@ -17,7 +17,12 @@
 #  12. Bee cron, config-export, config-import, uli
 #  13. D7 toolkit: d7-stubs and d7-toolkit (no dump; full d7-prep needs one)
 #  14. inventory + doctor + log
-#  15. Cleanup unless STARDUST_KEEP is set
+#  15. Write Capcom packs (stardust, bee, d7convert, moduleheal) and the fix prompt
+#  16. Download Drupal 7
+#  17. Install D7 stubs, unsupported field type, and the bad module
+#  18. php -l the broken module (must fail) so Capcom /fixloop has a target
+#  19. Drop stress_bad into the Backdrop platform (autocomplete path is broken)
+#  20. Bee project list (enable/disable cycle is best effort)
 #
 # Opt-in. Not part of --all. Run with:
 #   ./tests/run-test.sh -n stress
@@ -162,6 +167,96 @@ stardust inventory || true
 stardust doctor || true
 stardust log 10 || true
 
+# 15. Capcom packs. Copy into CaptainRocket if the tree is present.
+step "15 write Capcom packs"
+PACK_SRC="$HERE/packs"
+CAPCOM_PACKS="${CAPCOM_ROOT:-$HOME/Apps/CaptainRocket}/.captainrocket/packs"
+mkdir -p "$CAPCOM_PACKS" 2>/dev/null || true
+for pack in stardust bee d7convert moduleheal; do
+    if [ -d "$CAPCOM_PACKS" ]; then
+        cp "$PACK_SRC/${pack}.json" "$CAPCOM_PACKS/${pack}.json"
+        echo "OK pack $pack -> $CAPCOM_PACKS"
+    else
+        echo "NOTE pack $pack stays in $PACK_SRC (CaptainRocket not found)"
+    fi
+done
+PROMPT_DEST="${CAPCOM_ROOT:-$HOME/Apps/CaptainRocket}/promptfiles"
+if [ -d "$PROMPT_DEST" ]; then
+    cp "$HERE/prompts/capcom_fix_stress_bad.xml" "$PROMPT_DEST/"
+    echo "OK prompt -> $PROMPT_DEST/capcom_fix_stress_bad.xml"
+fi
+
+# 16. Download Drupal 7 for the conversion path.
+step "16 download Drupal 7"
+D7_VER="${STARDUST_STRESS_D7:-7.103}"
+D7_DIR="/tmp/stress-d7-${STAMP}"
+mkdir -p "$D7_DIR"
+if command -v wget >/dev/null 2>&1; then
+    wget -q -O "$D7_DIR/drupal.tar.gz" \
+        "https://ftp.drupal.org/files/projects/drupal-${D7_VER}.tar.gz" || \
+        echo "NOTE Drupal ${D7_VER} tarball failed — continuing with stubs only"
+    if [ -f "$D7_DIR/drupal.tar.gz" ]; then
+        tar -xzf "$D7_DIR/drupal.tar.gz" -C "$D7_DIR"
+        echo "OK Drupal $D7_VER at $D7_DIR"
+    fi
+else
+    echo "NOTE wget missing — skip D7 tarball"
+fi
+
+# 17. Install stubs, unsupported field, and the bad module into the D7 tree.
+step "17 install D7 stubs + unsupported field + bad module"
+D7_ROOT=$(find "$D7_DIR" -maxdepth 1 -type d -name 'drupal-*' | head -1)
+if [ -n "$D7_ROOT" ] && [ -d "$D7_ROOT/sites/all" ]; then
+    mkdir -p "$D7_ROOT/sites/all/modules"
+    cp -a "$HERE/modules/d7_stubs/." "$D7_ROOT/sites/all/modules/"
+    cp -a "$HERE/modules/stress_field" "$D7_ROOT/sites/all/modules/"
+    cp -a "$HERE/modules/stress_bad" "$D7_ROOT/sites/all/modules/"
+    echo "OK stubs + stress_field + stress_bad in $D7_ROOT/sites/all/modules"
+    echo "NEXT on a live D7: enable entity_plus entity_ui ubercart, then dump backdrop-ready.sql"
+    echo "NEXT: stress_field defines field type stress_widget — uninstall or port before update.php"
+else
+    echo "NOTE no D7 tree — stubs remain under $HERE/modules/d7_stubs"
+fi
+
+# 18. Prove the bad PHP fails lint. Capcom /fixloop should repair it.
+step "18 php -l the broken module (expect fail)"
+if command -v php >/dev/null 2>&1; then
+    if php -l "$HERE/modules/stress_bad/stress_bad.broken.inc"; then
+        echo "ERROR"
+        echo "LAYER: test"
+        echo "FILE: stress_bad.broken.inc"
+        echo "WHAT: parse error was fixed already."
+        echo "WHY: The stress fixture must fail php -l so Capcom has something to repair."
+        echo "FIX: Restore the missing semicolons in stress_bad.broken.inc."
+        exit 1
+    else
+        echo "OK php -l failed as expected on stress_bad.broken.inc"
+    fi
+    php -l "$HERE/modules/stress_bad/stress_bad.module" && echo "OK loader lints"
+    echo "Capcom: /fixloop against $HERE/modules/stress_bad/"
+    echo "Prompt: $HERE/prompts/capcom_fix_stress_bad.xml"
+else
+    echo "NOTE php missing — skip lint proof"
+fi
+
+# 19. Drop the bad module into the Backdrop platform so Bee can see it.
+step "19 install stress_bad into Backdrop platform"
+if [ -d "$PLATFORMS/$OLD_PLAT/web/modules" ]; then
+    sudo -u deploy cp -a "$HERE/modules/stress_bad" "$PLATFORMS/$OLD_PLAT/web/modules/"
+    echo "OK stress_bad in $PLATFORMS/$OLD_PLAT/web/modules"
+    echo "Autocomplete path: stress-bad/autocomplete (callback is broken on purpose)"
+    echo "Bee: stardust bee $OLD_PLAT $PROD en stress_bad   # will fail until Capcom fixes the include"
+else
+    echo "NOTE platform web missing — skip Backdrop install of stress_bad"
+fi
+
+# 20. Module enable/disable cycle on a known-good module if Bee can see one.
+step "20 bee enable/disable cycle (best effort)"
+stardust bee "$OLD_PLAT" "$PROD" pml || true
+
 echo ""
 echo "PASS: Stress completed."
+echo "Capcom packs: stardust bee d7convert moduleheal"
+echo "Fix target: $HERE/modules/stress_bad/stress_bad.broken.inc"
+echo "Autocomplete target: $HERE/modules/stress_bad/stress_bad.autocomplete.inc"
 STRESS_OK=1
