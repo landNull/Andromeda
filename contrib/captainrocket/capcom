@@ -21,13 +21,23 @@ DEFAULT_PORT="19697"
 CONF_DIR="${HOME}/.config/stardust"
 CONF_FILE="${CONF_DIR}/capcom.conf"
 
+notify() {
+  # Termux:API. Silent if the binary is missing.
+  command -v termux-notification >/dev/null 2>&1 || return 0
+  termux-notification --title "Capcom" --content "$1" >/dev/null 2>&1 || true
+}
+
 die_lan() {
-  printf '%s\n' "you're not connected to the knarr LAN."
+  msg="you're not connected to the knarr LAN."
+  printf '%s\n' "$msg"
+  notify "$msg"
   exit 2
 }
 
 die_door() {
-  printf '%s\n' "door is not open on ${HOST}:${PORT}."
+  msg="door is not open on ${HOST}:${PORT}."
+  printf '%s\n' "$msg"
+  notify "$msg"
   exit 2
 }
 
