@@ -96,6 +96,7 @@ if raw=="1":
 print(json.dumps(d))
 ' "$model" "$prompt" "$raw" "$npred")
   out=$(mktemp)
+  CALL_MS=0
   if curl -sS -m "$TIMEOUT" -H 'Content-Type: application/json' \
        -d "$body" "$ENDPOINT/api/generate" > "$out" 2>/dev/null; then
     end=$(date +%s%N)
@@ -109,7 +110,6 @@ except Exception:
   print("")
 ' "$out"
   else
-    CALL_MS=0
     printf ''
   fi
   rm -f "$out"
