@@ -4,7 +4,7 @@
   "style": "Bee runs as deploy against a platform web root. cd into the platform before dl-core. Never use --root for dl-core.",
   "phrases": {
     "bee download core": "sudo -u deploy bee dl-core web",
-    "bee download old": "sudo -u deploy bee dl-core web --version=1.28.4",
+    "bee download old": "sudo -u deploy bee dl-core web --version=1.31.0",
     "bee status": "bee status",
     "bee cache": "bee cc all",
     "bee update": "bee updb",
