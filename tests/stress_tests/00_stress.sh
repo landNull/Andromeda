@@ -95,6 +95,16 @@ echo "OK core $OLD_VER at $PLATFORMS/$OLD_PLAT/web"
 # 2. First site on the old core (Bee path).
 step "2 site-add $PROD on old core (Bee)"
 stardust site-add "$OLD_PLAT" "$PROD" --host "$HOST" --name "Stress $PROD"
+# 1.28.x dies on PHP 8.4 (CSS_THEME). Confirm the DB is not empty before continuing.
+if stardust bee "$OLD_PLAT" "$PROD" status 2>&1 | grep -q 'Database status.*Empty\|not installed'; then
+    echo "ERROR"
+    echo "LAYER: runtime"
+    echo "FILE: $PLATFORMS/$OLD_PLAT/web"
+    echo "WHAT: Backdrop $OLD_VER did not install. Database is empty."
+    echo "WHY: The core is too old for this PHP. PHP 8.4 needs Backdrop 1.31.0 or newer."
+    echo "FIX: Set STARDUST_STRESS_OLD=1.31.0 or newer and re-run."
+    exit 1
+fi
 stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
 
 # 3. Bee status and cache.
