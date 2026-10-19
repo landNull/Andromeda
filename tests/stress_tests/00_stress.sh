@@ -2,7 +2,7 @@
 # stress_tests/00_stress.sh — multi-variation exercise of Stardust and Bee.
 #
 # Variations (in order):
-#   1. Download Backdrop OLD_VER (default 1.28.4) into a dedicated platform
+#   1. Download Backdrop OLD_VER (default 1.31.0 — first with PHP 8.4) into a dedicated platform
 #   2. site-add first product on the old core (Bee install path)
 #   3. Bee status + cache clear on the old site
 #   4. site-backup of the old site
@@ -40,7 +40,7 @@ PROD="www${STAMP}"
 SECOND="www${STAMP}b"
 PREVIEW="${PROD}-preview"
 CROSS="www${STAMP}-x"
-OLD_VER="${STARDUST_STRESS_OLD:-1.28.4}"
+OLD_VER="${STARDUST_STRESS_OLD:-1.31.0}"
 HOST="${PROD}.devel"
 SECOND_HOST="${SECOND}.devel"
 PREVIEW_HOST="${PREVIEW}.devel"
