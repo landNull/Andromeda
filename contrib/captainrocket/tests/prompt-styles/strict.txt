@@ -1,0 +1,10 @@
+Task: {{TASK}}
+Language/Runtime: {{LANG}}
+Contract:
+- Inputs: {{INPUTS}}
+- Output: {{OUTPUT}}
+Constraints:
+- Pure functions only. Zero globals. No third-party packages.
+- Output ONLY the code inside one markdown fence.
+- No comments. No prose before or after the fence.
+- If you cannot satisfy the contract, output an empty fence.

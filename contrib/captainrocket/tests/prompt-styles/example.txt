@@ -1,0 +1,12 @@
+Task: {{TASK}}
+Language/Runtime: {{LANG}}
+Contract:
+- Inputs: {{INPUTS}}
+- Output: {{OUTPUT}}
+Example shape (do not copy the example; write the real function):
+```
+# function that takes the described inputs and produces the described output
+```
+Constraints:
+- Pure functions only. Zero globals or unrequested third-party dependencies.
+- Output ONLY the implementation inside a markdown fence. Zero explanations.

@@ -1,0 +1,14 @@
+# Capcom model capability tiers.
+# One task per line: TIER|LANG|TASK|INPUTS|OUTPUT|CHECK
+# CHECK is a command that receives the extracted code on stdin and exits 0 on success.
+# LANG values: posix, python, php
+
+1|posix|echo its single argument and exit 0|one string argument|exit 0|sh -n
+2|posix|count lines in a file given as an argument and print the count|file path|integer on stdout, exit 0|sh -n
+3|posix|write a name-based Apache vhost snippet for a platform name to stdout|platform name|Apache config text, exit 0|sh -n
+4|posix|validate a platform name (alphanumeric and hyphen only); exit 0 if valid, 2 if not|platform name|exit code only|sh -n
+1|python|return the length of a string|one string|integer|python3 -c 'import sys; compile(sys.stdin.read(), "<stdin>", "exec")'
+2|python|extract the first URL from a text string or return empty string|one string|string|python3 -c 'import sys; compile(sys.stdin.read(), "<stdin>", "exec")'
+3|python|build a dict mapping host names to ServerName lines|list of hosts|dict|python3 -c 'import sys; compile(sys.stdin.read(), "<stdin>", "exec")'
+1|php|return the length of a string|one string|int|php -l
+2|php|return a ServerName line for a given host|one string|string|php -l
