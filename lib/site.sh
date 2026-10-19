@@ -39,11 +39,11 @@ EOF
   if ! grep -q "config/$product/active" "$dest" 2>/dev/null; then
     as_root tee -a "$dest" >/dev/null <<EOF
 
-\$config_directories['active']  = '../../config/$product/active';
-\$config_directories['staging'] = '../../config/$product/staging';
+\$config_directories['active']  = '../config/$product/active';
+\$config_directories['staging'] = '../config/$product/staging';
 \$config['system.core']['config_sync_clear_staging'] = 0;
-\$config['system.core']['file_private_path'] = '../../files_private/$product';
-\$settings['file_public_path'] = '../../files/$product';
+\$config['system.core']['file_private_path'] = '../files_private/$product';
+\$settings['file_public_path'] = '../files/$product';
 
 if (file_exists(__DIR__ . '/settings.local.php')) {
   include __DIR__ . '/settings.local.php';
