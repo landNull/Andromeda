@@ -53,6 +53,18 @@ echo "--> old-platform=$OLD_PLAT new-platform=$NEW_PLAT"
 echo "--> product=$PROD second=$SECOND preview=$PREVIEW cross=$CROSS"
 echo "--> old core=$OLD_VER"
 
+# Prime sudo once so later chown/bee calls do not fail mid-run.
+echo "--> sudo (password prompted once)"
+sudo -v || {
+    echo "ERROR"
+    echo "LAYER: host"
+    echo "FILE: sudo"
+    echo "WHAT: sudo password was not accepted."
+    echo "WHY: The stress run needs sudo for mkdir, chown, and bee as deploy."
+    echo "FIX: Run 'sudo -v' and re-run this script."
+    exit 1
+}
+
 cleanup() {
     if [ "$STRESS_OK" -eq 1 ] && [ -n "${STARDUST_KEEP:-}" ]; then
         echo "--> keep platforms $OLD_PLAT $NEW_PLAT (STARDUST_KEEP set, module passed)"
@@ -121,6 +133,8 @@ stardust site-backup "$OLD_PLAT" "$PROD"
 # so download latest beside it and copy core over, keeping sites/.
 step "5 upgrade core in place to latest"
 LATEST=$(mktemp -d)
+sudo chown deploy:www-admin "$LATEST"
+sudo chmod 2775 "$LATEST"
 (
     cd "$LATEST"
     sudo -u deploy bee dl-core web --version=latest
@@ -135,7 +149,7 @@ if [ ! -d "$LATEST/web/core" ]; then
     exit 1
 fi
 sudo -u deploy cp -a "$LATEST/web/core/." "$PLATFORMS/$OLD_PLAT/web/core/"
-rm -rf "$LATEST"
+sudo rm -rf "$LATEST"
 stardust bee "$OLD_PLAT" "$PROD" updb
 stardust bee "$OLD_PLAT" "$PROD" config-import || true
 stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
