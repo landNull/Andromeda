@@ -117,11 +117,25 @@ step "4 site-backup $PROD"
 stardust site-backup "$OLD_PLAT" "$PROD"
 
 # 5. Upgrade core in place: latest over the old web, then updb.
+# 5. Upgrade core in place. Bee refuses to dl-core into an existing install,
+# so download latest beside it and copy core over, keeping sites/.
 step "5 upgrade core in place to latest"
+LATEST=$(mktemp -d)
 (
-    cd "$PLATFORMS/$OLD_PLAT"
+    cd "$LATEST"
     sudo -u deploy bee dl-core web --version=latest
 )
+if [ ! -d "$LATEST/web/core" ]; then
+    echo "ERROR"
+    echo "LAYER: runtime"
+    echo "FILE: $LATEST/web"
+    echo "WHAT: latest core did not download."
+    echo "WHY: bee dl-core --version=latest failed."
+    echo "FIX: Run 'bee dl-core web --version=latest' in an empty directory."
+    exit 1
+fi
+sudo -u deploy cp -a "$LATEST/web/core/." "$PLATFORMS/$OLD_PLAT/web/core/"
+rm -rf "$LATEST"
 stardust bee "$OLD_PLAT" "$PROD" updb
 stardust bee "$OLD_PLAT" "$PROD" config-import || true
 stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
