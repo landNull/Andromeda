@@ -1,0 +1,5 @@
+name = Ubercart (stub)
+description = Empty D7 stub wrapper. Enable before the backdrop-ready dump so Ubercart submodules stay enabled.
+core = 7.x
+package = Stress stubs
+version = 1.0
