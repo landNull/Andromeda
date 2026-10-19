@@ -1,0 +1,6 @@
+name = Stress Bad
+description = Intentionally broken module for Capcom and Ollama fix-on-the-fly tests.
+package = Stress
+version = 1.0
+backdrop = 1.x
+type = module
