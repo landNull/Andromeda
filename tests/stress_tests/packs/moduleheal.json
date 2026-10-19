@@ -1,0 +1,17 @@
+{
+  "name": "moduleheal",
+  "role": "moduleheal",
+  "style": "Lint first. One fix at a time. php -l before asking the model. Autocomplete callbacks must return JSON.",
+  "phrases": {
+    "php lint": "php -l",
+    "fix stress bad": "php -l tests/stress_tests/modules/stress_bad/stress_bad.broken.inc",
+    "fix autocomplete": "php -l tests/stress_tests/modules/stress_bad/stress_bad.autocomplete.inc",
+    "enable module": "stardust bee",
+    "disable module": "stardust bee",
+    "uninstall module": "echo 'bee pmu NAME then remove the directory'",
+    "patch module": "echo 'Apply the patch under the module dir, then php -l the changed files'",
+    "fix loop": "/fixloop",
+    "code smoke": "/codesmoke"
+  },
+  "tools": ["php", "bee", "stardust"]
+}
