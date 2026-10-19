@@ -154,8 +154,8 @@ ensure_vhost() {
 </VirtualHost>
 EOF
   else
-    if ! grep -q "$host" "$conf"; then
-      as_root sed -i "s/^\\([[:space:]]*ServerName .*\\)/\\1\\n    ServerAlias $host/" "$conf"
+    if ! grep -q "ServerName $host\|ServerAlias $host" "$conf"; then
+      as_root sed -i "/ServerName /a\\    ServerAlias $host" "$conf"
     fi
   fi
   if have a2ensite; then
@@ -243,6 +243,8 @@ cmd_site_add() {
       [ -n "$phpbin" ] || phpbin=php
       # install.sh requires ./core relative to the web root. as_root does not
       # change directory, so cd there before the relative require.
+      # Empty config/active first; a leftover file makes install.sh 500.
+      run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" sh -c "cd '$web' && exec '$phpbin' core/scripts/install.sh \
         --url='$host' \
         --db-url='mysql://${user}:${pass}@localhost/${db}' \
@@ -254,6 +256,8 @@ cmd_site_add() {
         echo "$PROG: install.sh failed for $product" >&2
         return 1
       }
+      # install.sh can rewrite settings.php and drop the Stardust paths.
+      ensure_settings_php "$root" "$product"
       as_root touch "$web/sites/$product/.stardust-installed"
       run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
     else
