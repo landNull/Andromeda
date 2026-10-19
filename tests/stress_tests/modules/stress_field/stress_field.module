@@ -1,0 +1,35 @@
+<?php
+/**
+ * @file
+ * Defines a field type that has no Backdrop equivalent.
+ * Same shape as entityreference_count: a field type that blocks update.php
+ * unless it is uninstalled on D7 or ported.
+ */
+
+/**
+ * Implements hook_field_info().
+ */
+function stress_field_field_info() {
+  return array(
+    'stress_widget' => array(
+      'label' => t('Stress widget'),
+      'description' => t('A field type with no Backdrop port.'),
+      'settings' => array(),
+      'instance_settings' => array(),
+      'default_widget' => 'stress_widget',
+      'default_formatter' => 'stress_widget',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function stress_field_field_widget_info() {
+  return array(
+    'stress_widget' => array(
+      'label' => t('Stress widget'),
+      'field types' => array('stress_widget'),
+    ),
+  );
+}
