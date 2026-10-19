@@ -59,7 +59,11 @@ cmd_site_clone() {
   fi
 
   bee=$(bee_bin)
-  as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$snap/db.sql"
+  dump="$snap/db.sql"
+  if [ ! -s "$dump" ] && [ -s "$snap/db.sql.gz" ]; then
+    dump="$snap/db.sql.gz"
+  fi
+  as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
   if [ -f "$snap/files.tar.gz" ]; then
     run_root mkdir -p "$root/files/$product"
     as_root tar -C "$root/files" -xzf "$snap/files.tar.gz"
