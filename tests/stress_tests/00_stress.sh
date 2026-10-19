@@ -84,17 +84,75 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Sweep vhosts left by earlier stress runs. A dead DocumentRoot steals
-# name-based requests and returns 500 with no PHP error.
-echo "--> sweep stale stress vhosts"
+# Preflight: Apache and MySQL leftovers from earlier stress runs.
+# A dead DocumentRoot steals name-based requests and returns 500 with no PHP error.
+# A leftover bd_wwwNNNN_devel collides with the next stamp.
+echo "--> preflight: Apache cleanup"
 for conf in /etc/apache2/sites-enabled/stress-old-*-devel.conf \
-            /etc/apache2/sites-enabled/stress-new-*-devel.conf; do
+            /etc/apache2/sites-enabled/stress-new-*-devel.conf \
+            /etc/apache2/sites-available/stress-old-*-devel.conf \
+            /etc/apache2/sites-available/stress-new-*-devel.conf; do
     [ -e "$conf" ] || continue
     base=$(basename "$conf" .conf)
     sudo a2dissite "$base" >/dev/null 2>&1 || true
-    sudo rm -f "/etc/apache2/sites-available/${base}.conf" "$conf" 2>/dev/null || true
+    sudo rm -f "/etc/apache2/sites-available/${base}.conf" \
+              "/etc/apache2/sites-enabled/${base}.conf" 2>/dev/null || true
+done
+for dir in /srv/platforms/stress-old-* /srv/platforms/stress-new-*; do
+    [ -d "$dir" ] || continue
+    sudo rm -rf "$dir" 2>/dev/null || true
 done
 sudo /etc/init.d/apache2 reload >/dev/null 2>&1 || true
+
+echo "--> preflight: MySQL cleanup"
+sudo mysql -N -e "SHOW DATABASES LIKE 'bd_www%_devel';" 2>/dev/null | while read -r db; do
+    case "$db" in
+        bd_www[0-9]*_devel)
+            sudo mysql -e "DROP DATABASE IF EXISTS \`$db\`;" 2>/dev/null || true
+            user=$(printf '%s' "$db" | cut -c1-32)
+            sudo mysql -e "DROP USER IF EXISTS '$user'@'localhost';" 2>/dev/null || true
+            ;;
+    esac
+done
+sudo mysql -e "FLUSH PRIVILEGES;" 2>/dev/null || true
+
+echo "--> preflight: verify Apache"
+left=$(ls /etc/apache2/sites-enabled/stress-old-*-devel.conf \
+          /etc/apache2/sites-enabled/stress-new-*-devel.conf 2>/dev/null || true)
+if [ -n "$left" ]; then
+    echo "ERROR"
+    echo "LAYER: host"
+    echo "FILE: /etc/apache2/sites-enabled"
+    echo "WHAT: Stale stress vhosts are still enabled."
+    echo "WHY: a2dissite or rm did not remove them."
+    echo "FIX: sudo a2dissite the names below, then sudo /etc/init.d/apache2 reload"
+    echo "$left"
+    exit 1
+fi
+if sudo apache2ctl -S 2>/dev/null | grep -q 'stress-old-\|stress-new-'; then
+    echo "ERROR"
+    echo "LAYER: host"
+    echo "FILE: apache2ctl -S"
+    echo "WHAT: Apache still lists a stress vhost after reload."
+    echo "WHY: A conf outside sites-enabled still names a stress platform."
+    echo "FIX: grep -l stress-old /etc/apache2/sites-enabled/* and remove those confs."
+    exit 1
+fi
+echo "OK no stress vhosts enabled"
+
+echo "--> preflight: verify MySQL"
+leftdb=$(sudo mysql -N -e "SHOW DATABASES LIKE 'bd_www%_devel';" 2>/dev/null | grep -E '^bd_www[0-9]' || true)
+if [ -n "$leftdb" ]; then
+    echo "ERROR"
+    echo "LAYER: host"
+    echo "FILE: mysql"
+    echo "WHAT: Stale stress databases remain."
+    echo "WHY: DROP DATABASE did not remove them."
+    echo "FIX: sudo mysql -e \"DROP DATABASE IF EXISTS \\\`<name>\\\`;\" for each below."
+    echo "$leftdb"
+    exit 1
+fi
+echo "OK no stress databases remain"
 
 step() { echo ""; echo "--> $*"; }
 
