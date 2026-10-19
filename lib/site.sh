@@ -37,6 +37,9 @@ ensure_settings_php() {
 EOF
   fi
   if ! grep -q "config/$product/active" "$dest" 2>/dev/null; then
+    # Comment the template assignment so it cannot win over the Stardust path.
+    as_root sed -i "s|^\\(\$config_directories\\['active'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
+    as_root sed -i "s|^\\(\$config_directories\\['staging'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
     as_root tee -a "$dest" >/dev/null <<EOF
 
 \$config_directories['active']  = '../config/$product/active';
@@ -257,6 +260,14 @@ cmd_site_add() {
         return 1
       }
       # install.sh can rewrite settings.php and drop the Stardust paths.
+      # It also writes config to the default files/config_<hash>/active.
+      # Move that into the Stardust path before re-asserting settings.
+      landed=$(find "$web" -type d -path '*/config_*/active' 2>/dev/null | head -1)
+      if [ -n "$landed" ] && [ -d "$landed" ]; then
+        echo "moving installed config from $landed"
+        run_root cp -a "$landed/." "$root/config/$product/active/"
+        run_root chown -R "$OWNER:$GROUP" "$root/config/$product/active"
+      fi
       ensure_settings_php "$root" "$product"
       as_root touch "$web/sites/$product/.stardust-installed"
       run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
