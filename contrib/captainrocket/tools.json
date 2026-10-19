@@ -58,7 +58,7 @@
     },
     {
       "name": "starcoder-complete",
-      "summary": "Complete a code prefix with starcoder2 (raw completion).",
+      "summary": "Complete a code prefix with starcoder2. Supports temperature, stop sequences, optional FIM suffix, and post-filter.",
       "argv": [
         "./contrib/captainrocket/starcoder-complete.sh"
       ],

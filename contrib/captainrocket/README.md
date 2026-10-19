@@ -32,3 +32,15 @@ Or pass the phrase through:
 - Do not run `sudo stardust` or `sudo ./tests/run-test.sh`.
 - Do not answer the interactive prompts. `--json` and `--speak` skip them.
 - Do not treat `.captainrocket/state.db` as part of this contract.
+
+## starcoder-complete
+
+Complete a code prefix with starcoder2.
+
+```sh
+contrib/captainrocket/starcoder-complete.sh 'def add(a, b):
+    """Return the sum of a and b."""
+    return '
+```
+
+Environment: STARCODER_TEMP, STARCODER_NPRED, STARCODER_STOP, STARCODER_SUFFIX (for FIM).
