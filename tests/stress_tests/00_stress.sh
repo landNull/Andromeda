@@ -75,10 +75,26 @@ cleanup() {
         for prod in "$PROD" "$SECOND" "$PREVIEW" "$CROSS"; do
             stardust site-delete "$plat" "$prod" --force >/dev/null 2>&1 || true
         done
+        sudo a2dissite "${plat}-devel" >/dev/null 2>&1 || true
+        sudo rm -f "/etc/apache2/sites-available/${plat}-devel.conf" \
+                  "/etc/apache2/sites-enabled/${plat}-devel.conf" 2>/dev/null || true
         sudo rm -rf "$PLATFORMS/$plat" 2>/dev/null || true
     done
+    sudo /etc/init.d/apache2 reload >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
+
+# Sweep vhosts left by earlier stress runs. A dead DocumentRoot steals
+# name-based requests and returns 500 with no PHP error.
+echo "--> sweep stale stress vhosts"
+for conf in /etc/apache2/sites-enabled/stress-old-*-devel.conf \
+            /etc/apache2/sites-enabled/stress-new-*-devel.conf; do
+    [ -e "$conf" ] || continue
+    base=$(basename "$conf" .conf)
+    sudo a2dissite "$base" >/dev/null 2>&1 || true
+    sudo rm -f "/etc/apache2/sites-available/${base}.conf" "$conf" 2>/dev/null || true
+done
+sudo /etc/init.d/apache2 reload >/dev/null 2>&1 || true
 
 step() { echo ""; echo "--> $*"; }
 
