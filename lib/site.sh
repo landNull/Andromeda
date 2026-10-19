@@ -241,14 +241,16 @@ cmd_site_add() {
       echo "running core/scripts/install.sh --url=$host"
       phpbin=$(command -v php || true)
       [ -n "$phpbin" ] || phpbin=php
-      as_root -u "$OWNER" "$phpbin" "$web/core/scripts/install.sh" \
-        --url="$host" \
-        --db-url="mysql://${user}:${pass}@localhost/${db}" \
-        --site-name="$title" \
+      # install.sh requires ./core relative to the web root. as_root does not
+      # change directory, so cd there before the relative require.
+      as_root -u "$OWNER" sh -c "cd '$web' && exec '$phpbin' core/scripts/install.sh \
+        --url='$host' \
+        --db-url='mysql://${user}:${pass}@localhost/${db}' \
+        --site-name='$title' \
         --account-name=admin \
-        --account-pass="$pass" \
-        --account-mail="admin@${host}" \
-        --site-mail="admin@${host}" || {
+        --account-pass='$pass' \
+        --account-mail='admin@${host}' \
+        --site-mail='admin@${host}'" || {
         echo "$PROG: install.sh failed for $product" >&2
         return 1
       }
