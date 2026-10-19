@@ -79,12 +79,14 @@ is_completion() {
 }
 
 # Call generate. Args: model prompt raw(0|1) num_predict
-# Prints response text or empty on failure. Sets CALL_MS.
+# Writes response to $RESP_FILE and milliseconds to $MS_FILE.
 call_generate() {
   model=$1
   prompt=$2
   raw=$3
   npred=$4
+  RESP_FILE=$(mktemp)
+  MS_FILE=$(mktemp)
   start=$(date +%s%N)
   body=$(python3 -c '
 import json,sys
@@ -96,11 +98,10 @@ if raw=="1":
 print(json.dumps(d))
 ' "$model" "$prompt" "$raw" "$npred")
   out=$(mktemp)
-  CALL_MS=0
   if curl -sS -m "$TIMEOUT" -H 'Content-Type: application/json' \
        -d "$body" "$ENDPOINT/api/generate" > "$out" 2>/dev/null; then
     end=$(date +%s%N)
-    CALL_MS=$(( (end - start) / 1000000 ))
+    printf '%s' $(( (end - start) / 1000000 )) > "$MS_FILE"
     python3 -c '
 import json,sys
 try:
@@ -108,9 +109,10 @@ try:
   print(d.get("response") or "")
 except Exception:
   print("")
-' "$out"
+' "$out" > "$RESP_FILE"
   else
-    printf ''
+    printf '0' > "$MS_FILE"
+    printf '' > "$RESP_FILE"
   fi
   rm -f "$out"
 }
@@ -147,18 +149,21 @@ run_task() {
     printf 'DRY\n'
     return 0
   fi
-  resp=$(call_generate "$model" "$prompt" "$raw" "$npred")
+  call_generate "$model" "$prompt" "$raw" "$npred"
+  resp=$(cat "$RESP_FILE" 2>/dev/null || true)
+  ms=$(cat "$MS_FILE" 2>/dev/null || echo 0)
+  rm -f "$RESP_FILE" "$MS_FILE"
   if [ -z "$resp" ]; then
-    printf 'FAIL (no response, %sms)\n' "$CALL_MS"
-    echo "$model $task FAIL $CALL_MS" >> "$OUTDIR/results.txt"
+    printf 'FAIL (no response, %sms)\n' "$ms"
+    echo "$model $task FAIL $ms" >> "$OUTDIR/results.txt"
     return 1
   fi
   if check_task "$task" "$resp"; then
-    printf 'PASS (%sms)\n' "$CALL_MS"
-    echo "$model $task PASS $CALL_MS" >> "$OUTDIR/results.txt"
+    printf 'PASS (%sms)\n' "$ms"
+    echo "$model $task PASS $ms" >> "$OUTDIR/results.txt"
   else
-    printf 'FAIL (bad output, %sms)\n' "$CALL_MS"
-    echo "$model $task FAIL $CALL_MS" >> "$OUTDIR/results.txt"
+    printf 'FAIL (bad output, %sms)\n' "$ms"
+    echo "$model $task FAIL $ms" >> "$OUTDIR/results.txt"
   fi
 }
 
