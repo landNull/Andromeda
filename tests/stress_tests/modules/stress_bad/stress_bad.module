@@ -1,0 +1,42 @@
+<?php
+/**
+ * @file
+ * Stress Bad — valid loader. The broken files are separate so php -l can target them.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function stress_bad_menu() {
+  $items['stress-bad/autocomplete'] = array(
+    'title' => 'Stress autocomplete',
+    'page callback' => 'stress_bad_autocomplete',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Adds a field that needs a working autocomplete callback.
+ */
+function stress_bad_form_alter(&$form, &$form_state, $form_id) {
+  if ($form_id !== 'user_login') {
+    return;
+  }
+  $form['stress_query'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Stress query'),
+    '#autocomplete_path' => 'stress-bad/autocomplete',
+  );
+}
+
+/**
+ * Autocomplete callback. Delegates to the broken include on purpose.
+ */
+function stress_bad_autocomplete($string = '') {
+  module_load_include('inc', 'stress_bad', 'stress_bad.autocomplete');
+  return stress_bad_autocomplete_broken($string);
+}
