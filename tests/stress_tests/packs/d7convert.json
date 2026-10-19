@@ -1,0 +1,16 @@
+{
+  "name": "d7convert",
+  "role": "d7convert",
+  "style": "Conversion is a checklist. Stubs before the dump. Unsupported field types must be uninstalled or ported. Never run update.php until the codebase is ready.",
+  "phrases": {
+    "d7 stubs": "stardust d7-stubs",
+    "d7 toolkit": "stardust d7-toolkit",
+    "d7 prep": "stardust d7-prep",
+    "d7 assess": "stardust d7-assess",
+    "enable stubs": "echo 'On the D7 site enable entity_plus, entity_ui, ubercart stubs, then take backdrop-ready.sql'",
+    "unsupported field": "echo 'A field type with no Backdrop port blocks update.php. Uninstall it on D7 or port it.'",
+    "ubercart prep": "echo 'Ubercart needs entity_plus + entity_ui + ubercart stubs enabled on D7 before the dump.'",
+    "help d7": "stardust d7 --help"
+  },
+  "tools": ["stardust", "drush", "mysql"]
+}
