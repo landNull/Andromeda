@@ -82,6 +82,13 @@ cmd_site_clone() {
       as_root mv "$root/files_private/$product.tmp" "$root/files_private/$product"
     fi
   fi
+  # Backdrop boots from the active config directory, not only the DB.
+  # Without this the preview has a fresh empty config and returns 500.
+  if [ -f "$snap/config-active.tar.gz" ]; then
+    run_root mkdir -p "$root/config/$product"
+    as_root tar -C "$root/config/$product" -xzf "$snap/config-active.tar.gz"
+    run_root chown -R "$OWNER:$GROUP" "$root/config/$product" 2>/dev/null || true
+  fi
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 
   localphp=$web/sites/$product/settings.local.php
