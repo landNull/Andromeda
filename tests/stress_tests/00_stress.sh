@@ -66,8 +66,8 @@ sudo -v || {
 }
 
 cleanup() {
-    if [ "$STRESS_OK" -eq 1 ] && [ -n "${STARDUST_KEEP:-}" ]; then
-        echo "--> keep platforms $OLD_PLAT $NEW_PLAT (STARDUST_KEEP set, module passed)"
+    if [ -n "${STARDUST_KEEP:-}" ]; then
+        echo "--> keep platforms $OLD_PLAT $NEW_PLAT (STARDUST_KEEP set)"
         return 0
     fi
     echo "--> cleanup"
