@@ -1,0 +1,18 @@
+<task name="capcom_fix_stress_bad">
+  <objective>Fix the intentionally broken stress_bad module so Capcom and an Ollama model can repair it on the fly.</objective>
+  <constraints>
+    <rule id="1">Edit only files under tests/stress_tests/modules/stress_bad/.</rule>
+    <rule id="2">php -l must pass on every .inc and .module file when done.</rule>
+    <rule id="3">The autocomplete callback must return a JSON object of matches, not a PHP array and not an undefined function.</rule>
+    <rule id="4">Minimal diff. Do not rewrite the module.</rule>
+  </constraints>
+  <files>
+    <file>tests/stress_tests/modules/stress_bad/stress_bad.broken.inc</file>
+    <file>tests/stress_tests/modules/stress_bad/stress_bad.autocomplete.inc</file>
+  </files>
+  <instructions>
+    1. Run php -l on stress_bad.broken.inc. Fix the parse error.
+    2. Run php -l on stress_bad.autocomplete.inc. Replace the missing helper with a real function that returns JSON.
+    3. Re-lint both files. Stop when both pass.
+  </instructions>
+</task>
