@@ -94,7 +94,8 @@ cmd_site_restore() {
   as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
 
   cr=$(need_crdir)
-  as_root -u "$OWNER" "$cr" -s \
+  # crdir calls sudo itself; run as the operator, not deploy
+  "$cr" -s -o "$OWNER" -g "$GROUP" \
     "$root/files/$product" \
     "$root/files_private/$product" \
     "$root/config/$product/active"
