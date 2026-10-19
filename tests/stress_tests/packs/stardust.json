@@ -1,0 +1,24 @@
+{
+  "name": "stardust",
+  "role": "stardust",
+  "style": "Short. Run the Stardust verb. Do not invent flags. Platform and site names come from the operator.",
+  "phrases": {
+    "stardust doctor": "stardust doctor",
+    "stardust inventory": "stardust inventory",
+    "stardust log": "stardust log 20",
+    "platform add": "stardust platform-add",
+    "platform upgrade": "stardust platform-upgrade",
+    "site add": "stardust site-add",
+    "site check": "stardust site-check",
+    "site backup": "stardust site-backup",
+    "site restore": "stardust site-restore",
+    "site clone": "stardust site-clone",
+    "site disable": "stardust site-disable",
+    "site enable": "stardust site-enable",
+    "site delete": "stardust site-delete",
+    "bee status": "stardust bee",
+    "bee cache": "stardust bee",
+    "help stardust": "stardust --help"
+  },
+  "tools": ["stardust", "php", "mysql"]
+}
