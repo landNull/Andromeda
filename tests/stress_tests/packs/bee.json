@@ -1,0 +1,21 @@
+{
+  "name": "bee",
+  "role": "bee",
+  "style": "Bee runs as deploy against a platform web root. cd into the platform before dl-core. Never use --root for dl-core.",
+  "phrases": {
+    "bee download core": "sudo -u deploy bee dl-core web",
+    "bee download old": "sudo -u deploy bee dl-core web --version=1.28.4",
+    "bee status": "bee status",
+    "bee cache": "bee cc all",
+    "bee update": "bee updb",
+    "bee config export": "bee config-export",
+    "bee config import": "bee config-import",
+    "bee cron": "bee cron",
+    "bee login": "bee uli",
+    "bee enable": "bee en",
+    "bee disable": "bee dis",
+    "bee download module": "bee dl",
+    "help bee": "bee help"
+  },
+  "tools": ["bee", "php"]
+}
