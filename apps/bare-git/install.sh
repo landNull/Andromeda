@@ -59,8 +59,15 @@ ensure_git_user() {
 echo "1/3: Creating Git repository root at $GIT_ROOT"
 as_root mkdir -p "$GIT_ROOT"
 
-ensure_git_user
-as_root chown git:git "$GIT_ROOT" # Now 'git' user should exist
+if ! ensure_git_user; then
+  echo "$PROG: git user missing, cannot chown $GIT_ROOT" >&2
+  exit 1
+fi
+if [ "${DRYRUN:-0}" -eq 1 ]; then
+  echo "+ chown git:git $GIT_ROOT"
+else
+  as_root chown git:git "$GIT_ROOT"
+fi
 
 as_root chmod 775 "$GIT_ROOT" # Ensure group writeable
 
