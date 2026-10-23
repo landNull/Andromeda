@@ -221,6 +221,7 @@ dispatch() {
     log) cmd_log "$@" ;;
     last) cmd_last ;;
     platform-add) cmd_platform_add "$@" ;;
+    repo-ensure) cmd_repo_ensure "$@" ;;
     platform-upgrade) cmd_platform_upgrade "$@" ;;
     promote) cmd_promote "$@" ;;
     site-add) cmd_site_add "$@" ;;
