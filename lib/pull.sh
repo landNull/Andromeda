@@ -23,6 +23,8 @@ cmd_site_pull() {
   fi
 
   echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
+  wg_up || return 1
+  trap wg_down EXIT
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ ssh $vps stardust site-backup $src_p $src_s"
     echo "+ rsync snapshot"
