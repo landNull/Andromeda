@@ -41,6 +41,10 @@ cmd_site_debug() {
 cmd_site_heal() {
   platform=${1:-}
   product=${2:-}
+  platform=${platform#\'}; platform=${platform%\'}
+  platform=${platform#\"}; platform=${platform%\"}
+  product=${product#\'}; product=${product%\'}
+  product=${product#\"}; product=${product%\"}
   case $platform$product in
     *\**|*\?*)
       found=0
