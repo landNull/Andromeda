@@ -43,7 +43,7 @@ cmd_site_heal() {
   product=${2:-}
   resolve_site "$platform" "$product"
   host=$(guess_host "$product")
-  echo "heal $platform/$product"
+  echo "heal $platform/$product"; echo "settings"; echo "trusted host"
   echo "settings"
   echo "trusted host"
   echo "ownership"
