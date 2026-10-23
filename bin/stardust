@@ -83,7 +83,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG [-n] site-backup PLATFORM PRODUCT
   $PROG [-n] site-restore [--from DIR] PLATFORM PRODUCT
   $PROG [-n] site-clone SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD [--host HOST]
-  $PROG [-n] site-pull VPS SRC_PLAT SRC_PROD [DEST_PLAT] [DEST_PROD]
+  $PROG [-n] site-pull [--role ROLE] VPS SRC_PLAT SRC_PROD [DEST_PLAT] [DEST_PROD]
   $PROG [-n] site-check PLATFORM PRODUCT [--host HOST]
   $PROG [-n] site-disable PLATFORM PRODUCT
   $PROG [-n] site-enable PLATFORM PRODUCT
