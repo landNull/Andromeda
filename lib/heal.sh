@@ -126,7 +126,7 @@ _check_db() {
     echo "FAIL  missing db secret $cnf"
     return
   fi
-  if priv mysql-check "$cnf" 2>/dev/null; then
+  if mysql --defaults-extra-file="$cnf" -e "SELECT 1" >/dev/null 2>&1; then
     echo "ok    db"
   else
     echo "FAIL  db connection"
