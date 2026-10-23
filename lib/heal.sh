@@ -89,8 +89,9 @@ cmd_site_heal() {
     return 0
   fi
 
-  ensure_settings_php "$root" "$product"
-  ensure_sites_php "$web" "$host" "$product"
+  # Group-writable. Do not sudo these. www-admin already owns the write.
+  mkdir -p "$web/sites/$product" 2>/dev/null || true
+  [ -f "$web/settings.php" ] && [ ! -f "$web/sites/$product/settings.php" ] && cp "$web/settings.php" "$web/sites/$product/settings.php" 2>/dev/null || true
   hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
   localphp=$web/sites/$product/settings.local.php
   if [ -f "$localphp" ]; then
