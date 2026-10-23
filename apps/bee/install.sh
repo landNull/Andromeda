@@ -23,7 +23,11 @@ elif have bee && [ -x "$(command -v bee)" ]; then
 else
   run_root mkdir -p /usr/local/src
   if [ ! -d "$BEE_DST/.git" ]; then
-    run_root git clone --depth 1 --branch 1.x-1.x "$BEE_SRC" "$BEE_DST"
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      run_root gh repo clone backdrop-contrib/bee "$BEE_DST" -- --depth 1 --branch 1.x-1.x
+    else
+      run_root git clone --depth 1 --branch 1.x-1.x "$BEE_SRC" "$BEE_DST"
+    fi
   fi
   src=$(bee_src)
   if [ -n "$src" ]; then
