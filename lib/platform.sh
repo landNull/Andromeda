@@ -46,6 +46,16 @@ cmd_repo_ensure() {
     git -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -C "$work" checkout -B "$b"
   done
   git -C "$work" checkout devel
+  state=/srv/stardust/state/platforms
+  mkdir -p "$state"
+  cat > "$state/$name.json" << JSON
+{
+  "platform": "$name",
+  "bare": "$bare",
+  "checkout": "$work",
+  "remote": "deploy@10.8.0.1:$bare"
+}
+JSON
   echo "repo ready $name"
 }
 
