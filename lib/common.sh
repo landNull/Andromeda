@@ -452,7 +452,8 @@ as_root() {
     sudo -u "$tgt" "$@"
     return $?
   fi
-  if have sudo && sudo -n true >/dev/null 2>&1; then
+  priv=${PRIV:-/usr/local/sbin/stardust-priv}
+  if have sudo && sudo -n -l "$priv" >/dev/null 2>&1; then
     sudo -n "$@"
     return $?
   fi
