@@ -198,8 +198,8 @@ dispatch() {
     help) usage ;;
     doctor) cmd_doctor ;;
     list) cmd_list ;;
-    platform-list) cmd_platform_list ;;
-    site-list) cmd_site_list ;;
+    platform-list) cmd_platform_list "$@" ;;
+    site-list) cmd_site_list "$@" ;;
     env) cmd_env ;;
     log) cmd_log "$@" ;;
     last) cmd_last ;;
