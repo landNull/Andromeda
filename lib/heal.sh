@@ -44,6 +44,10 @@ cmd_site_heal() {
   resolve_site "$platform" "$product"
   host=$(guess_host "$product")
   echo "heal $platform/$product"
+  echo "settings"
+  echo "trusted host"
+  echo "ownership"
+  echo "apache reload"
 
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ rewrite settings paths"
