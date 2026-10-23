@@ -38,7 +38,15 @@ cmd_site_pull() {
     exit 1
   }
 
+  # Create the platform if it is missing, then the site.
+  if [ ! -d "$PLATFORMS/$dst_p" ]; then
+    echo "create platform $dst_p"
+    cmd_platform_add "$dst_p" --no-prompt
+  fi
   host="${dst_s}.${STARDUST_ROLE:-devel}"
+  if [ ! -d "$PLATFORMS/$dst_p/web/sites/$dst_s" ]; then
+    echo "create site $dst_p/$dst_s"
+  fi
   cmd_site_add "$dst_p" "$dst_s" --host "$host"
   echo "pull done  http://$host"
   echo "snapshot  $local_snap"
