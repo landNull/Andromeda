@@ -170,6 +170,15 @@ done
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
+# site list / platform list -> the hyphen form
+case $cmd in
+  site|platform)
+    if [ "${1:-}" = "list" ]; then
+      cmd="$cmd-list"
+      shift
+    fi
+    ;;
+esac
 
 case $cmd in
   help) ;;
