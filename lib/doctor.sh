@@ -67,6 +67,55 @@ cmd_list() {
   fi
 }
 
+
+cmd_platform_list() {
+  if [ ! -d "$PLATFORMS" ]; then
+    echo "$PROG: $PLATFORMS missing" >&2
+    exit 1
+  fi
+  found=0
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p" ] || continue
+    name=${p##*/}
+    case $name in .*) continue ;; esac
+    found=1
+    gitb=""
+    if [ -e "$p/.git" ] && have git; then
+      gitb=$(git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    fi
+    printf '%s' "$name"
+    [ -n "$gitb" ] && printf '  %s' "$gitb"
+    printf '\n'
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "(no platforms yet under $PLATFORMS)"
+  fi
+}
+
+cmd_site_list() {
+  if [ ! -d "$PLATFORMS" ]; then
+    echo "$PROG: $PLATFORMS missing" >&2
+    exit 1
+  fi
+  found=0
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p/web/sites" ] || continue
+    name=${p##*/}
+    for s in "$p/web/sites"/*; do
+      [ -d "$s" ] || continue
+      base=${s##*/}
+      case $base in default|all) continue ;; esac
+      if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
+        found=1
+        printf '%s/%s\n' "$name" "$base"
+      fi
+    done
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "(no sites yet)"
+  fi
+}
+
 cmd_doctor() {
   fail=0
   echo "Stardust doctor"
