@@ -1342,6 +1342,54 @@ if [ -z "$ROLE" ]; then
 fi
 
 detect_os
+
+ensure_gh() {
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "install gh"
+    if [ "$DRYRUN" -eq 1 ]; then
+      echo "+ apt-get install -y gh"
+    else
+      run_root apt-get install -y gh || {
+        echo "$PROG: cannot install gh" >&2
+        return 1
+      }
+    fi
+  fi
+  if gh auth status >/dev/null 2>&1; then
+    echo "gh: authenticated"
+    return 0
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ gh auth login"
+    return 0
+  fi
+  echo "gh is not logged in. Complete the login. The install waits."
+  gh auth login
+  gh auth status >/dev/null 2>&1 || {
+    echo "$PROG: gh auth did not complete" >&2
+    return 1
+  }
+  echo "gh: authenticated"
+}
+
+ensure_git_config() {
+  name=$(git config --global user.name || true)
+  email=$(git config --global user.email || true)
+  if [ -z "$name" ]; then
+    printf "git user.name: "
+    read -r name
+    git config --global user.name "$name"
+  fi
+  if [ -z "$email" ]; then
+    printf "git user.email: "
+    read -r email
+    git config --global user.email "$email"
+  fi
+  echo "git: $(git config --global user.name) <$(git config --global user.email)>"
+}
+
+ensure_gh || exit 1
+ensure_git_config
 detect_init
 detect_group
 detect_services
