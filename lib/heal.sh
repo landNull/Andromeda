@@ -41,6 +41,27 @@ cmd_site_debug() {
 cmd_site_heal() {
   platform=${1:-}
   product=${2:-}
+  case $platform$product in
+    *\**|*\?*)
+      found=0
+      for p in "$PLATFORMS"/$platform; do
+        [ -d "$p" ] || continue
+        name=${p##*/}
+        for s in "$p/web/sites"/$product; do
+          [ -d "$s" ] || continue
+          base=${s##*/}
+          case $base in default|all) continue ;; esac
+          found=1
+          echo "== $name/$base"
+          cmd_site_heal "$name" "$base" || true
+        done
+      done
+      if [ "$found" -eq 0 ]; then
+        echo "(no match for $platform/$product)"
+      fi
+      return 0
+      ;;
+  esac
   resolve_site "$platform" "$product"
   host=$(guess_host "$product")
   echo "heal $platform/$product"; echo "settings"; echo "trusted host"
