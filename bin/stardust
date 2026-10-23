@@ -55,6 +55,7 @@ export LIBDIR
 # shellcheck disable=SC1091
 . "$LIBDIR/clone.sh"
 . "$LIBDIR/pull.sh"
+. "$LIBDIR/heal.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/promote.sh"
 # shellcheck disable=SC1091
@@ -199,6 +200,8 @@ dispatch() {
     site-restore) cmd_site_restore "$@" ;;
     site-clone) cmd_site_clone "$@" ;;
     site-pull) cmd_site_pull "$@" ;;
+    site-debug) cmd_site_debug "$@" ;;
+    site-heal) cmd_site_heal "$@" ;;
     site-check) cmd_site_check "$@" ;;
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
@@ -260,7 +263,7 @@ case $cmd in
       exit "$rc"
     fi
     ;;
-  site-add|site-backup|site-clone|site-pull|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
+  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
     if dispatch "$@"; then
       task_log "$cmd $*" 0
     else
