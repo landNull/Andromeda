@@ -277,7 +277,9 @@ pkg_install() {
       # AppArmor breaks the install on Devuan/SysVinit. Remove and hold it.
       run_root apt-get purge -y apparmor apparmor-utils libapache2-mod-apparmor || true
       run_root apt-mark hold apparmor || true
-      run_root apt-get install -y --no-install-recommends "$@"
+      # Skip debconf UI (msmtp asks about AppArmor). Answer no.
+      run_root bash -c 'echo msmtp msmtp/apparmor boolean false | debconf-set-selections' || true
+      run_root env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true         apt-get install -y --no-install-recommends -o Dpkg::Options::=--force-confdef         -o Dpkg::Options::=--force-confold "$@"
       ;;
     apk)
       run_root apk add --no-cache "$@"
