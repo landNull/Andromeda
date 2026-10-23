@@ -172,6 +172,12 @@ cmd=${1:-help}
 [ $# -gt 0 ] && shift
 # site list / platform list -> the hyphen form
 case $cmd in
+  heal)
+    if [ "${1:-}" = "all" ]; then
+      cmd="heal-all"
+      shift
+    fi
+    ;;
   site|platform|backup|cron)
     verb=${1:-}
     case $verb in
@@ -216,6 +222,7 @@ dispatch() {
     site-pull) cmd_site_pull "$@" ;;
     site-debug) cmd_site_debug "$@" ;;
     site-heal) cmd_site_heal "$@" ;;
+    heal-all) cmd_heal_all ;;
     site-check) cmd_site_check "$@" ;;
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
