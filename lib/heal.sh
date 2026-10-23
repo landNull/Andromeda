@@ -6,6 +6,27 @@
 cmd_site_debug() {
   platform=${1:-}
   product=${2:-}
+  if [ -z "$platform" ] || [ -z "$product" ]; then
+    found=0
+    for p in "$PLATFORMS"/*; do
+      [ -d "$p/web/sites" ] || continue
+      name=${p##*/}
+      for s in "$p/web/sites"/*; do
+        [ -d "$s" ] || continue
+        base=${s##*/}
+        case $base in default|all) continue ;; esac
+        if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
+          found=1
+          echo "== $name/$base"
+          cmd_site_debug "$name" "$base" || true
+        fi
+      done
+    done
+    if [ "$found" -eq 0 ]; then
+      echo "(no sites to debug)"
+    fi
+    return 0
+  fi
   resolve_site "$platform" "$product"
   host=$(guess_host "$product")
   echo "debug $platform/$product host=$host"
