@@ -54,6 +54,7 @@ export LIBDIR
 . "$LIBDIR/platform.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/clone.sh"
+. "$LIBDIR/pull.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/promote.sh"
 # shellcheck disable=SC1091
@@ -82,6 +83,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG [-n] site-backup PLATFORM PRODUCT
   $PROG [-n] site-restore [--from DIR] PLATFORM PRODUCT
   $PROG [-n] site-clone SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD [--host HOST]
+  $PROG [-n] site-pull VPS SRC_PLAT SRC_PROD [DEST_PLAT] [DEST_PROD]
   $PROG [-n] site-check PLATFORM PRODUCT [--host HOST]
   $PROG [-n] site-disable PLATFORM PRODUCT
   $PROG [-n] site-enable PLATFORM PRODUCT
@@ -195,6 +197,7 @@ dispatch() {
     site-backup) cmd_site_backup "$@" ;;
     site-restore) cmd_site_restore "$@" ;;
     site-clone) cmd_site_clone "$@" ;;
+    site-pull) cmd_site_pull "$@" ;;
     site-check) cmd_site_check "$@" ;;
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
@@ -256,7 +259,7 @@ case $cmd in
       exit "$rc"
     fi
     ;;
-  site-add|site-backup|site-clone|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
+  site-add|site-backup|site-clone|site-pull|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
     if dispatch "$@"; then
       task_log "$cmd $*" 0
     else
