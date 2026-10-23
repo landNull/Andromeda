@@ -170,6 +170,13 @@ done
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
+_rest=""
+for _a in "$@"; do
+  if [ "$_a" = "-n" ]; then DRYRUN=1; continue; fi
+  _rest="$_rest $_a"
+done
+# shellcheck disable=SC2086
+set -- $_rest
 # site list / platform list -> the hyphen form
 case $cmd in
   heal)
