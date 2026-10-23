@@ -134,6 +134,7 @@ EXAMPLES
   $PROG site-check mysite www --host www.devel
   $PROG site-restore --from $STARDUST_ROOT/backups/mysite/www/devel/STAMP mysite www
   $PROG site-clone mysite www mysite www-copy --host www-copy.devel
+  $PROG site-pull --role test vps mysite www mysite www
   $PROG -n promote mysite --to test
   $PROG promote mysite --to live
   $PROG log 20
