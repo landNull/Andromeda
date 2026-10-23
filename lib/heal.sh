@@ -94,11 +94,12 @@ cmd_site_heal() {
   hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
   localphp=$web/sites/$product/settings.local.php
   if [ -f "$localphp" ]; then
-    as_root sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" || true
+    sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" 2>/dev/null || true
   fi
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
-  run_root chown -R "$OWNER:$GROUP" "$root/config/$product" 2>/dev/null || true
-  run_root sh -c "$APACHE_RELOAD" 2>/dev/null || true
+  priv=${PRIV:-/usr/local/sbin/stardust-priv}
+  sudo -n "$priv" mkdir "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active" 2>/dev/null || true
+  sudo -n "$priv" chown-files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+  sudo -n "$priv" apache-reload 2>/dev/null || true
   echo "heal done $platform/$product"
 }
 
