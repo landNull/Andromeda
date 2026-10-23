@@ -3,17 +3,26 @@
 # Pull a site from a VPS and stand it up as a devel site.
 # usage: stardust site-pull VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
 cmd_site_pull() {
+  role=${STARDUST_ROLE:-devel}
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --role) role=$2; shift 2 ;;
+      --) shift; break ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
   vps=${1:-}
   src_p=${2:-}
   src_s=${3:-}
   dst_p=${4:-$src_p}
   dst_s=${5:-$src_s}
   if [ -z "$vps" ] || [ -z "$src_p" ] || [ -z "$src_s" ]; then
-    echo "usage: $PROG site-pull VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
+    echo "usage: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
     exit 2
   fi
 
-  echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s (${STARDUST_ROLE:-devel})"
+  echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ ssh $vps stardust site-backup $src_p $src_s"
     echo "+ rsync snapshot"
@@ -43,8 +52,8 @@ cmd_site_pull() {
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  host="${dst_s}.${STARDUST_ROLE:-devel}"
-  cmd_site_add "$dst_p" "$dst_s" --host "$host"
+  host="${dst_s}.${role}"
+  STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
 
   # Fill the devel site from the snapshot so Backdrop boots the pulled content.
   resolve_site "$dst_p" "$dst_s"
