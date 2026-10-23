@@ -20,6 +20,35 @@ config/*/active/
 EOF
 }
 
+
+cmd_repo_ensure() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG repo-ensure NAME" >&2
+    exit 2
+  fi
+  bare=/srv/git/$name.git
+  work=$PLATFORMS/$name
+  echo "repo $name"
+  if [ ! -d "$bare" ]; then
+    echo "bare $bare"
+    mkdir -p /srv/git
+    git init --bare "$bare"
+    chown -R "$OWNER:$OWNER" "$bare" 2>/dev/null || true
+  fi
+  if [ ! -d "$work/.git" ]; then
+    echo "checkout $work"
+    git clone "$bare" "$work"
+    chown -R "$OWNER:$GROUP" "$work" 2>/dev/null || true
+  fi
+  for b in devel test live; do
+    git -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -C "$work" checkout -B "$b"
+  done
+  git -C "$work" checkout devel
+  echo "repo ready $name"
+}
+
 cmd_platform_add() {
   name=${1:-}
   shift || true
@@ -42,6 +71,10 @@ cmd_platform_add() {
   fi
   if [ -z "$branch" ]; then
     branch=$(branch_for_role)
+  fi
+  if [ -z "$giturl" ] && [ -d /srv/git -o "$(id -u)" -eq 0 ]; then
+    cmd_repo_ensure "$name"
+    giturl=/srv/git/$name.git
   fi
   if [ -z "$giturl" ] && git_template_ok "${STARDUST_GIT_TEMPLATE:-}"; then
     giturl=$(printf '%s' "$STARDUST_GIT_TEMPLATE" | sed "s|%s|$name|g")
