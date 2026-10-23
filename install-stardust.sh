@@ -274,7 +274,8 @@ pkg_install() {
   case $PKG in
     apt)
       run_root apt-get update
-      run_root apt-get install -y "$@"
+      # AppArmor is a recommend of apache2. It breaks on Devuan/SysVinit.
+      run_root apt-get install -y --no-install-recommends "$@"
       ;;
     apk)
       run_root apk add --no-cache "$@"
