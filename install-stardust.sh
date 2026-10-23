@@ -1366,6 +1366,24 @@ fi
 HOSTN=$(hostname 2>/dev/null || echo unknown)
 echo "$PROG role=$ROLE localhost=$LOCALHOST host=$HOSTN os=$OS_ID pkg=$PKG init=$INIT owner=$OWNER admin=${ADMIN:--} human=${HUMAN:--} group=$GROUP dryrun=$DRYRUN"
 
+ensure_git_user() {
+  if id git >/dev/null 2>&1; then
+    echo "user ok: git"
+    return 0
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ adduser --system --group --disabled-password git"
+    return 0
+  fi
+  if have adduser; then
+    run_root adduser --system --shell /bin/bash --gecos "Git Daemon User" --group --disabled-password git || return 1
+  else
+    run_root groupadd --system git 2>/dev/null || true
+    run_root useradd -r -m -d /home/git -s /bin/bash -g git -c "Git Daemon User" git || return 1
+  fi
+  echo "system user: git"
+}
+
 # --- run app install phases -------------------------------------------
 # Helpers live in this file. Each apps/<name>/install.sh is one phase.
 # Order comes from apps/MANIFEST (not directory sort). modules/NN-*.sh
@@ -1383,6 +1401,7 @@ run_app_phase() {
   . "$inst"
 }
 
+ensure_git_user || { echo "$PROG: cannot create git user" >&2; exit 1; }
 ran=0
 if [ -f "$HERE/apps/MANIFEST" ]; then
   while IFS= read -r app || [ -n "$app" ]; do
