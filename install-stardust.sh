@@ -274,7 +274,9 @@ pkg_install() {
   case $PKG in
     apt)
       run_root apt-get update
-      # AppArmor is a recommend of apache2. It breaks on Devuan/SysVinit.
+      # AppArmor breaks the install on Devuan/SysVinit. Remove and hold it.
+      run_root apt-get purge -y apparmor apparmor-utils libapache2-mod-apparmor || true
+      run_root apt-mark hold apparmor || true
       run_root apt-get install -y --no-install-recommends "$@"
       ;;
     apk)
