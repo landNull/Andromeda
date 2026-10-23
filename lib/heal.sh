@@ -38,6 +38,34 @@ cmd_site_debug() {
   _check_http "$host"
 }
 
+
+cmd_heal_all() {
+  echo "heal all"
+  found=0
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p/web/sites" ] || continue
+    name=${p##*/}
+    case $name in .*) continue ;; esac
+    for s in "$p/web/sites"/*; do
+      [ -d "$s" ] || continue
+      base=${s##*/}
+      case $base in default|all) continue ;; esac
+      if [ ! -f "$s/settings.php" ] && [ ! -f "$s/settings.local.php" ]; then
+        continue
+      fi
+      found=1
+      out=$(cmd_site_debug "$name" "$base" 2>&1) || true
+      echo "$out" | grep -q "FAIL" || continue
+      echo "== $name/$base"
+      echo "$out" | grep "FAIL"
+      cmd_site_heal "$name" "$base" || true
+    done
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "(no sites)"
+  fi
+}
+
 cmd_site_heal() {
   platform=${1:-}
   product=${2:-}
@@ -45,27 +73,6 @@ cmd_site_heal() {
   platform=${platform#\"}; platform=${platform%\"}
   product=${product#\'}; product=${product%\'}
   product=${product#\"}; product=${product%\"}
-  case $platform$product in
-    *\**|*\?*)
-      found=0
-      for p in "$PLATFORMS"/$platform; do
-        [ -d "$p" ] || continue
-        name=${p##*/}
-        for s in "$p/web/sites"/$product; do
-          [ -d "$s" ] || continue
-          base=${s##*/}
-          case $base in default|all) continue ;; esac
-          found=1
-          echo "== $name/$base"
-          cmd_site_heal "$name" "$base" || true
-        done
-      done
-      if [ "$found" -eq 0 ]; then
-        echo "(no match for $platform/$product)"
-      fi
-      return 0
-      ;;
-  esac
   resolve_site "$platform" "$product"
   host=$(guess_host "$product")
   echo "heal $platform/$product"; echo "settings"; echo "trusted host"
