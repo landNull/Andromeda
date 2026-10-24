@@ -37,6 +37,39 @@ EOF
   sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
 }
 
+
+_map_site() {
+  web=$1
+  host=$2
+  product=$3
+  dest=$web/sites/sites.php
+  sudo mkdir -p "$web/sites/$product"
+  if [ ! -f "$dest" ]; then
+    echo "<?php" | sudo tee "$dest" >/dev/null
+  fi
+  if ! grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
+    echo "map   $host -> $product"
+    echo "\$sites['$host'] = '$product';" | sudo tee -a "$dest" >/dev/null
+  else
+    echo "map   $host already set"
+  fi
+  # Single-site installs keep settings.php at the web root. Copy it into the product
+  # so the host map has a folder to land on.
+  if [ -f "$web/settings.php" ] && [ ! -f "$web/sites/$product/settings.php" ]; then
+    echo "copy  settings.php -> sites/$product/"
+    sudo cp "$web/settings.php" "$web/sites/$product/settings.php"
+  fi
+  localphp=$web/sites/$product/settings.local.php
+  if [ ! -f "$localphp" ]; then
+    hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
+    echo "write trusted host in settings.local.php"
+    sudo tee "$localphp" >/dev/null << EOF
+<?php
+\$settings['trusted_host_patterns'] = array('^${hostpat}$');
+EOF
+  fi
+}
+
 cmd_migrate_heal() {
   plat=${1:-}
   echo "migrate heal"
@@ -59,12 +92,14 @@ _heal_one() {
   plat=$1
   web=$PLATFORMS/$plat/web
   echo "== $plat"
+  _map_site "$web" "${plat}.live" "$plat"
   if [ ! -f "$web/index.php" ]; then
     echo "skip  no Backdrop at $web"
     return 0
   fi
 
   # Stock 000-default.conf is /var/www/html. Rewrite it the Stardust way.
+  _map_site "$web" "$host" "$plat"
   _write_default_vhost "$plat" "$web"
   for conf in /etc/apache2/sites-available/*.conf; do
     [ -f "$conf" ] || continue
@@ -224,6 +259,7 @@ cmd_migrate_www() {
     reloaded=0
   fi
 
+  _map_site "$web" "$host" "$plat"
   _write_default_vhost "$plat" "$web"
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
 }
