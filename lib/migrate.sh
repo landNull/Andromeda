@@ -9,6 +9,60 @@ is_docroot() {
   return 0
 }
 
+
+cmd_migrate_heal() {
+  plat=${1:-}
+  echo "migrate heal"
+  if [ -n "$plat" ]; then
+    _heal_one "$(slug "$plat")"
+    return 0
+  fi
+  found=0
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p/web" ] || continue
+    found=1
+    _heal_one "${p##*/}"
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "(no platforms)"
+  fi
+}
+
+_heal_one() {
+  plat=$1
+  web=$PLATFORMS/$plat/web
+  echo "== $plat"
+  if [ ! -f "$web/index.php" ]; then
+    echo "skip  no Backdrop at $web"
+    return 0
+  fi
+
+  # Point any vhost that still names /var/www at this web root.
+  for conf in /etc/apache2/sites-available/*.conf; do
+    [ -f "$conf" ] || continue
+    if grep -q "/var/www" "$conf" 2>/dev/null; then
+      echo "fix   DocumentRoot in ${conf##*/}"
+      sudo sed -i "s|DocumentRoot /var/www[^ ]*|DocumentRoot $web|" "$conf" || true
+    fi
+  done
+
+  if [ -d "$web/sites" ]; then
+    for s in "$web/sites"/*; do
+      [ -d "$s" ] || continue
+      base=${s##*/}
+      case $base in default|all) continue ;; esac
+      if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
+        echo "heal  $plat/$base"
+        cmd_site_heal "$plat" "$base" || true
+      fi
+    done
+  fi
+
+  echo "reload apache"
+  sudo service apache2 reload || true
+  echo "healed $plat"
+}
+
 cmd_migrate_www() {
   src_root=${WWW_ROOT:-/var/www}
   if [ ! -d "$src_root" ]; then
