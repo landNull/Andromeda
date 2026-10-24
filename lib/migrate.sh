@@ -10,6 +10,33 @@ is_docroot() {
 }
 
 
+
+_write_default_vhost() {
+  plat=$1
+  web=$2
+  def=/etc/apache2/sites-available/000-default.conf
+  [ -f "$def" ] || return 0
+  echo "fix   000-default.conf -> $web"
+  sudo tee "$def" >/dev/null << EOF
+<VirtualHost *:80>
+  ServerName ${plat}.live
+  DocumentRoot $web
+  <Directory $web>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  <Directory $PLATFORMS/$plat/config>
+    Require all denied
+  </Directory>
+  <Directory $PLATFORMS/$plat/files_private>
+    Require all denied
+  </Directory>
+</VirtualHost>
+EOF
+  sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
+}
+
 cmd_migrate_heal() {
   plat=${1:-}
   echo "migrate heal"
@@ -38,28 +65,7 @@ _heal_one() {
   fi
 
   # Stock 000-default.conf is /var/www/html. Rewrite it the Stardust way.
-  def=/etc/apache2/sites-available/000-default.conf
-  if [ -f "$def" ] && grep -q "/var/www" "$def" 2>/dev/null; then
-    echo "fix   000-default.conf -> $web"
-    sudo tee "$def" >/dev/null << EOF
-<VirtualHost *:80>
-  ServerName ${plat}.live
-  DocumentRoot $web
-  <Directory $web>
-    Options FollowSymLinks
-    AllowOverride All
-    Require all granted
-  </Directory>
-  <Directory $PLATFORMS/$plat/config>
-    Require all denied
-  </Directory>
-  <Directory $PLATFORMS/$plat/files_private>
-    Require all denied
-  </Directory>
-</VirtualHost>
-EOF
-    sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
-  fi
+  _write_default_vhost "$plat" "$web"
   for conf in /etc/apache2/sites-available/*.conf; do
     [ -f "$conf" ] || continue
     [ "$conf" = "$def" ] && continue
@@ -218,6 +224,7 @@ cmd_migrate_www() {
     reloaded=0
   fi
 
+  _write_default_vhost "$plat" "$web"
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
 }
 
