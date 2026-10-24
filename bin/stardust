@@ -61,6 +61,7 @@ export LIBDIR
 . "$LIBDIR/promote.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/d7.sh"
+. "$LIBDIR/migrate.sh"
 if [ -f "$LIBDIR/../apps/bee/lib.sh" ]; then
   # shellcheck disable=SC1091
   . "$LIBDIR/../apps/bee/lib.sh"
@@ -221,6 +222,7 @@ dispatch() {
     log) cmd_log "$@" ;;
     last) cmd_last ;;
     platform-add) cmd_platform_add "$@" ;;
+    migrate-www) cmd_migrate_www "$@" ;;
     repo-ensure) cmd_repo_ensure "$@" ;;
     platform-upgrade) cmd_platform_upgrade "$@" ;;
     promote) cmd_promote "$@" ;;
