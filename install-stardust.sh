@@ -1496,21 +1496,27 @@ case $shell_name in
   zsh) rc="$HOME/.zshrc" ;;
   bash) rc="$HOME/.bashrc" ;;
 esac
-# Write the wrapper. Do not depend on it already being in the checkout.
-cat > "$HERE/.zsh_stardust" << 'WRAP'
+# Global zsh function. @ is eaten before any binary runs, so this
+# must live in zsh, on the system path, not in the checkout.
+wrap=/usr/local/share/stardust/zsh_stardust
+run_root mkdir -p /usr/local/share/stardust
+run_root tee "$wrap" >/dev/null << 'WRAP'
 stardust() {
   noglob command stardust "$@"
 }
 WRAP
-if [ -n "$rc" ]; then
-  line="source \"$HERE/.zsh_stardust\""
-  if [ "$shell_name" = "zsh" ]; then
-    if ! grep -q '.zsh_stardust' "$rc" 2>/dev/null; then
-      echo "$line" >> "$rc"
-    fi
-    echo "shell: zsh"
-    echo "added: $line"
-    echo "then:  source $rc"
+if [ "$shell_name" = "zsh" ]; then
+  sysrc=/etc/zsh/zshrc
+  line="source $wrap"
+  if [ -f "$sysrc" ] && ! grep -q 'stardust/zsh_stardust' "$sysrc" 2>/dev/null; then
+    echo "$line" | run_root tee -a "$sysrc" >/dev/null
+  fi
+  if [ -n "$rc" ] && ! grep -q 'stardust/zsh_stardust' "$rc" 2>/dev/null; then
+    echo "$line" >> "$rc"
+  fi
+  echo "shell: zsh"
+  echo "global: $wrap"
+  echo "then:   source $wrap"
   else
     echo "shell: bash"
     echo "@ is not special in bash. No wrapper needed."
