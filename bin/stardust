@@ -196,7 +196,7 @@ case $cmd in
   site|platform|backup|cron)
     verb=${1:-}
     case $verb in
-      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|all)
+      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|remove|all)
         cmd="$cmd-$verb"
         shift
         ;;
@@ -228,6 +228,7 @@ dispatch() {
     log) cmd_log "$@" ;;
     last) cmd_last ;;
     platform-add) cmd_platform_add "$@" ;;
+    platform-remove) cmd_platform_remove "$@" ;;
     migrate-www) cmd_migrate_www "$@" ;;
     migrate-heal) cmd_migrate_heal "$@" ;;
     repo-ensure) cmd_repo_ensure "$@" ;;
