@@ -19,12 +19,14 @@ cmd_site_pull() {
     vps=${left%%:*}
     src_p=${left#*:}; src_p=${src_p%%/*}
     src_s=${left##*/}
+    dst_h=${right%%:*}
     dst_p=${right#*:}; dst_p=${dst_p%%/*}
     dst_s=${right##*/}
   else
     vps=${1:-}
     src_p=${2:-}
     src_s=${3:-}
+    dst_h=local
     dst_p=${4:-$src_p}
     dst_s=${5:-$src_s}
   fi
@@ -36,7 +38,7 @@ cmd_site_pull() {
 
   src_path="/srv/platforms/$src_p/web/sites/$src_s"
   dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
-  echo "pull @$vps:$src_p/$src_s -> @$dst_p/$dst_s ($role)"
+  echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
   echo "from $src_path  on $vps"
   echo "to   $dst_path"
   echo "tunnel  up"
