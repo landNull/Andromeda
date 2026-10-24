@@ -23,8 +23,10 @@ cmd_site_pull() {
   fi
 
   echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
+  echo "tunnel  up"
   wg_up || return 1
   trap wg_down EXIT
+  echo "tunnel  $vps"
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ ssh $vps stardust site-backup $src_p $src_s"
     echo "+ rsync snapshot"
@@ -34,6 +36,7 @@ cmd_site_pull() {
     return 0
   fi
 
+  echo "remote  backup $src_p/$src_s"
   ssh "$vps" "stardust site-backup $src_p $src_s" || {
     echo "$PROG: remote backup failed" >&2
     exit 1
@@ -45,7 +48,9 @@ cmd_site_pull() {
   fi
   local_snap="$HOME/.stardust/pull/$src_p/$src_s"
   mkdir -p "$local_snap"
-  rsync -a "$vps:$remote/" "$local_snap/" || {
+  echo "rsync   $remote"
+  echo "local   $local_snap"
+  rsync -a --info=stats2 "$vps:$remote/" "$local_snap/" || {
     echo "$PROG: rsync failed" >&2
     exit 1
   }
@@ -55,11 +60,14 @@ cmd_site_pull() {
     cmd_platform_add "$dst_p" --no-prompt
   fi
   host="${dst_s}.${role}"
+  echo "site    $dst_p/$dst_s host=$host"
   STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
+  echo "restore files, private, config, db"
 
   # Fill the devel site from the snapshot so Backdrop boots the pulled content.
   resolve_site "$dst_p" "$dst_s"
   _restore_snap "$local_snap" "$root" "$web" "$product" "$src_s" "$host"
+  echo "tunnel  down"
   echo "pull done  http://$host"
 }
 
