@@ -1,9 +1,56 @@
-# Source from ~/.zshrc:
-#   source "$HOME/Apps/Stardust/.zsh_stardust"
+# ~/.zsh_stardust
+# Stops zsh eating @host:plat/site, and prints the real path.
+# @ is a glob qualifier. noglob must run in this shell, before the binary.
 #
-# noglob stops zsh eating @ in:
-#   stardust site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel
+#   @host:platform/site  =  /srv/platforms/platform/web/sites/site  on host
+#
+# source "$HOME/.zsh_stardust"
+
+_stardust_resolve() {
+  local a host rest plat site
+  for a in "$@"; do
+    [[ $a == @*:*/* ]] || continue
+    host=${a#@}
+    host=${host%%:*}
+    rest=${a#*:}
+    plat=${rest%%/*}
+    site=${rest#*/}
+    print -r -- "  $a"
+    print -r -- "    /srv/platforms/$plat/web/sites/$site on $host"
+  done
+}
 
 stardust() {
+  _stardust_resolve "$@"
   noglob command stardust "$@"
 }
+
+# sd is an alias in ~/.zsh_aliases. An alias skips this function.
+# Replace it so the arrow form works with either name.
+unalias sd 2>/dev/null
+sd() {
+  stardust "$@"
+}
+
+_stardust_complete() {
+  local -a out hosts plats
+  local h p s
+  hosts=(${(f)"$(awk '/^Host / {print $2}' ~/.ssh/config 2>/dev/null)"})
+  hosts=(${hosts:#\*})
+  for p in /srv/platforms/*(/N); do
+    p=${p:t}
+    for h in $hosts; do
+      out+=("@${h}:${p}")
+    done
+    for s in /srv/platforms/$p/web/sites/*(/N); do
+      s=${s:t}
+      [[ $s == default || $s == all ]] && continue
+      for h in $hosts; do
+        out+=("@${h}:${p}/${s}")
+      done
+    done
+  done
+  _describe 'site' out
+}
+
+compdef _stardust_complete stardust sd
