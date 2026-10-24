@@ -226,3 +226,42 @@ cmd_platform_upgrade() {
   fi
   echo "upgrade $name done"
 }
+
+
+cmd_platform_remove() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG platform remove NAME" >&2
+    exit 2
+  fi
+  dest=$PLATFORMS/$name
+  if [ ! -d "$dest" ]; then
+    echo "$PROG: no platform $name" >&2
+    exit 1
+  fi
+
+  echo "backup $name"
+  stamp=$(date +%Y%m%d-%H%M%S)
+  snap=/srv/stardust/backups/$name/platform/$stamp
+  sudo mkdir -p "$snap"
+  sudo tar -C "$PLATFORMS" -czf "$snap/tree.tgz" "$name" || {
+    echo "$PROG: backup failed, not removing" >&2
+    exit 1
+  }
+  echo "snap  $snap/tree.tgz"
+
+  echo "remove $name"
+  for role in devel test live; do
+    sudo a2dissite "$name-$role" >/dev/null 2>&1 || true
+    sudo rm -f "/etc/apache2/sites-available/$name-$role.conf"
+  done
+  sudo rm -rf "$dest"
+  sudo rm -rf "/srv/git/$name.git"
+  sudo rm -f "/srv/stardust/state/platforms/$name.json"
+  sudo rm -f "/srv/stardust/state/migrate/$name"
+  sudo service apache2 reload >/dev/null 2>&1 || true
+  echo "removed $name"
+  echo "backup  $snap/tree.tgz"
+}
+
