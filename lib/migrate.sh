@@ -85,62 +85,70 @@ _ensure_apache_mysql() {
 
 cmd_migrate_heal() {
   plat=${1:-}
-  echo "migrate heal"
   if [ -n "$plat" ]; then
-    _heal_one "$(slug "$plat")"
+    _scan_one "$(slug "$plat")"
     return 0
   fi
   found=0
   for p in "$PLATFORMS"/*; do
     [ -d "$p/web" ] || continue
     found=1
-    _heal_one "${p##*/}"
+    _scan_one "${p##*/}"
   done
-  if [ "$found" -eq 0 ]; then
-    echo "(no platforms)"
-  fi
+  [ "$found" -eq 1 ] || echo "(no platforms)"
 }
 
-_heal_one() {
+_scan_one() {
   plat=$1
   web=$PLATFORMS/$plat/web
+  mark=/srv/stardust/state/migrate/$plat
   echo "== $plat"
-  _map_site "$web" "${plat}.live" "$plat"
-  if [ ! -f "$web/index.php" ]; then
-    echo "skip  no Backdrop at $web"
+  if [ ! -f "$mark" ]; then
+    echo "skip  no $mark  (not a migrated platform)"
     return 0
   fi
 
-  # Stock 000-default.conf is /var/www/html. Rewrite it the Stardust way.
-  _map_site "$web" "$host" "$plat"
-  _write_default_vhost "$plat" "$web"
-  for conf in /etc/apache2/sites-available/*.conf; do
-    [ -f "$conf" ] || continue
-    [ "$conf" = "$def" ] && continue
-    if grep -q "/var/www" "$conf" 2>/dev/null; then
-      echo "fix   DocumentRoot in ${conf##*/}"
-      sudo sed -i "s|DocumentRoot /var/www[^ ]*|DocumentRoot $web|" "$conf" || true
+  if [ -f "$web/index.php" ] && [ -d "$web/core" ]; then
+    echo "ok    docroot $web"
+  else
+    echo "fail  docroot missing  $web"
+  fi
+
+  if [ -f "$web/sites/sites.php" ]; then
+    echo "ok    sites.php"
+  else
+    echo "fail  sites.php missing"
+  fi
+
+  for s in "$web/sites"/*; do
+    [ -d "$s" ] || continue
+    base=${s##*/}
+    case $base in default|all) continue ;; esac
+    if [ -f "$s/settings.php" ]; then
+      echo "ok    $base settings.php"
+    else
+      echo "fail  $base settings.php missing"
+    fi
+    if [ -f "$s/settings.local.php" ]; then
+      echo "ok    $base settings.local.php"
+    else
+      echo "fail  $base settings.local.php missing"
     fi
   done
 
-  if [ -d "$web/sites" ]; then
-    for s in "$web/sites"/*; do
-      [ -d "$s" ] || continue
-      base=${s##*/}
-      case $base in default|all) continue ;; esac
-      if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
-        echo "heal  $plat/$base"
-        cmd_site_heal "$plat" "$base" || true
-      fi
-    done
+  def=/etc/apache2/sites-available/000-default.conf
+  if [ -f "$def" ] && grep -q "/var/www" "$def" 2>/dev/null; then
+    echo "fail  000-default.conf still /var/www"
+  else
+    echo "ok    000-default.conf"
   fi
 
-  chown_code "$web" || true
-  [ -d "$PLATFORMS/$plat/files" ] && chown_files "$PLATFORMS/$plat/files" || true
-  [ -d "$PLATFORMS/$plat/files_private" ] && chown_files "$PLATFORMS/$plat/files_private" || true
-  echo "reload apache"
-  sudo service apache2 reload || true
-  echo "healed $plat"
+  if [ -f /etc/php/8.4/apache2/conf.d/20-pdo_mysql.ini ]; then
+    echo "ok    apache pdo_mysql"
+  else
+    echo "fail  apache pdo_mysql missing"
+  fi
+  echo "scan  $plat"
 }
 
 cmd_migrate_www() {
@@ -275,6 +283,8 @@ cmd_migrate_www() {
 
   _map_site "$web" "$host" "$plat"
   _write_default_vhost "$plat" "$web"
+  mkdir -p /srv/stardust/state/migrate
+  : > /srv/stardust/state/migrate/$plat
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
 }
 
