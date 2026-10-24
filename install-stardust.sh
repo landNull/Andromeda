@@ -1488,6 +1488,30 @@ if [ "$ran" -eq 0 ]; then
 fi
 
 echo "done."
+
+# Shell wrapper so @host:plat/site is not eaten.
+shell_name=$(basename "${SHELL:-/bin/sh}")
+rc=""
+case $shell_name in
+  zsh) rc="$HOME/.zshrc" ;;
+  bash) rc="$HOME/.bashrc" ;;
+esac
+if [ -n "$rc" ] && [ -f "$HERE/.zsh_stardust" ]; then
+  line="source \"$HERE/.zsh_stardust\""
+  if [ "$shell_name" = "zsh" ]; then
+    if ! grep -q '.zsh_stardust' "$rc" 2>/dev/null; then
+      echo "$line" >> "$rc"
+    fi
+    echo "shell: zsh"
+    echo "added: $line"
+    echo "then:  source $rc"
+  else
+    echo "shell: bash"
+    echo "@ is not special in bash. No wrapper needed."
+    echo "cmd:   stardust site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
+  fi
+fi
+
 echo "$OWNER is a system account (nologin, locked). No passwd."
 if [ -n "$HUMAN" ]; then
   echo "refresh groups: exec su - $HUMAN"
