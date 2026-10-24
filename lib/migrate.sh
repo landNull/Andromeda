@@ -37,9 +37,32 @@ _heal_one() {
     return 0
   fi
 
-  # Point any vhost that still names /var/www at this web root.
+  # Stock 000-default.conf is /var/www/html. Rewrite it the Stardust way.
+  def=/etc/apache2/sites-available/000-default.conf
+  if [ -f "$def" ] && grep -q "/var/www" "$def" 2>/dev/null; then
+    echo "fix   000-default.conf -> $web"
+    sudo tee "$def" >/dev/null << EOF
+<VirtualHost *:80>
+  ServerName ${plat}.live
+  DocumentRoot $web
+  <Directory $web>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  <Directory $PLATFORMS/$plat/config>
+    Require all denied
+  </Directory>
+  <Directory $PLATFORMS/$plat/files_private>
+    Require all denied
+  </Directory>
+</VirtualHost>
+EOF
+    sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
+  fi
   for conf in /etc/apache2/sites-available/*.conf; do
     [ -f "$conf" ] || continue
+    [ "$conf" = "$def" ] && continue
     if grep -q "/var/www" "$conf" 2>/dev/null; then
       echo "fix   DocumentRoot in ${conf##*/}"
       sudo sed -i "s|DocumentRoot /var/www[^ ]*|DocumentRoot $web|" "$conf" || true
