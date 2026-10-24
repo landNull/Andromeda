@@ -1496,7 +1496,13 @@ case $shell_name in
   zsh) rc="$HOME/.zshrc" ;;
   bash) rc="$HOME/.bashrc" ;;
 esac
-if [ -n "$rc" ] && [ -f "$HERE/.zsh_stardust" ]; then
+# Write the wrapper. Do not depend on it already being in the checkout.
+cat > "$HERE/.zsh_stardust" << 'WRAP'
+stardust() {
+  noglob command stardust "$@"
+}
+WRAP
+if [ -n "$rc" ]; then
   line="source \"$HERE/.zsh_stardust\""
   if [ "$shell_name" = "zsh" ]; then
     if ! grep -q '.zsh_stardust' "$rc" 2>/dev/null; then
