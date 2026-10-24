@@ -1,0 +1,9 @@
+# Source from ~/.zshrc:
+#   source "$HOME/Apps/Stardust/.zsh_stardust"
+#
+# noglob stops zsh eating @ in:
+#   stardust site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel
+
+stardust() {
+  noglob command stardust "$@"
+}
