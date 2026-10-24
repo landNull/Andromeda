@@ -244,6 +244,14 @@ cmd_platform_remove() {
   printf "ARE YOU SURE YOU WANT TO DELETE %s?!? [y/N] " "$name"
   read -r ok
   [ "$ok" = "y" ] || { echo "stopped"; return 0; }
+  echo "deleting $name in 5 seconds. Ctrl-C to stop."
+  i=5
+  while [ "$i" -gt 0 ]; do
+    printf "  %s\r" "$i"
+    sleep 1
+    i=$((i - 1))
+  done
+  echo
   echo "backup $name"
   stamp=$(date +%Y%m%d-%H%M%S)
   snap=/srv/stardust/backups/$name/platform/$stamp
