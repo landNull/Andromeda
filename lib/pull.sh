@@ -12,13 +12,25 @@ cmd_site_pull() {
       *) break ;;
     esac
   done
-  vps=${1:-}
-  src_p=${2:-}
-  src_s=${3:-}
-  dst_p=${4:-$src_p}
-  dst_s=${5:-$src_s}
+  # @host:plat/site -> @host:plat/site
+  if [ "${2:-}" = "->" ] && printf '%s' "${1:-}" | grep -q '^@'; then
+    left=${1#@}
+    right=${3#@}
+    vps=${left%%:*}
+    src_p=${left#*:}; src_p=${src_p%%/*}
+    src_s=${left##*/}
+    dst_p=${right#*:}; dst_p=${dst_p%%/*}
+    dst_s=${right##*/}
+  else
+    vps=${1:-}
+    src_p=${2:-}
+    src_s=${3:-}
+    dst_p=${4:-$src_p}
+    dst_s=${5:-$src_s}
+  fi
   if [ -z "$vps" ] || [ -z "$src_p" ] || [ -z "$src_s" ]; then
-    echo "usage: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
+    echo "usage: $PROG site pull @host:plat/site -> @host:plat/site" >&2
+    echo "   or: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
     exit 2
   fi
 
