@@ -70,6 +70,19 @@ EOF
   fi
 }
 
+
+_ensure_apache_mysql() {
+  # CLI php and Apache php are different. Bee can pass while the site 500s.
+  if ! command -v phpenmod >/dev/null 2>&1; then
+    echo "note  no phpenmod, skip apache php check"
+    return 0
+  fi
+  echo "php   enable pdo_mysql for apache"
+  sudo phpenmod -s apache2 pdo_mysql 2>/dev/null || true
+  sudo phpenmod -s fpm pdo_mysql 2>/dev/null || true
+  sudo phpenmod -s apache2 mysqli 2>/dev/null || true
+}
+
 cmd_migrate_heal() {
   plat=${1:-}
   echo "migrate heal"
@@ -252,8 +265,9 @@ cmd_migrate_www() {
     sudo sed -i "/<VirtualHost/a\  ServerName $host" "$conf"
   fi
   sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
+  _ensure_apache_mysql
   echo "reload apache"
-  if sudo service apache2 reload; then
+  if sudo service apache2 restart; then
     reloaded=1
   else
     reloaded=0
@@ -302,9 +316,15 @@ _migrate_report() {
   fi
 
   if [ "$reloaded" -eq 1 ]; then
-    _ok "apache reloaded"
+    _ok "apache restarted"
   else
-    _bad "apache reload failed" "sudo service apache2 reload returned non-zero"
+    _bad "apache restart failed" "sudo service apache2 restart returned non-zero"
+    fail=1
+  fi
+  if [ -f /etc/php/8.4/apache2/conf.d/20-pdo_mysql.ini ] || [ -f /etc/php/*/apache2/conf.d/20-pdo_mysql.ini ]; then
+    _ok "apache php has pdo_mysql"
+  else
+    _bad "apache php missing pdo_mysql" "CLI can have it while Apache does not. phpenmod -s apache2 pdo_mysql"
     fail=1
   fi
 
