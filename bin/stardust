@@ -179,22 +179,6 @@ for _a in "$@"; do
 done
 # shellcheck disable=SC2086
 set -- $_rest
-# pull site from VPS NAME_plat NAME_site to NAME_plat NAME_site
-if [ "$cmd" = "pull" ] && [ "${1:-}" = "site" ] && [ "${2:-}" = "from" ]; then
-  shift 2
-  vps=${1:-}; shift || true
-  src_p=${1:-}; shift || true
-  src_s=${1:-}; shift || true
-  [ "${1:-}" = "to" ] && shift
-  dst_p=${1:-}; shift || true
-  dst_s=${1:-}
-  src_p=${src_p%_plat}
-  src_s=${src_s%_site}
-  dst_p=${dst_p%_plat}
-  dst_s=${dst_s%_site}
-  cmd=site-pull
-  set -- "$vps" "$src_p" "$src_s" "$dst_p" "$dst_s"
-fi
 # site list / platform list -> the hyphen form
 case $cmd in
   heal)
