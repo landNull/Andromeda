@@ -129,8 +129,83 @@ cmd_migrate_www() {
   fi
   sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
   echo "reload apache"
-  sudo service apache2 reload
-  echo "curl http://$host/"
+  if sudo service apache2 reload; then
+    reloaded=1
+  else
+    reloaded=0
+  fi
+
+  _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
+}
+
+_ok() { printf '  \033[32m✔\033[0m  %s\n' "$1"; }
+_bad() { printf '  \033[31m✘\033[0m  %s\n' "$1"; printf '      %s\n' "$2"; }
+
+_migrate_report() {
+  plat=$1
+  web=$2
+  host=$3
+  conf=$4
+  reloaded=$5
+  fail=0
+
+  echo
+  echo "  migrate $plat"
+  echo "  ----------------------------------------"
+
+  if [ -f "$web/index.php" ] && { [ -d "$web/core" ] || [ -f "$web/settings.php" ]; }; then
+    _ok "Backdrop docroot at $web"
+  else
+    _bad "Backdrop docroot missing" "no index.php and core under $web"
+    fail=1
+  fi
+
+  if grep -q "DocumentRoot $web" "$conf" 2>/dev/null; then
+    _ok "vhost DocumentRoot is $web"
+  else
+    _bad "vhost still points elsewhere" "DocumentRoot in $conf is not $web"
+    fail=1
+  fi
+
+  old=$(grep -l "/var/www" /etc/apache2/sites-available/*.conf 2>/dev/null || true)
+  if [ -z "$old" ]; then
+    _ok "no vhost still uses /var/www"
+  else
+    _bad "a vhost still uses /var/www" "$old"
+    fail=1
+  fi
+
+  if [ "$reloaded" -eq 1 ]; then
+    _ok "apache reloaded"
+  else
+    _bad "apache reload failed" "sudo service apache2 reload returned non-zero"
+    fail=1
+  fi
+
   code=$(curl -sS -L --max-time 15 -o /dev/null -w '%{http_code}' "http://$host/" || echo 000)
-  echo "HTTP $code"
+  case $code in
+    200|301|302)
+      _ok "curl http://$host/ -> $code"
+      ;;
+    521|522|523)
+      _bad "curl http://$host/ -> $code" "Cloudflare cannot reach origin. Tunnel or apache."
+      fail=1
+      ;;
+    000)
+      _bad "curl http://$host/ -> unreachable" "no answer. Host not in DNS, or apache down."
+      fail=1
+      ;;
+    *)
+      _bad "curl http://$host/ -> $code" "not a clean answer. Check the vhost and the site."
+      fail=1
+      ;;
+  esac
+
+  echo "  ----------------------------------------"
+  if [ "$fail" -eq 0 ]; then
+    printf '  \033[32m✔ done\033[0m  %s is on %s\n' "$plat" "$web"
+  else
+    printf '  \033[31m✘ done with failures\033[0m  see the lines above\n'
+  fi
+  echo
 }
