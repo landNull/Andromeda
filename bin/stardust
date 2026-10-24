@@ -187,6 +187,12 @@ case $cmd in
       shift
     fi
     ;;
+  migrate-www|migrate)
+    if [ "${1:-}" = "heal" ]; then
+      cmd="migrate-heal"
+      shift
+    fi
+    ;;
   site|platform|backup|cron)
     verb=${1:-}
     case $verb in
@@ -223,6 +229,7 @@ dispatch() {
     last) cmd_last ;;
     platform-add) cmd_platform_add "$@" ;;
     migrate-www) cmd_migrate_www "$@" ;;
+    migrate-heal) cmd_migrate_heal "$@" ;;
     repo-ensure) cmd_repo_ensure "$@" ;;
     platform-upgrade) cmd_platform_upgrade "$@" ;;
     promote) cmd_promote "$@" ;;
