@@ -54,10 +54,14 @@ export LIBDIR
 . "$LIBDIR/platform.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/clone.sh"
+. "$LIBDIR/pull.sh"
+. "$LIBDIR/heal.sh"
+. "$LIBDIR/wg.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/promote.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/d7.sh"
+. "$LIBDIR/migrate.sh"
 if [ -f "$LIBDIR/../apps/bee/lib.sh" ]; then
   # shellcheck disable=SC1091
   . "$LIBDIR/../apps/bee/lib.sh"
@@ -82,6 +86,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG [-n] site-backup PLATFORM PRODUCT
   $PROG [-n] site-restore [--from DIR] PLATFORM PRODUCT
   $PROG [-n] site-clone SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD [--host HOST]
+  $PROG [-n] site-pull [--role ROLE] VPS SRC_PLAT SRC_PROD [DEST_PLAT] [DEST_PROD]
   $PROG [-n] site-check PLATFORM PRODUCT [--host HOST]
   $PROG [-n] site-disable PLATFORM PRODUCT
   $PROG [-n] site-enable PLATFORM PRODUCT
@@ -132,6 +137,7 @@ EXAMPLES
   $PROG site-check mysite www --host www.devel
   $PROG site-restore --from $STARDUST_ROOT/backups/mysite/www/devel/STAMP mysite www
   $PROG site-clone mysite www mysite www-copy --host www-copy.devel
+  $PROG site-pull --role test vps mysite www mysite www
   $PROG -n promote mysite --to test
   $PROG promote mysite --to live
   $PROG log 20
@@ -166,6 +172,37 @@ done
 
 cmd=${1:-help}
 [ $# -gt 0 ] && shift
+_rest=""
+for _a in "$@"; do
+  if [ "$_a" = "-n" ]; then DRYRUN=1; continue; fi
+  _rest="$_rest $_a"
+done
+# shellcheck disable=SC2086
+set -- $_rest
+# site list / platform list -> the hyphen form
+case $cmd in
+  heal)
+    if [ "${1:-}" = "all" ]; then
+      cmd="heal-all"
+      shift
+    fi
+    ;;
+  migrate-www|migrate)
+    if [ "${1:-}" = "heal" ]; then
+      cmd="migrate-heal"
+      shift
+    fi
+    ;;
+  site|platform|backup|cron)
+    verb=${1:-}
+    case $verb in
+      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|all)
+        cmd="$cmd-$verb"
+        shift
+        ;;
+    esac
+    ;;
+esac
 
 case $cmd in
   help) ;;
@@ -185,16 +222,25 @@ dispatch() {
     help) usage ;;
     doctor) cmd_doctor ;;
     list) cmd_list ;;
+    platform-list) cmd_platform_list "$@" ;;
+    site-list) cmd_site_list "$@" ;;
     env) cmd_env ;;
     log) cmd_log "$@" ;;
     last) cmd_last ;;
     platform-add) cmd_platform_add "$@" ;;
+    migrate-www) cmd_migrate_www "$@" ;;
+    migrate-heal) cmd_migrate_heal "$@" ;;
+    repo-ensure) cmd_repo_ensure "$@" ;;
     platform-upgrade) cmd_platform_upgrade "$@" ;;
     promote) cmd_promote "$@" ;;
     site-add) cmd_site_add "$@" ;;
     site-backup) cmd_site_backup "$@" ;;
     site-restore) cmd_site_restore "$@" ;;
     site-clone) cmd_site_clone "$@" ;;
+    site-pull) cmd_site_pull "$@" ;;
+    site-debug) cmd_site_debug "$@" ;;
+    site-heal) cmd_site_heal "$@" ;;
+    heal-all) cmd_heal_all ;;
     site-check) cmd_site_check "$@" ;;
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
@@ -256,7 +302,7 @@ case $cmd in
       exit "$rc"
     fi
     ;;
-  site-add|site-backup|site-clone|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
+  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
     if dispatch "$@"; then
       task_log "$cmd $*" 0
     else

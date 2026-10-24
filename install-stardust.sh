@@ -274,7 +274,12 @@ pkg_install() {
   case $PKG in
     apt)
       run_root apt-get update
-      run_root apt-get install -y "$@"
+      # AppArmor breaks the install on Devuan/SysVinit. Remove and hold it.
+      run_root apt-get purge -y apparmor apparmor-utils libapache2-mod-apparmor || true
+      run_root apt-mark hold apparmor || true
+      # Skip debconf UI (msmtp asks about AppArmor). Answer no.
+      run_root bash -c 'echo msmtp msmtp/apparmor boolean false | debconf-set-selections' || true
+      run_root env DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true         apt-get install -y --no-install-recommends -o Dpkg::Options::=--force-confdef         -o Dpkg::Options::=--force-confold "$@"
       ;;
     apk)
       run_root apk add --no-cache "$@"
@@ -1342,6 +1347,54 @@ if [ -z "$ROLE" ]; then
 fi
 
 detect_os
+
+ensure_gh() {
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "install gh"
+    if [ "$DRYRUN" -eq 1 ]; then
+      echo "+ apt-get install -y gh"
+    else
+      run_root apt-get install -y gh || {
+        echo "$PROG: cannot install gh" >&2
+        return 1
+      }
+    fi
+  fi
+  if gh auth status >/dev/null 2>&1; then
+    echo "gh: authenticated"
+    return 0
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ gh auth login"
+    return 0
+  fi
+  echo "gh is not logged in. Complete the login. The install waits."
+  gh auth login
+  gh auth status >/dev/null 2>&1 || {
+    echo "$PROG: gh auth did not complete" >&2
+    return 1
+  }
+  echo "gh: authenticated"
+}
+
+ensure_git_config() {
+  name=$(git config --global user.name || true)
+  email=$(git config --global user.email || true)
+  if [ -z "$name" ]; then
+    printf "git user.name: "
+    read -r name
+    git config --global user.name "$name"
+  fi
+  if [ -z "$email" ]; then
+    printf "git user.email: "
+    read -r email
+    git config --global user.email "$email"
+  fi
+  echo "git: $(git config --global user.name) <$(git config --global user.email)>"
+}
+
+ensure_gh || exit 1
+ensure_git_config
 detect_init
 detect_group
 detect_services
@@ -1366,6 +1419,24 @@ fi
 HOSTN=$(hostname 2>/dev/null || echo unknown)
 echo "$PROG role=$ROLE localhost=$LOCALHOST host=$HOSTN os=$OS_ID pkg=$PKG init=$INIT owner=$OWNER admin=${ADMIN:--} human=${HUMAN:--} group=$GROUP dryrun=$DRYRUN"
 
+ensure_git_user() {
+  if id git >/dev/null 2>&1; then
+    echo "user ok: git"
+    return 0
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ adduser --system --group --disabled-password git"
+    return 0
+  fi
+  if have adduser; then
+    run_root adduser --system --shell /bin/bash --gecos "Git Daemon User" --group --disabled-password git || return 1
+  else
+    run_root groupadd --system git 2>/dev/null || true
+    run_root useradd -r -m -d /home/git -s /bin/bash -g git -c "Git Daemon User" git || return 1
+  fi
+  echo "system user: git"
+}
+
 # --- run app install phases -------------------------------------------
 # Helpers live in this file. Each apps/<name>/install.sh is one phase.
 # Order comes from apps/MANIFEST (not directory sort). modules/NN-*.sh
@@ -1383,6 +1454,7 @@ run_app_phase() {
   . "$inst"
 }
 
+ensure_git_user || { echo "$PROG: cannot create git user" >&2; exit 1; }
 ran=0
 if [ -f "$HERE/apps/MANIFEST" ]; then
   while IFS= read -r app || [ -n "$app" ]; do

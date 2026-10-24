@@ -67,6 +67,93 @@ cmd_list() {
   fi
 }
 
+
+cmd_platform_list() {
+  quiet=0
+  fmt=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -q) quiet=1; shift ;;
+      --format) fmt=$2; shift 2 ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
+  if [ ! -d "$PLATFORMS" ]; then
+    echo "$PROG: $PLATFORMS missing" >&2
+    exit 1
+  fi
+  tty=0
+  [ -t 1 ] && tty=1
+  found=0
+  if [ "$tty" -eq 1 ] && [ "$quiet" -eq 0 ] && [ "$fmt" != json ]; then
+    printf '%-20s %s\n' PLATFORM BRANCH
+  fi
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p" ] || continue
+    name=${p##*/}
+    case $name in .*) continue ;; esac
+    found=1
+    gitb=""
+    if [ -e "$p/.git" ] && have git; then
+      gitb=$(git -C "$p" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+    fi
+    if [ "$fmt" = json ]; then
+      printf '{"platform":"%s","branch":"%s"}\n' "$name" "$gitb"
+    elif [ "$quiet" -eq 1 ] || [ "$tty" -eq 0 ]; then
+      printf '%s\n' "$name"
+    else
+      printf '%-20s %s\n' "$name" "$gitb"
+    fi
+  done
+  [ "$found" -eq 0 ] && exit 0
+}
+
+cmd_site_list() {
+  quiet=0
+  fmt=""
+  role=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      -q) quiet=1; shift ;;
+      --format) fmt=$2; shift 2 ;;
+      --role) role=$2; shift 2 ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
+  if [ ! -d "$PLATFORMS" ]; then
+    echo "$PROG: $PLATFORMS missing" >&2
+    exit 1
+  fi
+  tty=0
+  [ -t 1 ] && tty=1
+  found=0
+  if [ "$tty" -eq 1 ] && [ "$quiet" -eq 0 ] && [ "$fmt" != json ]; then
+    printf '%-20s %-16s %s\n' PLATFORM SITE ROLE
+  fi
+  for p in "$PLATFORMS"/*; do
+    [ -d "$p/web/sites" ] || continue
+    name=${p##*/}
+    for s in "$p/web/sites"/*; do
+      [ -d "$s" ] || continue
+      base=${s##*/}
+      case $base in default|all) continue ;; esac
+      if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
+        found=1
+        if [ "$fmt" = json ]; then
+          printf '{"platform":"%s","site":"%s","role":"%s"}\n' "$name" "$base" "${role:-$STARDUST_ROLE}"
+        elif [ "$quiet" -eq 1 ] || [ "$tty" -eq 0 ]; then
+          printf '%s/%s\n' "$name" "$base"
+        else
+          printf '%-20s %-16s %s\n' "$name" "$base" "${role:-$STARDUST_ROLE}"
+        fi
+      fi
+    done
+  done
+  [ "$found" -eq 0 ] && exit 0
+}
+
 cmd_doctor() {
   fail=0
   echo "Stardust doctor"

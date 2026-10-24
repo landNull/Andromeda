@@ -28,9 +28,9 @@ ensure_settings_php() {
     echo "+ write $dest"
     return 0
   fi
-  run_root mkdir -p "$web/sites/$product"
+  mkdir -p "$web/sites/$product" 2>/dev/null || run_root mkdir -p "$web/sites/$product"
   if [ -f "$src" ] && [ ! -f "$dest" ]; then
-    run_root cp "$src" "$dest"
+    cp "$src" "$dest" 2>/dev/null || run_root cp "$src" "$dest"
   elif [ ! -f "$dest" ]; then
     as_root tee "$dest" >/dev/null <<'EOF'
 <?php
@@ -65,7 +65,7 @@ ensure_sites_php() {
     echo "+ \$sites['$host'] = '$product' in $dest"
     return 0
   fi
-  run_root mkdir -p "$web/sites"
+  mkdir -p "$web/sites" 2>/dev/null || run_root mkdir -p "$web/sites"
   if [ ! -f "$dest" ]; then
     as_root tee "$dest" >/dev/null <<'EOF'
 <?php
