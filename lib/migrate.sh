@@ -81,6 +81,9 @@ EOF
     done
   fi
 
+  chown_code "$web" || true
+  [ -d "$PLATFORMS/$plat/files" ] && chown_files "$PLATFORMS/$plat/files" || true
+  [ -d "$PLATFORMS/$plat/files_private" ] && chown_files "$PLATFORMS/$plat/files_private" || true
   echo "reload apache"
   sudo service apache2 reload || true
   echo "healed $plat"
@@ -153,7 +156,10 @@ cmd_migrate_www() {
   fi
   sudo mkdir -p "$web"
   sudo cp -a "$src"/. "$web"/
-  sudo chown -R "$OWNER:$GROUP" "$dest"
+  # code is deploy:www-admin. files are www-data:www-admin. ACL rides on both.
+  chown_code "$web" || sudo chown -R "$OWNER:$GROUP" "$web"
+  [ -d "$dest/files" ] && chown_files "$dest/files" || true
+  [ -d "$dest/files_private" ] && chown_files "$dest/files_private" || true
 
   echo "platform $plat"
   echo "web root  $web"
