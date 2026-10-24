@@ -80,9 +80,57 @@ cmd_migrate_www() {
 
   echo "platform $plat"
   echo "web root  $web"
-  if [ -d "$web/sites/default" ]; then
-    echo "site      sites/default is still default"
-    echo "rename:   stardust site add $plat PRODUCT"
+
+  avail=/etc/apache2/sites-available
+  if [ ! -d "$avail" ]; then
+    echo "no $avail"
+    return 0
   fi
-  echo "check:    bee --root=$web status"
+  echo "apache configs"
+  j=0
+  alist=""
+  for c in "$avail"/*.conf; do
+    [ -f "$c" ] || continue
+    j=$((j + 1))
+    base=${c##*/}
+    alist="$alist $j:$base"
+    echo "  $j) $base"
+  done
+  if [ "$j" -eq 0 ]; then
+    echo "no vhost to update"
+    return 0
+  fi
+  printf "vhost number: "
+  read -r vp
+  conf=""
+  for item in $alist; do
+    n=${item%%:*}
+    name=${item#*:}
+    if [ "$n" = "$vp" ]; then
+      conf=$avail/$name
+      break
+    fi
+  done
+  if [ -z "$conf" ]; then
+    echo "no such vhost"
+    return 0
+  fi
+
+  printf "ServerName [$plat.live]: "
+  read -r host
+  host=${host:-$plat.live}
+
+  echo "edit $conf"
+  sudo sed -i "s|DocumentRoot .*|DocumentRoot $web|" "$conf"
+  if grep -q "^[[:space:]]*ServerName" "$conf"; then
+    sudo sed -i "s|^[[:space:]]*ServerName .*|  ServerName $host|" "$conf"
+  else
+    sudo sed -i "/<VirtualHost/a\  ServerName $host" "$conf"
+  fi
+  sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
+  echo "reload apache"
+  sudo service apache2 reload
+  echo "curl http://$host/"
+  code=$(curl -sS -L --max-time 15 -o /dev/null -w '%{http_code}' "http://$host/" || echo 000)
+  echo "HTTP $code"
 }
