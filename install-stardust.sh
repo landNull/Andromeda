@@ -582,6 +582,13 @@ ensure_user() {
   fi
 }
 
+
+write_wg_sudoers() {
+  dest=/etc/sudoers.d/stardust-wg
+  body="%${GROUP} ALL=(root) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick"
+  write_sudoers "$dest" "$body"
+}
+
 write_sudoers() {
   dest=$1
   body=$2
@@ -1487,6 +1494,7 @@ if [ "$ran" -eq 0 ]; then
   exit 1
 fi
 
+write_wg_sudoers
 echo "done."
 
 # Shell wrapper so @host:plat/site is not eaten.
