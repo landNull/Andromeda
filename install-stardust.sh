@@ -1498,25 +1498,20 @@ case $shell_name in
 esac
 # Global zsh function. @ is eaten before any binary runs, so this
 # must live in zsh, on the system path, not in the checkout.
-wrap=/usr/local/share/stardust/zsh_stardust
-run_root mkdir -p /usr/local/share/stardust
-run_root tee "$wrap" >/dev/null << 'WRAP'
+wrap="$HOME/.zsh_stardust"
+cat > "$wrap" << 'WRAP'
 stardust() {
   noglob command stardust "$@"
 }
 WRAP
 if [ "$shell_name" = "zsh" ]; then
-  sysrc=/etc/zsh/zshrc
-  line="source $wrap"
-  if [ -f "$sysrc" ] && ! grep -q 'stardust/zsh_stardust' "$sysrc" 2>/dev/null; then
-    echo "$line" | run_root tee -a "$sysrc" >/dev/null
-  fi
-  if [ -n "$rc" ] && ! grep -q 'stardust/zsh_stardust' "$rc" 2>/dev/null; then
+  line="source \"$HOME/.zsh_stardust\""
+  if [ -n "$rc" ] && ! grep -q '.zsh_stardust' "$rc" 2>/dev/null; then
     echo "$line" >> "$rc"
   fi
   echo "shell: zsh"
-  echo "global: $wrap"
-  echo "then:   source $wrap"
+  echo "file:  $wrap"
+  echo "then:  source $wrap"
   else
     echo "shell: bash"
     echo "@ is not special in bash. No wrapper needed."
