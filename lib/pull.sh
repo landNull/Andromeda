@@ -34,7 +34,11 @@ cmd_site_pull() {
     exit 2
   fi
 
-  echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
+  src_path="/srv/platforms/$src_p/web/sites/$src_s"
+  dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
+  echo "pull @$vps:$src_p/$src_s -> @$dst_p/$dst_s ($role)"
+  echo "from $src_path  on $vps"
+  echo "to   $dst_path"
   echo "tunnel  up"
   wg_up || return 1
   trap wg_down EXIT
