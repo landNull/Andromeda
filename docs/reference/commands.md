@@ -1,28 +1,28 @@
 # Andromeda command surface
 
-Andromeda accepts verb-first commands. Object-first forms remain as aliases.
+andro (Andromeda) accepts verb-first commands. Object-first forms remain as aliases.
 
 ## Preferred form
 
 ```
-andromeda pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
-andromeda add platform ecom
-andromeda add site ecom kl_devel
-andromeda heal site ecom kl_devel
-andromeda heal all
-andromeda list sites
-andromeda list platforms
-andromeda promote platform ecom to test
-andromeda backup site ecom kl_devel
-andromeda restore site ecom kl_devel
-andromeda clone site ecom kl_test ecom kl_devel
-andromeda debug site ecom kl_devel
-andromeda check site ecom kl_devel
-andromeda disable site ecom kl_devel
-andromeda enable site ecom kl_devel
-andromeda delete site ecom kl_devel
-andromeda remove platform ecom
-andromeda upgrade platform ecom
+andro pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
+andro add platform ecom
+andro add site ecom kl_devel
+andro heal site ecom kl_devel
+andro heal all
+andro list sites
+andro list platforms
+andro promote platform ecom to test
+andro backup site ecom kl_devel
+andro restore site ecom kl_devel
+andro clone site ecom kl_test ecom kl_devel
+andro debug site ecom kl_devel
+andro check site ecom kl_devel
+andro disable site ecom kl_devel
+andro enable site ecom kl_devel
+andro delete site ecom kl_devel
+andro remove platform ecom
+andro upgrade platform ecom
 ```
 
 `to` is optional and ignored when present.
@@ -44,8 +44,8 @@ If the command names a platform and product, `test` runs `site-debug`. Healable 
 If no site target is present, `test` runs `doctor` and refuses on failure.
 
 ```
-andromeda test pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
-andromeda test site-check ecom kl_devel
+andro test pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
+andro test site-check ecom kl_devel
 ```
 
 ## Logging
