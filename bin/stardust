@@ -78,24 +78,29 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
 
   Do not type "sudo $PROG" — refused (exit 2). Use -n before mutating commands.
 
-  Preferred (verb first):
+  Preferred (verb first, reads as a sentence):
   $PROG pull site @host:plat/site to @host:plat/site
-  $PROG add platform NAME
-  $PROG add site PLATFORM PRODUCT
+  $PROG add platform NAME from URL branch BRANCH
+  $PROG add site PLATFORM PRODUCT host HOST name TITLE pass PASS
   $PROG heal site PLATFORM PRODUCT
   $PROG heal all
-  $PROG list sites | platforms
-  $PROG promote platform NAME to test|live
+  $PROG list sites
+  $PROG list platforms
+  $PROG promote platform NAME to test
+  $PROG promote platform NAME to live
   $PROG backup site PLATFORM PRODUCT
-  $PROG restore site PLATFORM PRODUCT
-  $PROG clone site SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD
+  $PROG restore site from DIR PLATFORM PRODUCT
+  $PROG clone site SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD host HOST
   $PROG debug site PLATFORM PRODUCT
-  $PROG check site PLATFORM PRODUCT
+  $PROG check site PLATFORM PRODUCT host HOST
   $PROG disable site PLATFORM PRODUCT
   $PROG enable site PLATFORM PRODUCT
-  $PROG delete site PLATFORM PRODUCT
+  $PROG delete site PLATFORM PRODUCT force
   $PROG remove platform NAME
-  $PROG upgrade platform NAME
+  $PROG upgrade platform NAME no-pull
+
+  Bare words (to, from, host, name, pass, branch, role, git, force, no-pull)
+  become the matching flags. The --flag form still works.
 
   Also accepted (object first):
   $PROG test COMMAND [args…]   # preflight, heal if safe, then run
@@ -224,14 +229,35 @@ case $cmd in
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
     esac
-    # drop "to" anywhere so "pull site A to B" works
-    _clean=
-    for _a in "$@"; do
-      [ "$_a" = "to" ] && continue
-      _clean="$_clean $_a"
-    done
-    # shellcheck disable=SC2086
-    set -- $_clean
+    # sentence words become flags so the line reads as a sentence
+    # pull keeps "to" as a separator between two @refs
+    if [ "$cmd" = "site-pull" ]; then
+      _clean=
+      for _a in "$@"; do
+        [ "$_a" = "to" ] && continue
+        _clean="$_clean $_a"
+      done
+      # shellcheck disable=SC2086
+      set -- $_clean
+    else
+      _clean=
+      _next=
+      for _a in "$@"; do
+        case $_a in
+          to|from|host|name|pass|branch|role|git)
+            _clean="$_clean --$_a"
+            ;;
+          force|no-pull)
+            _clean="$_clean --$_a"
+            ;;
+          *)
+            _clean="$_clean $_a"
+            ;;
+        esac
+      done
+      # shellcheck disable=SC2086
+      set -- $_clean
+    fi
     ;;
 esac
 # object-first aliases: site list / platform list -> the hyphen form
