@@ -186,6 +186,12 @@ detect_os() {
     PKG=dnf
   elif have yum; then
     PKG=yum
+  elif have pacman; then
+    PKG=pacman
+  elif have zypper; then
+    PKG=zypper
+  elif have xbps-install; then
+    PKG=xbps
   else
     PKG=unknown
   fi
@@ -278,8 +284,14 @@ install_charm() {
       echo "$tool ok"
       continue
     fi
+    arch=$(uname -m)
+    case $arch in
+      x86_64) suffix=Linux_x86_64.tar.gz ;;
+      aarch64|arm64) suffix=Linux_arm64.tar.gz ;;
+      *) echo "$PROG: no $tool build for $arch" >&2; continue ;;
+    esac
     url=$(curl -fsSL "https://api.github.com/repos/charmbracelet/${tool}/releases/latest" \
-      | awk -F'"' '/browser_download_url/ && /Linux_x86_64\.tar\.gz/ {print $4; exit}')
+      | awk -F'"' -v s="$suffix" '/browser_download_url/ && $0 ~ s {print $4; exit}')
     if [ -z "$url" ]; then
       echo "$PROG: could not find a $tool release" >&2
       continue
@@ -312,6 +324,15 @@ install_charm() {
       ;;
     yum)
       run_root yum install -y "$@"
+      ;;
+    pacman)
+      run_root pacman -Sy --noconfirm "$@"
+      ;;
+    zypper)
+      run_root zypper install -y "$@"
+      ;;
+    xbps)
+      run_root xbps-install -Sy "$@"
       ;;
     *)
       echo "$PROG: no package manager detected; install Apache PHP MariaDB git sudo by hand" >&2
@@ -376,6 +397,30 @@ pkg_list_for() {
       fi
       if [ "$LOCALHOST" -eq 0 ] && { [ "$ROLE" = test ] || [ "$ROLE" = live ]; }; then
         echo "certbot python3-certbot-apache"
+      fi
+      ;;
+    pacman)
+      echo "sudo apache mariadb git curl unzip rsync ca-certificates acl"
+      echo "php php-apache php-gd php-intl php-fpm"
+      echo "jq pv smartmontools"
+      if [ "$LOCALHOST" -eq 1 ] || [ "$ROLE" = devel ]; then
+        echo "dnsmasq"
+      fi
+      ;;
+    zypper)
+      echo "sudo apache2 mariadb git curl unzip rsync ca-certificates acl"
+      echo "php8 php8-mysql php8-gd php8-mbstring php8-intl php8-zip php8-fpm"
+      echo "apache2-mod_php8 mariadb-client jq"
+      if [ "$LOCALHOST" -eq 1 ] || [ "$ROLE" = devel ]; then
+        echo "dnsmasq"
+      fi
+      ;;
+    xbps)
+      echo "sudo apache mariadb git curl unzip rsync ca-certificates acl"
+      echo "php php-mysql php-gd php-mbstring php-intl php-fpm"
+      echo "jq"
+      if [ "$LOCALHOST" -eq 1 ] || [ "$ROLE" = devel ]; then
+        echo "dnsmasq"
       fi
       ;;
   esac
