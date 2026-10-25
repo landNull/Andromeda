@@ -1,7 +1,15 @@
 # shellcheck shell=sh
 
 cmd_site_backup() {
-  resolve_site "${1:-}" "${2:-}"
+  raw_plat=${1:-}
+  raw_prod=${2:-}
+  resolve_site "$raw_plat" "$raw_prod"
+  # Keep underscores. slug used to turn kl_test into kl-test, and Bee
+  # then missed the sites.php line.
+  platform=$(printf '%s' "$raw_plat" | tr '[:upper:]' '[:lower:]')
+  product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
+  root=$PLATFORMS/$platform
+  web=$root/web
   role=$STARDUST_ROLE
   dest=$(backup_dir "$platform" "$product" "$role")/$(stamp)
   bee=$(bee_bin)
