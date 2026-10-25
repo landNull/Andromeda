@@ -271,7 +271,7 @@ cmd_platform_remove() {
   sudo rm -rf "/srv/git/$name.git"
   sudo rm -f "/srv/stardust/state/platforms/$name.json"
   sudo rm -f "/srv/stardust/state/migrate/$name"
-  sudo service apache2 reload >/dev/null 2>&1 || true
+  apache_reload || true
   echo "removed $name"
   echo "backup  $snap/tree.tgz"
 }

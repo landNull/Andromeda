@@ -101,7 +101,7 @@ cmd_site_heal() {
   priv=${PRIV:-/usr/local/sbin/stardust-priv}
   sudo -n "$priv" mkdir "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active" 2>/dev/null || true
   sudo -n "$priv" chown-files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
-  sudo -n "$priv" apache-reload 2>/dev/null || true
+  apache_reload || echo "apache: reload skipped"
   echo "heal done $platform/$product"
 }
 

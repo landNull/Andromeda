@@ -314,7 +314,7 @@ cmd_migrate_www() {
   sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
   _ensure_apache_mysql
   echo "reload apache"
-  if sudo service apache2 restart; then
+  if apache_reload; then
     reloaded=1
   else
     reloaded=0

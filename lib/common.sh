@@ -69,6 +69,27 @@ chown_secret() {
 }
 BEE=${BEE:-bee}
 APACHE_RELOAD=${APACHE_RELOAD:-/etc/init.d/apache2 reload}
+
+# Run apache2ctl configtest before any reload. Refuse the reload on failure.
+apache_reload() {
+  if command -v apache2ctl >/dev/null 2>&1; then
+    if ! sudo -n apache2ctl configtest >/dev/null 2>&1; then
+      echo "apache: configtest failed — not reloading" >&2
+      return 1
+    fi
+  elif command -v apachectl >/dev/null 2>&1; then
+    if ! sudo -n apachectl configtest >/dev/null 2>&1; then
+      echo "apache: configtest failed — not reloading" >&2
+      return 1
+    fi
+  fi
+  priv=${PRIV:-/usr/local/sbin/stardust-priv}
+  if [ -x "$priv" ]; then
+    sudo -n "$priv" apache-reload 2>/dev/null && return 0
+  fi
+  # shellcheck disable=SC2086
+  sudo -n $APACHE_RELOAD 2>/dev/null || true
+}
 STARDUST_ROLE=${STARDUST_ROLE:-devel}
 # Git branch for this role. Override per role in /etc/stardust.conf
 #   BRANCH_DEVEL=main BRANCH_TEST=staging BRANCH_LIVE=production
