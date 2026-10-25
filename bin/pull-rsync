@@ -1,0 +1,162 @@
+#!/bin/sh
+# pull-rsync — pull a site from a VPS and stand it up as a devel site.
+#
+# Code moves by git (rsync of the web tree is the fallback).
+# Content moves by rsync. Database moves by Bee. settings.local.php
+# is written once.
+#
+# usage: pull-rsync VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
+#        pull-rsync @host:plat/site + @host:plat/site
+#        pull-rsync --role ROLE ...
+
+set -eu
+
+PROG=${0##*/}
+DRYRUN=${DRYRUN:-0}
+STARDUST_ROLE=${STARDUST_ROLE:-devel}
+PLATFORMS=${PLATFORMS:-/srv/platforms}
+OWNER=${OWNER:-deploy}
+GROUP=${GROUP:-www-admin}
+
+if [ -f /etc/stardust.conf ]; then
+  # shellcheck disable=SC1091
+  . /etc/stardust.conf
+fi
+
+usage() {
+  cat <<EOF
+$PROG — pull a site from a VPS
+
+  $PROG VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
+  $PROG @host:plat/site + @host:plat/site
+  $PROG --role ROLE ...
+
+Code: git pull --ff-only, or rsync of the web tree if git fails.
+Content: rsync of files/, files_private/, and config/active.
+Database: Bee export on the remote, Bee import locally.
+settings.local.php: written once, never appended.
+EOF
+}
+
+role=$STARDUST_ROLE
+while [ $# -gt 0 ]; do
+  case $1 in
+    --role) role=$2; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+
+# @host:plat/site + @host:plat/site
+if [ "${2:-}" = "+" ] && printf '%s' "${1:-}" | grep -q '^@'; then
+  left=${1#@}
+  right=${3#@}
+  vps=${left%%:*}
+  src_p=${left#*:}; src_p=${src_p%%/*}
+  src_s=${left##*/}
+  dst_h=${right%%:*}
+  dst_p=${right#*:}; dst_p=${dst_p%%/*}
+  dst_s=${right##*/}
+else
+  vps=${1:-}
+  src_p=${2:-}
+  src_s=${3:-}
+  dst_h=local
+  dst_p=${4:-$src_p}
+  dst_s=${5:-$src_s}
+fi
+
+if [ -z "$vps" ] || [ -z "$src_p" ] || [ -z "$src_s" ]; then
+  usage >&2
+  exit 2
+fi
+
+root=$PLATFORMS/$dst_p
+web=$root/web
+host="${dst_s}.${role}"
+
+echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
+
+if [ "$DRYRUN" -eq 1 ]; then
+  echo "+ git pull code (or rsync web tree)"
+  echo "+ rsync files, private, config"
+  echo "+ bee db-export + rsync + db-import"
+  echo "+ write settings.local.php once"
+  exit 0
+fi
+
+# Code: prefer git. Fall back to rsync of the web tree, excluding runtime.
+if [ -e "$root/.git" ]; then
+  echo "code  git pull"
+  if ! git -C "$root" pull --ff-only 2>/dev/null; then
+    echo "code  git pull skipped — rsync web tree"
+    rsync -a --delete \
+      --exclude='files/' --exclude='files_private/' \
+      --exclude='sites/*/settings.local.php' \
+      --exclude='sites/*/files' \
+      "$vps:/srv/platforms/$src_p/web/" "$web/" || {
+      echo "$PROG: rsync web tree failed" >&2
+      exit 1
+    }
+  fi
+else
+  echo "code  rsync web tree"
+  rsync -a --delete \
+    --exclude='files/' --exclude='files_private/' \
+    --exclude='sites/*/settings.local.php' \
+    --exclude='sites/*/files' \
+    "$vps:/srv/platforms/$src_p/web/" "$web/" || {
+    echo "$PROG: rsync web tree failed" >&2
+    exit 1
+  }
+fi
+
+# Content: rsync the current tree. No tar roundtrip.
+mkdir -p "$root/files/$dst_s" "$root/files_private/$dst_s" "$root/config/$dst_s/active"
+echo "files rsync"
+rsync -a --delete "$vps:/srv/platforms/$src_p/files/$src_s/" "$root/files/$dst_s/" 2>/dev/null || \
+  rsync -a --delete "$vps:/srv/platforms/$src_p/web/files/" "$root/files/$dst_s/" || true
+echo "private rsync"
+rsync -a --delete "$vps:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$dst_s/" 2>/dev/null || true
+echo "config rsync"
+rsync -a --delete "$vps:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$dst_s/active/" 2>/dev/null || true
+
+# Database: Bee on the remote, rsync the dump, Bee import locally.
+bee=$(command -v bee || echo bee)
+dump=$(mktemp)
+echo "db    export on $vps"
+ssh "$vps" "stardust bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
+  ssh "$vps" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
+if [ -s "$dump" ]; then
+  echo "db    import"
+  "$bee" --root="$web" --site="$dst_s" db-import "$dump" || true
+else
+  echo "db    none"
+fi
+rm -f "$dump"
+
+# One clean settings.local.php. Never append.
+localphp=$web/sites/$dst_s/settings.local.php
+cfgactive="$root/config/$dst_s/active"
+cfgstaging="$root/config/$dst_s/staging"
+mkdir -p "$cfgstaging" 2>/dev/null || true
+hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
+tmp=$(mktemp)
+{
+  echo "<?php"
+  echo "// Written by pull-rsync. Overwritten on each run."
+  echo "\$config_directories['active']  = '$cfgactive';"
+  echo "\$config_directories['staging'] = '$cfgstaging';"
+  echo "\$settings['file_public_path'] = 'sites/$dst_s/files';"
+  echo "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');"
+  if [ "$role" != "live" ]; then
+    echo "\$settings['cache'] = FALSE;"
+  fi
+} > "$tmp"
+chmod 0640 "$tmp"
+mv -f "$tmp" "$localphp"
+echo "write $localphp (role $role)"
+
+echo "pull done  http://$host"
