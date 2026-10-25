@@ -39,6 +39,14 @@ Captain Rocket emits natural language. Verb-first matches how a human says the a
 
 Code and versioned config move by Git (`platform-add`, `platform-upgrade`, `promote`, `pull site`). User content (`files/`, `files_private/`, database) moves by Bee and rsync. `settings.local.php` is written once, by a single template pass, never appended. `sites.php` mappings belong in the platform repo.
 
+## Apache reload
+
+Every reload runs `apache2ctl configtest` first. A failed configtest refuses the reload. heal, migrate, and platform-remove use this path.
+
+## Backup format
+
+`backup site` writes content as plain directories (`files/`, `private/`, `config-active/`) via rsync. Older tar snapshots are still restored. Database remains a Bee export.
+
 ## pull site
 
 `pull site` prefers `git pull --ff-only` for the platform code. If the dest is not a checkout, it rsyncs the web tree excluding runtime directories. Content directories are rsynced directly. The database is a Bee export on the source, an rsync of the dump, and a Bee import on the dest. `settings.local.php` is overwritten in one pass.
