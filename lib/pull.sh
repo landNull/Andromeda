@@ -140,6 +140,12 @@ _restore_snap() {
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 
   localphp=$web/sites/$product/settings.local.php
+  echo "files path ../files/$product"
+  if [ -f "$localphp" ] && grep -q file_public_path "$localphp"; then
+    as_root sed -i "s|file_public_path'] = .*|file_public_path'] = '../files/$product';|" "$localphp" || true
+  else
+    printf "%s\n" "<?php" "\$settings['file_public_path'] = '../files/$product';" | as_root tee -a "$localphp" >/dev/null || true
+  fi
   hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
   if [ -f "$localphp" ]; then
     as_root sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" || true
