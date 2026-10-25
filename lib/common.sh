@@ -453,17 +453,27 @@ as_root() {
     return $?
   fi
   priv=${PRIV:-/usr/local/sbin/stardust-priv}
-  # Capcom: group writes stay with the operator. Root verbs go through the helper.
+  # Root verbs go through the helper. SSH has no tty, so a bare sudo cannot ask.
+  case $1 in
+    mkdir|chmod)
+      sudo -n "$priv" "$@" 2>/dev/null || "$@"
+      return $?
+      ;;
+    chown)
+      shift
+      sudo -n "$priv" chown-files "$@" 2>/dev/null || true
+      return 0
+      ;;
+    tar)
+      sudo -n "$priv" "$@" 2>/dev/null || sudo -n "$@"
+      return $?
+      ;;
+  esac
   if [ "$capcom" -eq 1 ]; then
     case $1 in
       mkdir|chmod)
         sudo -n "$priv" "$@" 2>/dev/null || "$@"
         return $?
-        ;;
-      chown)
-        shift
-        sudo -n "$priv" chown-files "$@" 2>/dev/null || true
-        return 0
         ;;
       sed|tee|cp)
         "$@"
