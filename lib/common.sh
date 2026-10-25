@@ -1,11 +1,11 @@
 # shellcheck shell=sh
-# Shared helpers. Sourced by /usr/local/bin/stardust — not run alone.
+# Shared helpers. Sourced by /usr/local/bin/andromeda — not run alone.
 
 load_conf() {
   for f in \
     "${STARDUST_CONF:-}" \
-    "$HOME/.stardust.conf" \
-    /etc/stardust.conf
+    "$HOME/.andromeda.conf" \
+    /etc/andromeda.conf
   do
     if [ -n "$f" ] && [ -f "$f" ]; then
       # shellcheck disable=SC1090
@@ -18,7 +18,7 @@ load_conf() {
 
 load_conf
 
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/stardust}
+STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
 OWNER=${OWNER:-deploy}
 HUMAN=${HUMAN:-}
@@ -31,7 +31,7 @@ if [ -n "$ADMIN" ] && [ "$ADMIN" = "$GROUP" ]; then
 fi
 DIR_MODE=${DIR_MODE:-0770}
 
-PRIV=${PRIV:-/usr/local/sbin/stardust-priv}
+PRIV=${PRIV:-/usr/local/sbin/andromeda-priv}
 
 priv() {
   if [ -x "$PRIV" ]; then
@@ -64,7 +64,7 @@ chown_secret() {
     priv setacl-secret "$@" || true
     return 0
   fi
-  run_root chown -R "$OWNER:stardust" "$@"
+  run_root chown -R "$OWNER:andromeda" "$@"
   run_root chmod 0640 "$@"
 }
 BEE=${BEE:-bee}
@@ -83,7 +83,7 @@ apache_reload() {
       return 1
     fi
   fi
-  priv=${PRIV:-/usr/local/sbin/stardust-priv}
+  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
   if [ -x "$priv" ]; then
     sudo -n "$priv" apache-reload 2>/dev/null && return 0
   fi
@@ -91,7 +91,7 @@ apache_reload() {
   sudo -n $APACHE_RELOAD 2>/dev/null || true
 }
 STARDUST_ROLE=${STARDUST_ROLE:-devel}
-# Git branch for this role. Override per role in /etc/stardust.conf
+# Git branch for this role. Override per role in /etc/andromeda.conf
 #   BRANCH_DEVEL=main BRANCH_TEST=staging BRANCH_LIVE=production
 # Or pin one name on this host: STARDUST_BRANCH=main
 branch_for_role() {
@@ -294,7 +294,7 @@ prompt_line() {
 
 save_git_template() {
   tpl=$1
-  dest=${STARDUST_USER_CONF:-$HOME/.stardust.conf}
+  dest=${STARDUST_USER_CONF:-$HOME/.andromeda.conf}
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ append STARDUST_GIT_TEMPLATE=$tpl -> $dest" >&2
     return 0
@@ -402,7 +402,7 @@ This is the name your machine uses in git@HOST:org/repo.git
 It is often a Host line in ~/.ssh/config (example: gitforge),
 not necessarily a public DNS name.
 
-Stardust scanned this login for SSH config and existing remotes.
+Andromeda scanned this login for SSH config and existing remotes.
 Accept the default with Enter. Clear the line to skip git and let
 Bee download a fresh Backdrop tree instead.
 
@@ -432,7 +432,7 @@ q in the pager returns here."
   url=$(printf '%s' "$tpl" | sed "s|%s|$name|g")
   echo "template: $tpl" >&2
   echo "this platform: $url" >&2
-  save=$(prompt_line "Save template to ~/.stardust.conf for next time?" "Y")
+  save=$(prompt_line "Save template to ~/.andromeda.conf for next time?" "Y")
   case $save in
     Y|y|yes|YES) save_git_template "$tpl" ;;
   esac
@@ -476,10 +476,10 @@ bee_yes() {
 notify_fail() {
   msg=$1
   if have logger; then
-    logger -t stardust -- "$msg" || true
+    logger -t andromeda -- "$msg" || true
   fi
   if [ -n "$NOTIFY" ] && have mail; then
-    printf '%s\n' "$msg" | mail -s "stardust: $msg" "$NOTIFY" || true
+    printf '%s\n' "$msg" | mail -s "andromeda: $msg" "$NOTIFY" || true
   fi
 }
 
@@ -490,7 +490,7 @@ in_group() {
 # Missing required groups -> return 1 and print usermod for self or admin.
 check_operator_groups() {
   me=$(id -un)
-  need="$GROUP stardust"
+  need="$GROUP andromeda"
   nice="adm $OWNER"
   miss_need=""
   miss_nice=""
@@ -549,7 +549,7 @@ as_root() {
     capcom=1
   fi
   refuse() {
-    printf 'SPEAK: sudo needs a password. Capcom cannot type one. Add NOPASSWD for stardust-priv bee git crdir.\n' >&2
+    printf 'SPEAK: sudo needs a password. Capcom cannot type one. Add NOPASSWD for andromeda-priv bee git crdir.\n' >&2
     printf '%s\n' '{"module":"sudo","status":"fail","what":"NOPASSWD missing"}' >&2
     return 1
   }
@@ -580,7 +580,7 @@ as_root() {
     sudo -u "$tgt" "$@"
     return $?
   fi
-  priv=${PRIV:-/usr/local/sbin/stardust-priv}
+  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
   # Root verbs go through the helper. SSH has no tty, so a bare sudo cannot ask.
   case $1 in
     mkdir|chmod)

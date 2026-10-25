@@ -1,6 +1,6 @@
 # shellcheck shell=sh
-# d7 — Stardust module: Drupal 7 / BOA -> Backdrop on knarr
-# Sourced by bin/stardust and by the portable bin/d7-migrate wrapper.
+# d7 — Andromeda module: Drupal 7 / BOA -> Backdrop on knarr
+# Sourced by bin/andromeda and by the portable bin/d7-migrate wrapper.
 # Never bee install an imported D7 schema.
 
 # Fallbacks when this file is sourced without common.sh (BOA prep box).
@@ -81,15 +81,15 @@ D7_DROP_ENABLED=""
 D7_CUSTOM=""
 D7_THEMES_EN=""
 
-d7_die() { echo "${PROG:-stardust}: $*" >&2; return 1; }
-d7_usage_die() { echo "${PROG:-stardust}: $*" >&2; return 2; }
+d7_die() { echo "${PROG:-andromeda}: $*" >&2; return 1; }
+d7_usage_die() { echo "${PROG:-andromeda}: $*" >&2; return 2; }
 
 d7_find_catalog() {
   for d in \
     "${STARDUST_LIB:-}" \
     "${LIBDIR:-}" \
-    /usr/local/lib/stardust \
-    /srv/stardust/lib
+    /usr/local/lib/andromeda \
+    /srv/andromeda/lib
   do
     [ -n "$d" ] && [ -f "$d/d7-catalog.txt" ] && { echo "$d/d7-catalog.txt"; return 0; }
   done
@@ -159,7 +159,7 @@ d7_parse() {
       -n) DRYRUN=1; shift ;;
       -h|--help) d7_help; return 2 ;;
       --) shift; break ;;
-      -*) echo "${PROG:-stardust}: unknown d7 flag $1" >&2; return 2 ;;
+      -*) echo "${PROG:-andromeda}: unknown d7 flag $1" >&2; return 2 ;;
       *) pos="$pos $1"; shift ;;
     esac
   done
@@ -173,20 +173,20 @@ d7_parse() {
 
 d7_help() {
   cat <<EOF
-stardust d7 — Drupal 7 / BOA to Backdrop on knarr
+andromeda d7 — Drupal 7 / BOA to Backdrop on knarr
 
-  stardust [-n] d7 test    SITE_DIR|BUNDLE [--yes] [--out DIR]
-  stardust [-n] d7 apply   --plan DIR|plan.json [--step ID] [--yes]
-  stardust      d7 tutorial --plan DIR
-  stardust [-n] d7 tools
-  stardust [-n] d7 stubs [--out DIR]          # only stubs the scan said you need
-  stardust [-n] d7 toolkit PLATFORM
-  stardust [-n] d7 prep    --from SITE_DIR [--out DIR] [--alias @site]
-  stardust [-n] d7 assess  --from SITE_DIR|BUNDLE
-  stardust [-n] d7 convert --from BUNDLE --platform NAME --product NAME [--host HOST]
-  stardust [-n] d7 attach  --platform NAME --product NAME [--host HOST]
-  stardust [-n] d7 port    --from MODULE_DIR --platform NAME
-  stardust [-n] d7 all     --from SITE_DIR|BUNDLE --platform NAME --product NAME
+  andromeda [-n] d7 test    SITE_DIR|BUNDLE [--yes] [--out DIR]
+  andromeda [-n] d7 apply   --plan DIR|plan.json [--step ID] [--yes]
+  andromeda      d7 tutorial --plan DIR
+  andromeda [-n] d7 tools
+  andromeda [-n] d7 stubs [--out DIR]          # only stubs the scan said you need
+  andromeda [-n] d7 toolkit PLATFORM
+  andromeda [-n] d7 prep    --from SITE_DIR [--out DIR] [--alias @site]
+  andromeda [-n] d7 assess  --from SITE_DIR|BUNDLE
+  andromeda [-n] d7 convert --from BUNDLE --platform NAME --product NAME [--host HOST]
+  andromeda [-n] d7 attach  --platform NAME --product NAME [--host HOST]
+  andromeda [-n] d7 port    --from MODULE_DIR --platform NAME
+  andromeda [-n] d7 all     --from SITE_DIR|BUNDLE --platform NAME --product NAME
 
   test     scan modules, themes, settings, files
            writes plan.json + playbook.txt + modules.tsv + steps.tsv
@@ -194,7 +194,7 @@ stardust d7 — Drupal 7 / BOA to Backdrop on knarr
   apply    run automatable steps from plan.json / steps.tsv
            --step ID runs one; --yes skips prompts; -n prints commands
 
-Portable wrapper (BOA VPS has no Stardust):
+Portable wrapper (BOA VPS has no Andromeda):
   d7-migrate prep|assess|convert|attach|all|tools|stubs|toolkit|port …
 
 Official D7-side tester
@@ -366,7 +366,7 @@ d7_pick_site_under() {
 
 cmd_d7_tools() {
   cat <<EOF
-D7 -> Backdrop toolkit (what Stardust wraps)
+D7 -> Backdrop toolkit (what Andromeda wraps)
 
 ON THE DRUPAL 7 SITE (BOA VPS, before prep)
   backdrop_upgrade_status
@@ -377,7 +377,7 @@ ON THE DRUPAL 7 SITE (BOA VPS, before prep)
     https://www.drupal.org/project/backdrop_upgrade_status
     https://github.com/backdrop-contrib/backdrop_upgrade_status
 
-  D7 stubs (stardust d7 stubs — only what d7 test found)
+  D7 stubs (andromeda d7 stubs — only what d7 test found)
     entity_plus + entity_ui   if Rules or Search API are enabled
     + ubercart                only if uc_* / Ubercart is enabled
     Enable those stubs on D7, THEN take the backdrop-ready dump.
@@ -426,7 +426,7 @@ ON THE BACKDROP PLATFORM (knarr / devel)
     This IS the conversion. Same path as core/update.php.
     \$update_free_access = TRUE only for that run.
 
-  stardust site-check PLATFORM PRODUCT
+  andromeda site-check PLATFORM PRODUCT
     HTTP + Bee status + Apache error log after convert.
 
 NOT used
@@ -436,8 +436,8 @@ NOT used
   bee install
     Would wipe the imported D7 schema.
 
-stardust d7 toolkit PLATFORM   # bee dl the Backdrop tools
-stardust d7 stubs --out DIR    # write the three D7 stub modules
+andromeda d7 toolkit PLATFORM   # bee dl the Backdrop tools
+andromeda d7 stubs --out DIR    # write the three D7 stub modules
 EOF
 }
 
@@ -454,7 +454,7 @@ d7_write_stub() {
 name = $name (D7 stub for Backdrop upgrade)
 description = $desc
 core = 7.x
-package = Stardust stubs
+package = Andromeda stubs
 EOF
   cat > "$dest/$name/$name.module" <<EOF
 <?php
@@ -484,7 +484,7 @@ cmd_d7_stubs() {
   fi
   if [ "${D7_NEED_EPLUS:-0}" -eq 0 ] && [ "${D7_HAS_UC:-0}" -eq 0 ]; then
     if [ -z "$enabled" ]; then
-      note "no enabled.txt — run stardust d7 test SITE first"
+      note "no enabled.txt — run andromeda d7 test SITE first"
       note "writing entity_plus + entity_ui only (Ubercart stub skipped until a scan finds uc_*)"
       D7_NEED_EPLUS=1
     else
@@ -513,12 +513,12 @@ cmd_d7_stubs() {
 cmd_d7_toolkit() {
   platform=${D7_PLATFORM:-}
   [ -n "$platform" ] || platform=${D7_FROM:-}
-  [ -n "$platform" ] || { echo "usage: stardust d7 toolkit PLATFORM" >&2; return 2; }
+  [ -n "$platform" ] || { echo "usage: andromeda d7 toolkit PLATFORM" >&2; return 2; }
   platform=$(slug "$platform")
   root=${PLATFORMS:-/srv/platforms}/$platform
   web=$root/web
   if [ "${DRYRUN:-0}" -eq 0 ] && [ ! -d "$web" ]; then
-    echo "${PROG:-stardust}: no platform $root — platform-add first" >&2
+    echo "${PROG:-andromeda}: no platform $root — platform-add first" >&2
     return 1
   fi
   bee=bee
@@ -544,8 +544,8 @@ cmd_d7_toolkit() {
 cmd_d7_port() {
   src=${D7_FROM:-}
   platform=${D7_PLATFORM:-}
-  [ -n "$src" ] && [ -d "$src" ] || { echo "usage: stardust d7 port --from MODULE_DIR --platform NAME" >&2; return 2; }
-  [ -n "$platform" ] || { echo "usage: stardust d7 port --from MODULE_DIR --platform NAME" >&2; return 2; }
+  [ -n "$src" ] && [ -d "$src" ] || { echo "usage: andromeda d7 port --from MODULE_DIR --platform NAME" >&2; return 2; }
+  [ -n "$platform" ] || { echo "usage: andromeda d7 port --from MODULE_DIR --platform NAME" >&2; return 2; }
   platform=$(slug "$platform")
   root=${PLATFORMS:-/srv/platforms}/$platform
   web=$root/web
@@ -559,7 +559,7 @@ cmd_d7_port() {
     echo "  admin/config/development/coder-upgrade  (Directories tab)"
     return 0
   fi
-  [ -d "$web" ] || { echo "${PROG:-stardust}: no $web" >&2; return 1; }
+  [ -d "$web" ] || { echo "${PROG:-andromeda}: no $web" >&2; return 1; }
   run_root mkdir -p "$dest"
   run_root cp -a "$src" "$dest/$name"
   if command -v chown_files >/dev/null 2>&1; then
@@ -788,7 +788,7 @@ cmd_d7_assess() {
   stubs_needed=""
   available=""
   {
-    echo "# stardust d7 assess $(date -Iseconds 2>/dev/null || date)"
+    echo "# andromeda d7 assess $(date -Iseconds 2>/dev/null || date)"
     echo "# source $bundle"
     echo "# catalog $(d7_find_catalog 2>/dev/null || echo missing)"
     echo
@@ -884,7 +884,7 @@ cmd_d7_assess() {
   echo "to-download: $bundle/to-download.txt"
   if [ "$missing" -gt 0 ]; then
     bad "$missing enabled project(s) have no Backdrop port"
-    echo "${PROG:-stardust}: port with 'stardust d7 port', replace, or --force" >&2
+    echo "${PROG:-andromeda}: port with 'andromeda d7 port', replace, or --force" >&2
     [ "$D7_FORCE" -eq 1 ] && return 0
     return 1
   fi
@@ -1094,7 +1094,7 @@ d7_write_plan() {
 
   : > "$steps"
   d7_step_line backup d7-prep true prep "Snapshot SQL and files" \
-    "stardust d7 prep --from ${src_site:-SITE} --out $out" >> "$steps"
+    "andromeda d7 prep --from ${src_site:-SITE} --out $out" >> "$steps"
   d7_step_line upgrade-status d7-prep false manual "Install backdrop_upgrade_status on D7" \
     "drush dl backdrop_upgrade_status && drush en backdrop_upgrade_status update -y" >> "$steps"
   if [ -n "$D7_DROP_ENABLED" ]; then
@@ -1108,7 +1108,7 @@ d7_write_plan() {
   if [ "$D7_NEED_EPLUS" -eq 1 ] || [ "$D7_HAS_UC" -eq 1 ]; then
     names=$(d7_stub_list | tr '\n' ' ')
     d7_step_line stubs d7-prep true stubs "Write and enable D7 stubs: $names" \
-      "stardust d7 stubs --from $out --out $out/stubs" >> "$steps"
+      "andromeda d7 stubs --from $out --out $out/stubs" >> "$steps"
     d7_step_line stubs-enable d7-prep false uninstall "Enable stubs on the live D7 site" \
       "drush en $names -y" >> "$steps"
   fi
@@ -1118,17 +1118,17 @@ d7_write_plan() {
     for m in $D7_CUSTOM; do
       [ -n "$m" ] || continue
       d7_step_line "port-$m" d7-prep false port "Port or replace custom/uncatalogued module $m" \
-        "stardust d7 port --from MODULE_DIR/$m --platform $plat" >> "$steps"
+        "andromeda d7 port --from MODULE_DIR/$m --platform $plat" >> "$steps"
     done
   fi
   d7_step_line dump-ready d7-prep true prep "Take backdrop-ready dump after uninstalls/stubs" \
-    "stardust d7 prep --from ${src_site:-SITE} --out $out" >> "$steps"
+    "andromeda d7 prep --from ${src_site:-SITE} --out $out" >> "$steps"
   d7_step_line toolkit knarr true toolkit "Download Backdrop conversion tools onto the platform" \
-    "stardust d7 toolkit $plat" >> "$steps"
+    "andromeda d7 toolkit $plat" >> "$steps"
   d7_step_line convert knarr true convert "Import dump, utf8mb4, wipe cache_*, bee -y update-db (writes JSON config)" \
-    "stardust d7 convert --from $out --platform $plat --product $product --host $host" >> "$steps"
+    "andromeda d7 convert --from $out --platform $plat --product $product --host $host" >> "$steps"
   d7_step_line theme-patch knarr true theme "Patch copied D7 themes: backdrop=1.x + base theme d7compatible" \
-    "stardust d7 theme-patch --platform $plat --product $product" >> "$steps"
+    "andromeda d7 theme-patch --platform $plat --product $product" >> "$steps"
   d7_step_line config-export knarr true cex "bee config-export: copy active JSON into staging for git / env promote" \
     "bee --root=WEB --site=$product config-export" >> "$steps"
   d7_step_line views-code knarr false views "Code-provided D7 Views only: default_views_config UI -> views.view.NAME.json" \
@@ -1142,9 +1142,9 @@ d7_write_plan() {
   d7_step_line search-reindex knarr false manual "Rebuild Search / Search API indexes after convert" \
     "bee --root=WEB --site=$product cron" >> "$steps"
   d7_step_line attach knarr true attach "Apache alias + site-check" \
-    "stardust d7 attach --platform $plat --product $product --host $host" >> "$steps"
-  d7_step_line check knarr true check "stardust site-check after convert" \
-    "stardust site-check $plat $product --host $host" >> "$steps"
+    "andromeda d7 attach --platform $plat --product $product --host $host" >> "$steps"
+  d7_step_line check knarr true check "andromeda site-check after convert" \
+    "andromeda site-check $plat $product --host $host" >> "$steps"
 
   if [ ! -f "$statusf" ]; then
     awk -F'	' 'NF>=1 && $1!=""{print $1"\ttodo"}' "$steps" > "$statusf"
@@ -1154,7 +1154,7 @@ d7_write_plan() {
   {
     echo "# D7 -> Backdrop playbook"
     echo "# machine plan: $plan"
-    echo "# apply with: stardust d7 apply --plan $out"
+    echo "# apply with: andromeda d7 apply --plan $out"
     echo "# written $(date -Iseconds 2>/dev/null || date)"
     echo
     echo "## Site"
@@ -1190,7 +1190,7 @@ d7_write_plan() {
       awk -F'	' 'NR>1 && $2=="module" && $3!="0" {printf "- %-28s %-8s -> %-16s %s\n", $1, $4, $5, $6}' "$modules"
     fi
     echo
-    echo "## Steps (stardust d7 apply --plan $out)"
+    echo "## Steps (andromeda d7 apply --plan $out)"
     i=1
     while IFS="$D7_TAB" read -r id phase auto verb title command || [ -n "$id" ]; do
       [ -n "$id" ] || continue
@@ -1203,9 +1203,9 @@ d7_write_plan() {
     done < "$steps"
     echo
     echo "## Apply"
-    echo "  stardust -n d7 apply --plan $out"
-    echo "  stardust    d7 apply --plan $out --yes"
-    echo "  stardust    d7 apply --plan $out --step stubs"
+    echo "  andromeda -n d7 apply --plan $out"
+    echo "  andromeda    d7 apply --plan $out --yes"
+    echo "  andromeda    d7 apply --plan $out --step stubs"
     if [ "$D7_HAS_UC" -eq 0 ]; then
       echo
       echo "## Not this site"
@@ -1217,7 +1217,7 @@ d7_write_plan() {
   {
     echo '{'
     echo "  \"version\": 1,"
-    echo "  \"kind\": \"stardust-d7-plan\","
+    echo "  \"kind\": \"andromeda-d7-plan\","
     echo "  \"scanned_at\": \"$(date -Iseconds 2>/dev/null || date)\","
     echo "  \"source\": \"$(d7_json_esc "$src_site")\","
     echo "  \"out\": \"$(d7_json_esc "$out")\","
@@ -1280,10 +1280,10 @@ d7_find_static_tutorial() {
   for d in \
     "${STARDUST_LIB:-}/../docs" \
     "${LIBDIR:-}/../docs" \
-    /usr/local/share/stardust \
-    /usr/local/share/stardust/docs \
-    /usr/local/lib/stardust/../docs \
-    /srv/stardust/docs
+    /usr/local/share/andromeda \
+    /usr/local/share/andromeda/docs \
+    /usr/local/lib/andromeda/../docs \
+    /srv/andromeda/docs
   do
     [ -n "$d" ] && [ -f "$d/d7-migration.txt" ] && { echo "$d/d7-migration.txt"; return 0; }
   done
@@ -1321,7 +1321,7 @@ d7_write_sysadmin_tutorial() {
     echo "source    $src"
     echo "plan      $out"
     echo
-    echo "Do not type sudo stardust. Do not bee install."
+    echo "Do not type sudo andromeda. Do not bee install."
     echo
     echo "## Done (automated)"
     if [ -f "$steps" ] && [ -f "$statusf" ]; then
@@ -1344,7 +1344,7 @@ d7_write_sysadmin_tutorial() {
     echo
     echo "  3. Theme — look at the front page; edit"
     echo "       $web/sites/$product/themes"
-    echo "       stardust d7 theme-patch --platform $plat --product $product"
+    echo "       andromeda d7 theme-patch --platform $plat --product $product"
     echo
     echo "  4. Code-only Views (hook_views_default_views)"
     echo "       bee --root=$web --site=$product en default_views_config"
@@ -1369,19 +1369,19 @@ d7_write_sysadmin_tutorial() {
     if [ -n "${D7_CUSTOM:-}" ]; then
       echo "  8. Uncatalogued modules — port or drop"
       echo "       $D7_CUSTOM"
-      echo "       stardust d7 port --from MODULE_DIR --platform $plat"
+      echo "       andromeda d7 port --from MODULE_DIR --platform $plat"
       echo
     fi
     echo "  9. Commit CMI + backup"
     echo "       cd /srv/platforms/$plat"
     echo "       git add web/sites/$product config/$product"
     echo "       git commit -m \"$product: D7 convert\""
-    echo "       stardust site-check $plat $product --host $host"
-    echo "       stardust site-backup $plat $product"
+    echo "       andromeda site-check $plat $product --host $host"
+    echo "       andromeda site-backup $plat $product"
     echo
     echo "  10. Promote (on the VPS, not on devel)"
-    echo "       stardust promote $plat --to test"
-    echo "       stardust promote $plat --to live"
+    echo "       andromeda promote $plat --to test"
+    echo "       andromeda promote $plat --to live"
     echo
     echo "## Still open on the plan"
     if [ -f "$steps" ]; then
@@ -1396,12 +1396,12 @@ d7_write_sysadmin_tutorial() {
         open=1
         echo "  [$st] $id — $title"
         echo "         $command"
-        echo "         stardust d7 apply --plan $out --step $id"
+        echo "         andromeda d7 apply --plan $out --step $id"
       done < "$steps"
       [ "$open" -eq 1 ] || echo "  (none — every recorded step is done or skipped)"
     fi
     echo
-    echo "Reprint:  stardust d7 tutorial --plan $out"
+    echo "Reprint:  andromeda d7 tutorial --plan $out"
     echo "Handbook: ${static:-docs/d7-migration.txt}"
   } > "$dest"
   echo "tutorial $dest"
@@ -1410,7 +1410,7 @@ d7_write_sysadmin_tutorial() {
 cmd_d7_tutorial() {
   plan=${D7_PLAN:-}
   [ -n "$plan" ] || plan=${D7_FROM:-}
-  [ -n "$plan" ] || { echo "usage: stardust d7 tutorial --plan DIR" >&2; return 2; }
+  [ -n "$plan" ] || { echo "usage: andromeda d7 tutorial --plan DIR" >&2; return 2; }
   dir=$plan
   [ -f "$plan" ] && dir=$(dirname "$plan")
   [ -d "$dir" ] || { echo "no plan dir $dir" >&2; return 1; }
@@ -1437,13 +1437,13 @@ d7_status_set() {
 cmd_d7_apply() {
   plan=${D7_PLAN:-}
   [ -n "$plan" ] || plan=${D7_FROM:-}
-  [ -n "$plan" ] || { echo "usage: stardust d7 apply --plan DIR|plan.json [--step ID]" >&2; return 2; }
+  [ -n "$plan" ] || { echo "usage: andromeda d7 apply --plan DIR|plan.json [--step ID]" >&2; return 2; }
   dir=$plan
   [ -f "$plan" ] && dir=$(dirname "$plan")
   [ -d "$dir" ] || { echo "no plan dir $dir" >&2; return 1; }
   steps=$dir/steps.tsv
   statusf=$dir/status.tsv
-  [ -f "$steps" ] || { echo "no $steps — run stardust d7 test first" >&2; return 1; }
+  [ -f "$steps" ] || { echo "no $steps — run andromeda d7 test first" >&2; return 1; }
   [ -f "$statusf" ] || awk -F'	' '{print $1"\ttodo"}' "$steps" > "$statusf"
 
   echo "apply plan $dir"
@@ -1505,8 +1505,8 @@ cmd_d7_apply() {
         if cmd_d7_attach; then d7_status_set "$statusf" "$id" done; else d7_status_set "$statusf" "$id" blocked; fail=1; fi
         ;;
       check)
-        if have stardust && [ -n "${D7_PLATFORM:-}" ] && [ -n "${D7_PRODUCT:-}" ]; then
-          stardust site-check "$D7_PLATFORM" "$D7_PRODUCT" --host "${D7_HOST:-}" || fail=1
+        if have andromeda && [ -n "${D7_PLATFORM:-}" ] && [ -n "${D7_PRODUCT:-}" ]; then
+          andromeda site-check "$D7_PLATFORM" "$D7_PRODUCT" --host "${D7_HOST:-}" || fail=1
         fi
         d7_status_set "$statusf" "$id" done
         ;;
@@ -1534,7 +1534,7 @@ cmd_d7_theme_patch() {
   plat=${D7_PLATFORM:-}
   prod=${D7_PRODUCT:-}
   [ -n "$plat" ] || plat=${D7_FROM:-}
-  [ -n "$plat" ] && [ -n "$prod" ] || { echo "usage: stardust d7 theme-patch --platform NAME --product NAME" >&2; return 2; }
+  [ -n "$plat" ] && [ -n "$prod" ] || { echo "usage: andromeda d7 theme-patch --platform NAME --product NAME" >&2; return 2; }
   web=${PLATFORMS:-/srv/platforms}/$(slug "$plat")/web
   echo "theme-patch $web/sites/$(slug "$prod")/themes"
   d7_patch_themes "$web/sites/$(slug "$prod")/themes"
@@ -1567,7 +1567,7 @@ cmd_d7_test() {
       D7_FROM=$path
     fi
   fi
-  [ -n "$path" ] || { echo "usage: stardust d7 test SITE_DIR|BUNDLE" >&2; return 2; }
+  [ -n "$path" ] || { echo "usage: andromeda d7 test SITE_DIR|BUNDLE" >&2; return 2; }
   [ -d "$path" ] || { echo "no such directory $path" >&2; return 1; }
 
   # Allow a platform docroot that contains several sites.
@@ -1678,15 +1678,15 @@ cmd_d7_test() {
 
   if [ -n "$D7_CUSTOM" ]; then
     echo "  uncatalogued modules: $D7_CUSTOM"
-    echo "  next: stardust d7 port --from MODULE_DIR --platform NAME"
+    echo "  next: andromeda d7 port --from MODULE_DIR --platform NAME"
     echo "        (coder_upgrade) or replace / uninstall on D7"
   fi
 
   echo
   echo "next:"
-  echo "  stardust -n d7 apply --plan ${D7_OUT:-$path}"
-  echo "  stardust    d7 apply --plan ${D7_OUT:-$path} --yes"
-  echo "  # or one step: stardust d7 apply --plan ${D7_OUT:-$path} --step stubs"
+  echo "  andromeda -n d7 apply --plan ${D7_OUT:-$path}"
+  echo "  andromeda    d7 apply --plan ${D7_OUT:-$path} --yes"
+  echo "  # or one step: andromeda d7 apply --plan ${D7_OUT:-$path} --step stubs"
   if [ "$rc" -ne 0 ] && [ "$D7_FORCE" -eq 0 ]; then
     return 0
   fi
@@ -1700,7 +1700,7 @@ cmd_d7_test() {
 d7_refuse_root() {
   [ "${DRYRUN:-0}" -eq 1 ] && return 0
   if [ "$(id -u)" -eq 0 ] || [ -n "${SUDO_USER:-}" ]; then
-    echo "${PROG:-stardust}: do not run d7 convert/attach as root or under sudo" >&2
+    echo "${PROG:-andromeda}: do not run d7 convert/attach as root or under sudo" >&2
     return 2
   fi
   return 0
@@ -1714,7 +1714,7 @@ d7_bee() {
   elif command -v bee_bin >/dev/null 2>&1; then
     bee_bin
   else
-    echo "${PROG:-stardust}: bee not on PATH" >&2
+    echo "${PROG:-andromeda}: bee not on PATH" >&2
     return 1
   fi
 }
@@ -1727,7 +1727,7 @@ d7_crdir() {
   elif command -v need_crdir >/dev/null 2>&1; then
     need_crdir
   else
-    echo "${PROG:-stardust}: crdir not on PATH" >&2
+    echo "${PROG:-andromeda}: crdir not on PATH" >&2
     return 1
   fi
 }
@@ -1784,9 +1784,9 @@ cmd_d7_convert() {
   fi
 
   if [ ! -d "$web" ]; then
-    if have stardust && [ "${PROG:-}" != stardust ]; then
-      [ "${DRYRUN:-0}" -eq 1 ] && echo "+ stardust platform-add $D7_PLATFORM --no-prompt"
-      [ "${DRYRUN:-0}" -eq 0 ] && stardust platform-add "$D7_PLATFORM" --no-prompt
+    if have andromeda && [ "${PROG:-}" != andromeda ]; then
+      [ "${DRYRUN:-0}" -eq 1 ] && echo "+ andromeda platform-add $D7_PLATFORM --no-prompt"
+      [ "${DRYRUN:-0}" -eq 0 ] && andromeda platform-add "$D7_PLATFORM" --no-prompt
     elif command -v cmd_platform_add >/dev/null 2>&1; then
       cmd_platform_add "$D7_PLATFORM" --no-prompt
     else
@@ -1826,8 +1826,8 @@ cmd_d7_convert() {
     if command -v secret_file >/dev/null 2>&1; then
       cnf=$(secret_file "$D7_PLATFORM" "$D7_PRODUCT").cnf
     fi
-    if [ -x /usr/local/sbin/stardust-priv ] && [ -n "$cnf" ]; then
-      as_root /usr/local/sbin/stardust-priv mysql-create "$db" "$user" "$cnf" || true
+    if [ -x /usr/local/sbin/andromeda-priv ] && [ -n "$cnf" ]; then
+      as_root /usr/local/sbin/andromeda-priv mysql-create "$db" "$user" "$cnf" || true
     fi
     as_root mysql -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
     as_root mysql -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';"
@@ -1967,9 +1967,9 @@ EOF
     if [ "$D7_KEEP_UFA" -eq 0 ]; then
       run_root sed -i "s/\$update_free_access = TRUE;/\$update_free_access = FALSE;/" "$dest" || true
     fi
-    as_root touch "$web/sites/$D7_PRODUCT/.stardust-imported"
-    as_root touch "$web/sites/$D7_PRODUCT/.stardust-installed"
-    run_root chown "$owner:$group" "$web/sites/$D7_PRODUCT/.stardust-imported" "$web/sites/$D7_PRODUCT/.stardust-installed"
+    as_root touch "$web/sites/$D7_PRODUCT/.andromeda-imported"
+    as_root touch "$web/sites/$D7_PRODUCT/.andromeda-installed"
+    run_root chown "$owner:$group" "$web/sites/$D7_PRODUCT/.andromeda-imported" "$web/sites/$D7_PRODUCT/.andromeda-installed"
     as_root -u "$owner" "$bee" --root="$web" --site="$D7_PRODUCT" status || true
     as_root -u "$owner" "$bee" --root="$web" --site="$D7_PRODUCT" cache-rebuild 2>/dev/null \
       || as_root -u "$owner" "$bee" --root="$web" --site="$D7_PRODUCT" cc all 2>/dev/null \
@@ -2032,10 +2032,10 @@ EOF
   fi
   if command -v cmd_site_check >/dev/null 2>&1 && [ "${DRYRUN:-0}" -eq 0 ]; then
     cmd_site_check "$D7_PLATFORM" "$D7_PRODUCT" --host "$D7_HOST" || note "site-check problems"
-  elif have stardust && [ "${DRYRUN:-0}" -eq 0 ]; then
-    stardust site-check "$D7_PLATFORM" "$D7_PRODUCT" --host "$D7_HOST" || true
+  elif have andromeda && [ "${DRYRUN:-0}" -eq 0 ]; then
+    andromeda site-check "$D7_PLATFORM" "$D7_PRODUCT" --host "$D7_HOST" || true
   elif [ "${DRYRUN:-0}" -eq 1 ]; then
-    echo "+ stardust site-check $D7_PLATFORM $D7_PRODUCT --host $D7_HOST"
+    echo "+ andromeda site-check $D7_PLATFORM $D7_PRODUCT --host $D7_HOST"
   fi
   ok "attached $D7_PRODUCT on $D7_PLATFORM -> http://$D7_HOST"
 }
@@ -2071,7 +2071,7 @@ cmd_d7() {
     shift
   done
   sub=${1:-help}
-  # stardust d7 /path/to/site  ==  stardust d7 test /path/to/site
+  # andromeda d7 /path/to/site  ==  andromeda d7 test /path/to/site
   if [ -n "$sub" ] && [ -d "$sub" ]; then
     D7_FROM=$sub
     shift
@@ -2103,7 +2103,7 @@ cmd_d7() {
     attach) cmd_d7_attach ;;
     all|migrate) cmd_d7_all ;;
     *)
-      echo "${PROG:-stardust}: unknown d7 verb $sub (try: stardust d7 help)" >&2
+      echo "${PROG:-andromeda}: unknown d7 verb $sub (try: andromeda d7 help)" >&2
       return 2
       ;;
   esac

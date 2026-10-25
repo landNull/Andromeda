@@ -1,11 +1,11 @@
 {
-  "stardust.architecture": {
+  "andromeda.architecture": {
     "type": "App-Centric Module System",
     "version": "0.4.0",
     "designPattern": "Isolated Single-Responsibility Subsystems driven by an Orchestrator Core",
     "executionModel": "Sequential loop sorting and sourcing scripts matching 'modules/[0-9][0-9]-*.sh' alphabetically"
   },
-  "stardust.constraints": {
+  "andromeda.constraints": {
     "shellTarget": "POSIX compliant /bin/sh (No non-standard bashisms/dashisms)",
     "safetyDirectives": ["set -eu", "Quote here-doc delimiters like << 'EOF' to prevent premature evaluation"],
     "targetEnvironments": {
@@ -14,10 +14,10 @@
       "live": "Hardened multi-tenant nodes with locked security configs and optimized opcache"
     }
   },
-  "stardust.moduleMap": {
-    "orchestrator": "install-stardust.sh (Handles OS/Init detection, parses config arrays)",
-    "preFlightValidator": "test-stardust-vars.sh (POSIX environment sanity checking)",
-    "stateTearDown": "cleanup-stardust.sh (Reverse dependency purge script engine)",
+  "andromeda.moduleMap": {
+    "orchestrator": "install-andromeda.sh (Handles OS/Init detection, parses config arrays)",
+    "preFlightValidator": "test-andromeda-vars.sh (POSIX environment sanity checking)",
+    "stateTearDown": "cleanup-andromeda.sh (Reverse dependency purge script engine)",
     "workers": {
       "10-core-prereqs.sh": "System users, shared group, ssh keys, package sync templates",
       "20-apache2.sh": "Apache installation, mpm_event threading limits, tracing signature removal",
@@ -31,7 +31,7 @@
     }
   },
   "ai.instructions": {
-    "systemPromptOverride": "You are a senior infrastructure engineering agent specializing in POSIX shell scripting and the Stardust Control Plane App-Centric system. Maintain strict structural separation between individual worker modules.",
+    "systemPromptOverride": "You are a senior infrastructure engineering agent specializing in POSIX shell scripting and the Andromeda Control Plane App-Centric system. Maintain strict structural separation between individual worker modules.",
     "codingRules": [
       "CRITICAL: Always check that variables inside function declarations do not use backslash escapes like '\\$1'—use standard '$1' tracking parameters instead.",
       "CRITICAL: Never use the 'local' keyword inside function declarations, as standard POSIX shells do not universally guarantee support. Reset global loop parameters explicitly instead.",
@@ -40,7 +40,7 @@
       "Ensure all file names inside 'modules/' use an action-oriented prefix or numeric execution token matching '[0-9][0-9]-*'."
     ],
     "documentationReferences": [
-      "stardust.1 (System Unix manual baseline)",
+      "andromeda.1 (System Unix manual baseline)",
       "STARDUST_CLI_REFERENCE.md (Command matrix details)"
     ]
   },
@@ -48,7 +48,7 @@
     "*.sh": "shellscript",
     "*.cnf": "ini",
     "*.ini": "ini",
-    "stardust.1": "troff"
+    "andromeda.1": "troff"
   },
   "editor.tabSize": 2,
   "editor.insertSpaces": true

@@ -1,4 +1,4 @@
-# Stardust docs outline
+# Andromeda docs outline
 
 ## Install and day-to-day
 
@@ -15,16 +15,16 @@
 ## Architecture and milestones
 
 - `AppCentricArchitecture.md` — application-centric layout
-- `StardustMilestones.md` — milestones
+- `AndromedaMilestones.md` — milestones
 
 ## Standard
 
 The d-LitFunc standard lives in the d-LitFunc repository. The files below are pointers. They are not copies.
 
 - `d-litfunc.md` — pointer to the standard and to `standards-standalone.md`
-- `d-litfunc-stardust.md` — pointer to the Stardust SM page
+- `d-litfunc-andromeda.md` — pointer to the Andromeda SM page
 - `d-litfunc-captain-rocket.md` — pointer to the Captain Rocket SM page
 
 Application documentation links to `standards-standalone.md` in the d-LitFunc repository. Do not restate a standard here.
 
-The source of truth is the d-LitFunc git repository. Links inside it are relative. The remote can be any forge. Stardust runs from the clone with no required proprietary service.
+The source of truth is the d-LitFunc git repository. Links inside it are relative. The remote can be any forge. Andromeda runs from the clone with no required proprietary service.

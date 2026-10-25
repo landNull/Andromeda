@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# fi-fix.sh — Repair syntax error in install-stardust.sh
+# fi-fix.sh — Repair syntax error in install-andromeda.sh
 set -euo pipefail
 
-TARGET_FILE="install-stardust.sh"
+TARGET_FILE="install-andromeda.sh"
 
 if [ ! -f "$TARGET_FILE" ]; then
     echo "ERROR: Cannot find $TARGET_FILE in the current working directory." >&2
@@ -16,7 +16,7 @@ echo "==> Replacing corrupted bootstrap_deps function..."
 python3 -c '
 import re
 
-with open("install-stardust.sh", "r") as f:
+with open("install-andromeda.sh", "r") as f:
     code = f.read()
 
 fixed_fn = """bootstrap_deps() {
@@ -48,14 +48,14 @@ fixed_fn = """bootstrap_deps() {
       echo "+ etckeeper init"
     else
       as_root etckeeper init >/dev/null 2>&1 || true
-      as_root etckeeper commit -m "stardust first run" >/dev/null 2>&1 || true
+      as_root etckeeper commit -m "andromeda first run" >/dev/null 2>&1 || true
       echo "etckeeper: initialized /etc"
     fi
   fi
 
   if have needrestart && [ -d /etc/needrestart/conf.d ]; then
     printf '\''%s\\n'\'' '\''$nrconf{restart} = "l";'\'' \\
-      | write_if_absent /etc/needrestart/conf.d/stardust.conf
+      | write_if_absent /etc/needrestart/conf.d/andromeda.conf
   fi
 
   if have logwatch; then
@@ -86,7 +86,7 @@ fixed_fn = """bootstrap_deps() {
     else
       as_root mkdir -p "$STARDUST/state/secrets"
       as_root age-keygen -o "$age_key"
-      as_root chown "$OWNER:stardust" "$age_key"
+      as_root chown "$OWNER:andromeda" "$age_key"
       as_root chmod 0640 "$age_key"
       echo "age: wrote $age_key"
     fi
@@ -97,7 +97,7 @@ fixed_fn = """bootstrap_deps() {
       echo "msmtp: /etc/msmtprc exists (unchanged)"
     else
       printf '\''%s\\n'\'' \\
-        "# Stardust msmtp — fill host/user/password, then: chmod 0640 /etc/msmtprc" \\
+        "# Andromeda msmtp — fill host/user/password, then: chmod 0640 /etc/msmtprc" \\
         "defaults" \\
         "auth           on" \\
         "tls            on" \\
@@ -106,20 +106,20 @@ fixed_fn = """bootstrap_deps() {
         "account        default" \\
         "host           mail.example" \\
         "port           587" \\
-        "from           stardust@example" \\
-        "user           stardust@example" \\
+        "from           andromeda@example" \\
+        "user           andromeda@example" \\
         "password       CHANGE-ME" \\
         | write_if_absent /etc/msmtprc.example
       if [ "$DRYRUN" -eq 0 ] && [ -t 0 ]; then
         nmail=$(install_prompt "NOTIFY email — where backup/fail mail goes (empty skip)" "" \\
-          "Stardust can mail after backup-all or a failed site-check.
-This only sets NOTIFY= in /etc/stardust.conf.
+          "Andromeda can mail after backup-all or a failed site-check.
+This only sets NOTIFY= in /etc/andromeda.conf.
 You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
-        if [ -n "$nmail" ] && [ -f /etc/stardust.conf ]; then
-          if grep -q '\''^NOTIFY='\'' /etc/stardust.conf; then
-            as_root sed -i "s|^NOTIFY=.*|NOTIFY=$nmail|" /etc/stardust.conf
+        if [ -n "$nmail" ] && [ -f /etc/andromeda.conf ]; then
+          if grep -q '\''^NOTIFY='\'' /etc/andromeda.conf; then
+            as_root sed -i "s|^NOTIFY=.*|NOTIFY=$nmail|" /etc/andromeda.conf
           else
-            as_root sh -c "printf '\''NOTIFY=%s\\\\n'\'' '\''$nmail'\'' >> /etc/stardust.conf"
+            as_root sh -c "printf '\''NOTIFY=%s\\\\n'\'' '\''$nmail'\'' >> /etc/andromeda.conf"
           fi
           echo "NOTIFY=$nmail — copy /etc/msmtprc.example to /etc/msmtprc and edit SMTP"
         fi
@@ -143,7 +143,7 @@ You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
 }"""
 
 updated = re.sub(r"bootstrap_deps\(\)\s*\{.*?\n\}", fixed_fn, code, flags=re.DOTALL)
-with open("install-stardust.sh", "w") as f:
+with open("install-andromeda.sh", "w") as f:
     f.write(updated)
 '
 

@@ -14,9 +14,9 @@ fi
 
 if [ "$LOCALHOST" -eq 1 ]; then
   if [ -d /etc/apache2 ]; then
-    printf '%s\n' "Listen 127.0.0.1:80" | write_dropin /etc/apache2/conf-available/stardust-localhost.conf
+    printf '%s\n' "Listen 127.0.0.1:80" | write_dropin /etc/apache2/conf-available/andromeda-localhost.conf
     if have a2enconf; then
-      run_root a2enconf stardust-localhost >/dev/null 2>&1 || true
+      run_root a2enconf andromeda-localhost >/dev/null 2>&1 || true
     fi
   fi
   echo "localhost: Apache should listen on 127.0.0.1 only (disable stock Listen 80 if it still binds all addresses)"
@@ -34,7 +34,7 @@ if [ "$LOCALHOST" -eq 1 ] || [ "$ROLE" = devel ]; then
     [ -n "$dns_ip" ] || dns_ip=127.0.0.1
   fi
   if [ -d /etc/dnsmasq.d ] || [ "$DRYRUN" -eq 1 ]; then
-    printf '%s\n' "address=/devel/${dns_ip}" | write_dropin /etc/dnsmasq.d/stardust.conf
+    printf '%s\n' "address=/devel/${dns_ip}" | write_dropin /etc/dnsmasq.d/andromeda.conf
   fi
   svc_start dnsmasq
 else

@@ -1,7 +1,7 @@
 #!/bin/sh
-# smoke-test-live.sh — automated product demo of Stardust (with deep error diagnostics).
+# smoke-test-live.sh — automated product demo of Andromeda (with deep error diagnostics).
 #
-# Creates a real platform and sites, then exercises every verb Stardust
+# Creates a real platform and sites, then exercises every verb Andromeda
 # can run against them. Prints a clear narrative to the screen.
 #
 # On success writes  passed.YYYYMMDD-HHMMSS.log   (readable story)
@@ -22,10 +22,10 @@ set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-STARDUST=${STARDUST_BIN:-$HERE/bin/stardust}
-[ -x "$STARDUST" ] || STARDUST=$(command -v stardust 2>/dev/null || true)
+STARDUST=${STARDUST_BIN:-$HERE/bin/andromeda}
+[ -x "$STARDUST" ] || STARDUST=$(command -v andromeda 2>/dev/null || true)
 if [ -z "${STARDUST:-}" ] || [ ! -x "$STARDUST" ]; then
-  echo "$PROG: cannot find stardust binary (checked $HERE/bin/stardust and PATH)" >&2
+  echo "$PROG: cannot find andromeda binary (checked $HERE/bin/andromeda and PATH)" >&2
   exit 1
 fi
 
@@ -41,8 +41,8 @@ LAST_CMD=""
 STAMP=$(date +%Y%m%d-%H%M%S)
 PASSED_LOG="passed.${STAMP}.log"
 ERROR_LOG="smoketest.error.${STAMP}.log"
-STORY=$(mktemp /tmp/stardust-demo-story.XXXXXX)
-LAST_OUT=$(mktemp /tmp/stardust-demo-out.XXXXXX)
+STORY=$(mktemp /tmp/andromeda-demo-story.XXXXXX)
+LAST_OUT=$(mktemp /tmp/andromeda-demo-out.XXXXXX)
 
 # --- crash & cleanup trap -------------------------------------------------
 on_exit() {
@@ -78,7 +78,7 @@ write_diagnostic_error_log() {
     echo "Exit Code   : $fail_rc"
     echo "User / ID   : $(id)"
     echo "Working Dir : $(pwd)"
-    echo "Stardust Bin: $STARDUST"
+    echo "Andromeda Bin: $STARDUST"
     echo ""
     echo "--- 1. OUTPUT OF THE FAILED COMMAND ----------------------------------"
     if [ -s "$LAST_OUT" ]; then
@@ -91,28 +91,28 @@ write_diagnostic_error_log() {
     echo "Re-running failed command with shell tracing (-x) in dry/diagnostic mode..."
     case "$fail_cmd" in
       *"$STARDUST"*)
-        # Trace the stardust shell script directly so we see the exact line that failed
+        # Trace the andromeda shell script directly so we see the exact line that failed
         sh -x $fail_cmd 2>&1 || true
         ;;
       *)
-        echo "(Not a stardust command; skipping sh -x replay)"
+        echo "(Not a andromeda command; skipping sh -x replay)"
         ;;
     esac
     echo ""
     echo "--- 3. SYSTEM & ENVIRONMENT DIAGNOSTICS ------------------------------"
-    echo "[/etc/stardust.conf]:"
-    cat /etc/stardust.conf 2>&1 || echo "(missing or unreadable)"
+    echo "[/etc/andromeda.conf]:"
+    cat /etc/andromeda.conf 2>&1 || echo "(missing or unreadable)"
     echo ""
-    echo "[~/.stardust.conf]:"
-    cat "$HOME/.stardust.conf" 2>&1 || echo "(none)"
+    echo "[~/.andromeda.conf]:"
+    cat "$HOME/.andromeda.conf" 2>&1 || echo "(none)"
     echo ""
     echo "[Directory Permissions]:"
-    ls -ld /srv /srv/platforms /srv/stardust /srv/stardust/state /usr/local/sbin/stardust-priv 2>&1 || true
+    ls -ld /srv /srv/platforms /srv/andromeda /srv/andromeda/state /usr/local/sbin/andromeda-priv 2>&1 || true
     echo ""
     echo "[Sudo Delegation (sudo -l)]:"
     sudo -n -l 2>&1 || echo "(sudo -n -l failed or requires password)"
     echo ""
-    echo "[Stardust Last Task Journal]:"
+    echo "[Andromeda Last Task Journal]:"
     "$STARDUST" last 2>&1 || true
     echo ""
     echo "======================================================================"
@@ -255,13 +255,13 @@ confirm() {
 }
 
 # --- gather parameters ----------------------------------------------------
-section "Stardust product demo — setup"
+section "Andromeda product demo — setup"
 
-role=$(grep -E '^STARDUST_ROLE=' /etc/stardust.conf 2>/dev/null | cut -d= -f2 | tr -d '"' || true)
+role=$(grep -E '^STARDUST_ROLE=' /etc/andromeda.conf 2>/dev/null | cut -d= -f2 | tr -d '"' || true)
 role=${role:-${STARDUST_ROLE:-devel}}
-explain "This is an automated product demo of Stardust, the shell control plane for Backdrop CMS.
+explain "This is an automated product demo of Andromeda, the shell control plane for Backdrop CMS.
 It will create a real platform and sites on this host (role=$role), then run every
-operation Stardust can perform on them. Everything is printed here so you can
+operation Andromeda can perform on them. Everything is printed here so you can
 follow along. A readable story log is written at the end."
 
 if [ -z "$PLATFORM" ]; then
@@ -302,23 +302,23 @@ fi
 # --- preflight ------------------------------------------------------------
 section "Preflight — groups, sudo, doctor"
 
-CURRENT_STEP="Check operator group memberships (www-admin and stardust)"
+CURRENT_STEP="Check operator group memberships (www-admin and andromeda)"
 LAST_CMD="id -nG"
-explain "Stardust refuses to run under sudo. Root work goes through stardust-priv.
-The operator must be in groups www-admin and stardust. We cache sudo credentials
+explain "Andromeda refuses to run under sudo. Root work goes through andromeda-priv.
+The operator must be in groups www-admin and andromeda. We cache sudo credentials
 now so later privileged steps do not interrupt the demo."
 
 ACTIVE_GROUPS=$(id -nG)
 say "Active groups for $(id -un): $ACTIVE_GROUPS"
 
-if echo "$ACTIVE_GROUPS" | grep -qw www-admin && echo "$ACTIVE_GROUPS" | grep -qw stardust; then
-  say "  ✓ operator is in www-admin and stardust"
+if echo "$ACTIVE_GROUPS" | grep -qw www-admin && echo "$ACTIVE_GROUPS" | grep -qw andromeda; then
+  say "  ✓ operator is in www-admin and andromeda"
 else
-  say "  ✗ missing required active groups (need both www-admin and stardust)."
+  say "  ✗ missing required active groups (need both www-admin and andromeda)."
   say "    Current active groups: $ACTIVE_GROUPS"
-  say "    In /etc/group: $(grep -E '^(www-admin|stardust|deploy):' /etc/group 2>/dev/null | tr '\n' ' ')"
+  say "    In /etc/group: $(grep -E '^(www-admin|andromeda|deploy):' /etc/group 2>/dev/null | tr '\n' ' ')"
   say "    Fix with:"
-  say "      sudo usermod -aG www-admin,stardust,deploy \$USER && exec su - \$USER"
+  say "      sudo usermod -aG www-admin,andromeda,deploy \$USER && exec su - \$USER"
   printf "Missing required groups in active shell: %s\n" "$ACTIVE_GROUPS" > "$LAST_OUT"
   exit 1
 fi
@@ -385,10 +385,10 @@ demo_run "Check the new site responds" \
 section "Day-to-day operations on the site"
 
 explain "Once a site exists, content and config still go through Bee.
-Stardust provides a thin wrapper that sets --root and --site for you.
+Andromeda provides a thin wrapper that sets --root and --site for you.
 We also take a backup, toggle maintenance mode, and clone the site."
 
-demo_run "Bee status via the stardust wrapper" \
+demo_run "Bee status via the andromeda wrapper" \
   $STARDUST_CMD bee "$PLATFORM" "$PRODUCT" status
 
 demo_run "Bee cache clear (cc all)" \
@@ -437,7 +437,7 @@ section "Inventory and task journal"
 
 explain "inventory walks the platforms and prints a summary.
 log and last show the task journal that mutating commands write
-under /srv/stardust/state."
+under /srv/andromeda/state."
 
 demo_run "Show inventory" $STARDUST inventory
 demo_run "Show recent task log" $STARDUST log 10
@@ -476,8 +476,8 @@ elif [ "$DELETE" -eq 1 ] && [ "$DRYRUN" -eq 1 ]; then
 else
   explain "Sites were left in place so you can inspect them.
   To remove them later, re-run with --delete or run:
-    stardust site-delete $PLATFORM $COPY_PRODUCT --force
-    stardust site-delete $PLATFORM $PRODUCT --force"
+    andromeda site-delete $PLATFORM $COPY_PRODUCT --force
+    andromeda site-delete $PLATFORM $PRODUCT --force"
 fi
 
 # --- success story --------------------------------------------------------
@@ -488,7 +488,7 @@ explain "All steps finished successfully.
 The full narrative has been saved to $PASSED_LOG"
 
 {
-      echo "Stardust product demo — PASSED"
+      echo "Andromeda product demo — PASSED"
   echo "Timestamp : $STAMP"
   echo "Host role : $role"
   echo "Platform  : $PLATFORM"

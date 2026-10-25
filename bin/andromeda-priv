@@ -1,7 +1,7 @@
 #!/bin/sh
-# stardust-priv — the only root helper Stardust should sudo.
+# andromeda-priv — the only root helper Andromeda should sudo.
 # Allowlisted paths and verbs. Do not give operators NOPASSWD chown/rm/mysql.
-# Invoked as: sudo -n /usr/local/sbin/stardust-priv VERB [args]
+# Invoked as: sudo -n /usr/local/sbin/andromeda-priv VERB [args]
 
 set -eu
 
@@ -15,13 +15,13 @@ fi
 OWNER=${OWNER:-deploy}
 GROUP=${GROUP:-www-admin}
 DAEMON=${DAEMON:-www-data}
-OPGRP=${OPGRP:-stardust}
+OPGRP=${OPGRP:-andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/stardust}
+STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
 
-if [ -f /etc/stardust.conf ]; then
+if [ -f /etc/andromeda.conf ]; then
   # shellcheck disable=SC1091
-  . /etc/stardust.conf
+  . /etc/andromeda.conf
 fi
 
 path_ok() {

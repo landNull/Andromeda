@@ -1,7 +1,7 @@
 # shellcheck shell=sh
 
 # Pull a site from a VPS and stand it up as a devel site.
-# usage: stardust site-pull VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
+# usage: andromeda site-pull VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
 cmd_site_pull() {
   role=${STARDUST_ROLE:-devel}
   while [ $# -gt 0 ]; do
@@ -110,7 +110,7 @@ _write_local() {
   tmp=$(mktemp) || return 1
   {
     echo "<?php"
-    echo "// Written by stardust pull. Overwritten on each run."
+    echo "// Written by andromeda pull. Overwritten on each run."
     if [ -n "$dsnline" ]; then
       echo "$dsnline"
     fi

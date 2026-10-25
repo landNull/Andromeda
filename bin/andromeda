@@ -1,5 +1,5 @@
 #!/bin/sh
-# stardust — thin dispatcher. Logic lives in stardust-lib/*.sh
+# andromeda — thin dispatcher. Logic lives in andromeda-lib/*.sh
 # Do not sudo this wrapper.
 
 set -eu
@@ -20,9 +20,9 @@ find_lib() {
     "${STARDUST_LIB:-}" \
     "$HERE/lib" \
     "$HERE/../lib" \
-    "$HERE/stardust-lib" \
-    /usr/local/lib/stardust \
-    /srv/stardust/lib
+    "$HERE/andromeda-lib" \
+    /usr/local/lib/andromeda \
+    /srv/andromeda/lib
   do
     if [ -n "$d" ] && [ -f "$d/common.sh" ]; then
       echo "$d"
@@ -33,7 +33,7 @@ find_lib() {
 }
 
 LIBDIR=$(find_lib) || {
-  echo "$PROG: cannot find lib/common.sh. Clone the stardust repo and run ./stardust-install.sh from its root." >&2
+  echo "$PROG: cannot find lib/common.sh. Clone the andromeda repo and run ./andromeda-install.sh from its root." >&2
   exit 1
 }
 export LIBDIR
@@ -121,7 +121,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG [-n] cron-all
   $PROG [-n] bee PLATFORM PRODUCT [bee-verb…]   # Bee with --root/--site set
   $PROG [-n] d7 VERB …   # Drupal 7 / BOA -> Backdrop (see $PROG d7 help)
-  stardust-menu          # gum / whiptail / dialog
+  andromeda-menu          # gum / whiptail / dialog
   $PROG ui               # Textual full-screen (Aegir layout)
 
   log / last        task journal ($STARDUST_ROOT/state/tasks.log)
@@ -131,16 +131,16 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   backup-all        every product; prune to KEEP_BACKUPS (default 7)
   cron-all          bee --site=PRODUCT cron, staggered (installer cron.d)
   site-disable      bee maintenance-mode 1
-  secrets           $STARDUST_ROOT/state/secrets/<plat>/<prod> 0640 deploy:stardust
+  secrets           $STARDUST_ROOT/state/secrets/<plat>/<prod> 0640 deploy:andromeda
                     (+ .cnf for mysql --defaults-extra-file; Apache cannot read)
-  groups            required: www-admin stardust
+  groups            required: www-admin andromeda
                     recommended: adm deploy
                     adm = read /var/log (not sudo); installer adds it
                     refresh: exec su - $USER   (exec bash does NOT work)
   sudo              refused if you prefix this wrapper. Root work is
-                    /usr/local/sbin/stardust-priv only.
-  PHP ini           30-stardust all SAPIs; 35-stardust-harden FPM only;
-                    35-stardust-cli keeps Bee exec
+                    /usr/local/sbin/andromeda-priv only.
+  PHP ini           30-andromeda all SAPIs; 35-andromeda-harden FPM only;
+                    35-andromeda-cli keeps Bee exec
   host extras       intl/imagick/apcu, mariadb-backup, logwatch, goaccess,
                     etckeeper, smartd, unattended-upgrades (no reboot),
                     msmtp-mta (needs /etc/msmtprc for NOTIFY)
@@ -152,11 +152,11 @@ EXIT STATUS
   2  usage (bad flag, missing args, promote --to devel / on devel host)
 
 EXAMPLES
-  git remote add origin git@git.example:org/stardust.git
+  git remote add origin git@git.example:org/andromeda.git
   git push -u origin devel
   git push origin devel
-  git clone -b devel git@git.example:org/stardust.git ~/stardust
-  cd ~/stardust && ./stardust-install.sh -n --localhost
+  git clone -b devel git@git.example:org/andromeda.git ~/andromeda
+  cd ~/andromeda && ./andromeda-install.sh -n --localhost
 
   $PROG doctor
   $PROG -n add platform mysite --git git@git.example:org/mysite.git
@@ -178,9 +178,9 @@ EXAMPLES
   $PROG d7 /data/disk/o1/…/sites/example.com
   $PROG d7 tools
   $PROG -n d7 all --from /path/to/d7-example --platform ecom --product example --host example.devel
-  stardust-menu
+  andromeda-menu
   $PROG ui
-  id                    # confirm www-admin stardust
+  id                    # confirm www-admin andromeda
   exec su - "$USER"     # after usermod -aG (not exec bash)
 
   man $PROG     $PROG -h
@@ -341,9 +341,9 @@ dispatch() {
       # Textual front-end. Repo layout is ../tui; installed copy is under share.
       TUI=""
       for cand in \
-        "$HERE/../tui/stardust_ui.py" \
-        /usr/local/share/stardust/tui/stardust_ui.py \
-        /usr/local/lib/stardust/tui/stardust_ui.py
+        "$HERE/../tui/andromeda_ui.py" \
+        /usr/local/share/andromeda/tui/andromeda_ui.py \
+        /usr/local/lib/andromeda/tui/andromeda_ui.py
       do
         if [ -f "$cand" ]; then
           TUI=$cand
@@ -351,14 +351,14 @@ dispatch() {
         fi
       done
       if [ -z "$TUI" ]; then
-        echo "$PROG: missing Textual UI (tui/stardust_ui.py)" >&2
-        echo "$PROG: run from the repo: $HERE/stardust ui" >&2
+        echo "$PROG: missing Textual UI (tui/andromeda_ui.py)" >&2
+        echo "$PROG: run from the repo: $HERE/andromeda ui" >&2
         return 1
       fi
       if command -v uv >/dev/null 2>&1; then
-        STARDUST_BIN=$HERE/stardust exec uv run --with textual "$TUI" "$@"
+        STARDUST_BIN=$HERE/andromeda exec uv run --with textual "$TUI" "$@"
       else
-        STARDUST_BIN=$HERE/stardust exec python3 "$TUI" "$@"
+        STARDUST_BIN=$HERE/andromeda exec python3 "$TUI" "$@"
       fi
       ;;
     backup-all) cmd_backup_all ;;

@@ -11,7 +11,7 @@ platform_has_other_site() {
     [ -d "$s" ] || continue
     base=${s##*/}
     case $base in default|all|"$skip") continue ;; esac
-    if [ -f "$s/.stardust-installed" ]; then
+    if [ -f "$s/.andromeda-installed" ]; then
       return 0
     fi
   done
@@ -37,7 +37,7 @@ ensure_settings_php() {
 EOF
   fi
   if ! grep -q "config/$product/active" "$dest" 2>/dev/null; then
-    # Comment the template assignment so it cannot win over the Stardust path.
+    # Comment the template assignment so it cannot win over the Andromeda path.
     as_root sed -i "s|^\\(\$config_directories\\['active'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
     as_root sed -i "s|^\\(\$config_directories\\['staging'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
     as_root tee -a "$dest" >/dev/null <<EOF
@@ -245,7 +245,7 @@ cmd_site_add() {
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ $bee --root=$web --site=$product install --db-name=$db --db-user=$user --auto"
   else
-    if [ -f "$web/sites/$product/.stardust-installed" ]; then
+    if [ -f "$web/sites/$product/.andromeda-installed" ]; then
       echo "install already marked for $product — skip"
     elif platform_has_other_site "$web" "$product"; then
       # Bee install refuses once any site on this root is installed.
@@ -268,9 +268,9 @@ cmd_site_add() {
         echo "$PROG: install.sh failed for $product" >&2
         return 1
       }
-      # install.sh can rewrite settings.php and drop the Stardust paths.
+      # install.sh can rewrite settings.php and drop the Andromeda paths.
       # It also writes config to the default files/config_<hash>/active.
-      # Move that into the Stardust path before re-asserting settings.
+      # Move that into the Andromeda path before re-asserting settings.
       landed=$(find "$web" -type d -path '*/config_*/active' 2>/dev/null | head -1)
       if [ -n "$landed" ] && [ -d "$landed" ]; then
         echo "moving installed config from $landed"
@@ -278,8 +278,8 @@ cmd_site_add() {
         run_root chown -R "$OWNER:$GROUP" "$root/config/$product/active"
       fi
       ensure_settings_php "$root" "$product"
-      as_root touch "$web/sites/$product/.stardust-installed"
-      run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
+      as_root touch "$web/sites/$product/.andromeda-installed"
+      run_root chown "$OWNER:$GROUP" "$web/sites/$product/.andromeda-installed"
     else
       run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" "$bee" --root="$web" --site="$product" install \
@@ -288,8 +288,8 @@ cmd_site_add() {
         echo "$PROG: bee install failed for $product" >&2
         return 1
       }
-      as_root touch "$web/sites/$product/.stardust-installed"
-      run_root chown "$OWNER:$GROUP" "$web/sites/$product/.stardust-installed"
+      as_root touch "$web/sites/$product/.andromeda-installed"
+      run_root chown "$OWNER:$GROUP" "$web/sites/$product/.andromeda-installed"
     fi
   fi
 

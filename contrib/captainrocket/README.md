@@ -1,6 +1,6 @@
-# Stardust as a CaptainRocket tool
+# Andromeda as a CaptainRocket tool
 
-Capcom calls Stardust. Stardust does not call Capcom.
+Capcom calls Andromeda. Andromeda does not call Capcom.
 
 This directory is the contract. The hidden `.captainrocket/` at the repo root is Capcom's runtime state (log, state.db) and is gitignored.
 
@@ -29,7 +29,7 @@ Or pass the phrase through:
 
 ## What Capcom must not do
 
-- Do not run `sudo stardust` or `sudo ./tests/run-test.sh`.
+- Do not run `sudo andromeda` or `sudo ./tests/run-test.sh`.
 - Do not answer the interactive prompts. `--json` and `--speak` skip them.
 - Do not treat `.captainrocket/state.db` as part of this contract.
 

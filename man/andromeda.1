@@ -1,18 +1,18 @@
-.TH STARDUST 1 "17 September 2026" "Stardust" "System Administration"
+.TH STARDUST 1 "17 September 2026" "Andromeda" "System Administration"
 .SH NAME
-stardust \- manage Backdrop platforms and sites from the shell
+andromeda \- manage Backdrop platforms and sites from the shell
 .SH SYNOPSIS
-.B stardust
+.B andromeda
 .RB [ \-n ]
 .I command
 .RI [ args... ]
 .PP
-.B stardust
+.B andromeda
 .BR \-h | \-\-help | help
 .SH DESCRIPTION
-.B stardust
+.B andromeda
 is the command-line control plane for Backdrop CMS on
-.B Stardust
+.B Andromeda
 and the VPS.
 It is the piece that replaces Drupal Aegir / BOA
 .I without
@@ -47,7 +47,7 @@ or
 .B live
 (VPS).
 .PP
-.B stardust
+.B andromeda
 creates platforms and products, wires Bee and
 .BR crdir (1),
 writes the Apache name, and creates the MariaDB user.
@@ -61,31 +61,31 @@ and
 Do
 .I not
 type
-.B sudo stardust
+.B sudo andromeda
 (exit 2).
 Log in as the operator account
 (or
 .BR deploy )
 and run the wrapper.
 Root work goes through
-.B /usr/local/sbin/stardust-priv
+.B /usr/local/sbin/andromeda-priv
 only
 (path allowlist under
 .B /srv/platforms
 and
-.BR /srv/stardust ,
+.BR /srv/andromeda ,
 DB names
 .BR bd_* ).
 .PP
 The daily operator
 (the login that ran
-.B stardust-install.sh ,
+.B andromeda-install.sh ,
 or
 .B \-H NAME )
 must be in groups
 .B www-admin
 and
-.BR stardust .
+.BR andromeda .
 After
 .B usermod \-aG
 use
@@ -100,12 +100,12 @@ PHP-writable trees are
 .B www-data:www-admin
 plus default POSIX ACLs.
 Secrets are
-.B deploy:stardust
+.B deploy:andromeda
 mode 0640
 (Apache is
 .I not
 in
-.BR stardust ).
+.BR andromeda ).
 .SH OPTIONS
 .TP
 .B \-n
@@ -130,15 +130,15 @@ or the user who ran the installer);
 groups
 .B www-admin
 and
-.BR stardust ;
+.BR andromeda ;
 optional extra login only if
 .B \-a NAME
 was passed and NAME is not the file group;
-.B stardust-priv
+.B andromeda-priv
 and
 .BR setfacl ;
 directories under
-.B /srv/stardust
+.B /srv/andromeda
 and
 .BR /srv/platforms ,
 and that
@@ -153,9 +153,9 @@ and print each platform, its Git branch, and the product folders
 that already have settings.
 .SS env
 Print the values loaded from
-.B ~/.stardust.conf
+.B ~/.andromeda.conf
 or
-.BR /etc/stardust.conf .
+.BR /etc/andromeda.conf .
 Useful when a command used the wrong role or path.
 .SS platform-add NAME
 Create
@@ -176,7 +176,7 @@ With no
 and a usable
 .B STARDUST_GIT_TEMPLATE
 (written by
-.B install-stardust.sh
+.B install-andromeda.sh
 STEP 60),
 the URL is the template with
 .B %s
@@ -205,7 +205,7 @@ Site name passed to
 .BI \-\-pass " PASS"
 MariaDB password.
 If omitted, a random password is stored in
-.B /srv/stardust/state/secrets/PLATFORM/PRODUCT
+.B /srv/andromeda/state/secrets/PLATFORM/PRODUCT
 and
 .B PRODUCT.cnf
 (not printed).
@@ -261,7 +261,7 @@ and reload Apache
 .SS d7 VERB
 Drupal 7 / BOA importer. Same code as the portable
 .B d7-migrate
-wrapper (use that on a BOA box that has no Stardust).
+wrapper (use that on a BOA box that has no Andromeda).
 .PP
 Verbs:
 .BR test
@@ -301,11 +301,11 @@ and
 .B man d7-migrate .
 .SH FILES
 .TP
-.B /etc/stardust.conf
+.B /etc/andromeda.conf
 System defaults written by
-.BR stardust-install.sh .
+.BR andromeda-install.sh .
 .TP
-.B /etc/php/*/fpm/conf.d/35-stardust-harden.ini
+.B /etc/php/*/fpm/conf.d/35-andromeda-harden.ini
 FPM and apache2 only.
 .B disable_functions
 (passthru, popen, proc_*, dl, pcntl_*),
@@ -313,14 +313,14 @@ live/test
 .B opcache.validate_timestamps=0 .
 Not applied to CLI.
 .TP
-.B /etc/php/*/cli/conf.d/35-stardust-cli.ini
+.B /etc/php/*/cli/conf.d/35-andromeda-cli.ini
 CLI only. No
 .BR disable_functions
 so
 .B bee
 still works.
 .TP
-.B /etc/apt/apt.conf.d/52stardust-unattended
+.B /etc/apt/apt.conf.d/52andromeda-unattended
 Security updates only;
 .B Automatic-Reboot
 is
@@ -351,12 +351,12 @@ Host packages the installer pulls on Devuan/Debian include
 and
 .BR age .
 .TP
-.B ~/.stardust.conf
+.B ~/.andromeda.conf
 Per-user override
 .RB ( deploy
 and the operator login).
 .TP
-.B /srv/stardust
+.B /srv/andromeda
 Control plane: backups, state, extra binaries.
 .TP
 .B /srv/platforms
@@ -365,7 +365,7 @@ Never run devel, test, and live out of one working copy.
 .TP
 .B /etc/csf/csf.conf
 Optional CSF policy from
-.B stardust-install.sh \-F .
+.B andromeda-install.sh \-F .
 SSH is not world-open; use WireGuard
 .B 10.8.0.0/24
 or LAN
@@ -382,21 +382,21 @@ Picks default branch, default hostname suffix, and database suffix.
 .IP 1. 4
 Copy the artifacts folder onto the machine
 .RI ( crdir ,
-.BR stardust ,
-.B stardust-install.sh
+.BR andromeda ,
+.B andromeda-install.sh
 must sit next to each other).
 .IP 2. 4
 Preview, then install the host:
 .PP
 .RS
 laptop:
-.B ./stardust-install.sh \-n \-\-localhost
+.B ./andromeda-install.sh \-n \-\-localhost
 .PP
 devel host:
-.B ./stardust-install.sh \-n \-m devel
+.B ./andromeda-install.sh \-n \-m devel
 .PP
 VPS:
-.B ./stardust-install.sh \-n \-m test
+.B ./andromeda-install.sh \-n \-m test
 (or
 .BR \-m live )
 .RE
@@ -414,7 +414,7 @@ then
 .B www-admin
 is a group, not a login.
 .IP 4. 4
-.B stardust doctor
+.B andromeda doctor
 must print READY.
 .IP 5. 4
 Add a platform, then each product, always with
@@ -423,32 +423,32 @@ first.
 .SH EXAMPLES
 .SS See whether this machine is ready
 .nf
-stardust doctor
-stardust env
-stardust list
+andromeda doctor
+andromeda env
+andromeda list
 .fi
 .SS Dry-run a new empty platform (no Git yet)
 .nf
-stardust \-n platform-add scratch
-stardust platform-add scratch
+andromeda \-n platform-add scratch
+andromeda platform-add scratch
 .fi
 .PP
 Bee downloads Backdrop core into
 .BR /srv/platforms/scratch/web .
 .SS Clone ecom from Gitea onto the devel host (devel)
 .nf
-stardust \-n platform-add mysite \e
+andromeda \-n platform-add mysite \e
   \-\-git git@git.example:org/mysite.git \e
   \-\-branch devel
-stardust platform-add mysite \e
+andromeda platform-add mysite \e
   \-\-git git@git.example:org/mysite.git \e
   \-\-branch devel
 .fi
 .SS Add the two ecom products on the devel host
 .nf
-stardust \-n site-add mysite www \-\-host www.devel \-\-name "THQ devel"
-stardust site-add mysite www \-\-host www.devel \-\-name "THQ devel"
-stardust site-add mysite shop  \-\-host shop.devel  \-\-name "KL devel"
+andromeda \-n site-add mysite www \-\-host www.devel \-\-name "THQ devel"
+andromeda site-add mysite www \-\-host www.devel \-\-name "THQ devel"
+andromeda site-add mysite shop  \-\-host shop.devel  \-\-name "KL devel"
 .fi
 .PP
 Open
@@ -465,23 +465,23 @@ The VPS uses a
 .I second
 working copy, not the devel host tree.
 .nf
-# on the VPS, role=test in /etc/stardust.conf
-stardust platform-add mysite-test \e
+# on the VPS, role=test in /etc/andromeda.conf
+andromeda platform-add mysite-test \e
   \-\-git git@git.example:org/mysite.git \e
   \-\-branch test
-stardust site-add mysite-test thq \-\-host www.test.example
-stardust site-add mysite-test kl  \-\-host shop.test.example
+andromeda site-add mysite-test thq \-\-host www.test.example
+andromeda site-add mysite-test kl  \-\-host shop.test.example
 .fi
 .SS Live hostnames
 .nf
-stardust site-add mysite-live thq \-\-host www.example.com
-stardust site-add mysite-live kl  \-\-host shop.example.com
+andromeda site-add mysite-live thq \-\-host www.example.com
+andromeda site-add mysite-live kl  \-\-host shop.example.com
 .fi
 .PP
 Cloudflare in front of the VPS: Flexible origin is HTTP only.
 Full (strict) needs an origin certificate; that is not
 .B site-add .
-.SS After the site exists \- Bee, not Stardust
+.SS After the site exists \- Bee, not Andromeda
 .nf
 bee \-\-root=/srv/platforms/mysite/web \-\-site=thq status
 bee \-\-root=/srv/platforms/mysite/web \-\-site=thq cc all
@@ -502,24 +502,24 @@ newfeature maps
 .fi
 .SS Backup, restore, clone, smoke check
 .nf
-stardust \-n site-backup mysite www
-stardust site-backup mysite www
-stardust site-restore mysite www
-stardust site-restore \-\-from /srv/stardust/backups/mysite/www/devel/20260916-210000 mysite www
-stardust site-clone mysite www mysite www-copy \-\-host www-copy.devel
-stardust site-check mysite www \-\-host www.devel
-stardust backup-all
+andromeda \-n site-backup mysite www
+andromeda site-backup mysite www
+andromeda site-restore mysite www
+andromeda site-restore \-\-from /srv/andromeda/backups/mysite/www/devel/20260916-210000 mysite www
+andromeda site-clone mysite www mysite www-copy \-\-host www-copy.devel
+andromeda site-check mysite www \-\-host www.devel
+andromeda backup-all
 .fi
 .SS Upgrade and promote (VPS)
 .nf
 # devel host: commit + push devel, merge to test on Gitea
 # VPS:
-stardust \-n promote mysite \-\-to test
-stardust promote mysite \-\-to test
-stardust promote mysite \-\-to live
-stardust platform-upgrade mysite-test
-stardust log 20
-stardust last
+andromeda \-n promote mysite \-\-to test
+andromeda promote mysite \-\-to test
+andromeda promote mysite \-\-to live
+andromeda platform-upgrade mysite-test
+andromeda log 20
+andromeda last
 .fi
 .PP
 .B promote
@@ -530,28 +530,28 @@ is
 Fast-forward only; a diverged branch is an error, not a merge.
 .SS Maintenance and cron
 .nf
-stardust site-disable mysite www
-stardust site-enable mysite www
-stardust \-n cron-all
+andromeda site-disable mysite www
+andromeda site-enable mysite www
+andromeda \-n cron-all
 .fi
 .PP
 The installer writes
-.B /etc/cron.d/stardust
+.B /etc/cron.d/andromeda
 (nightly
 .B backup-all
 at 03:15, Bee cron four times an hour).
-.SS Stardust itself as a Gitea repo (laptop first)
+.SS Andromeda itself as a Gitea repo (laptop first)
 The CLI is its own private repo. It is not a Backdrop platform.
 Do not
-.B platform-add stardust .
+.B platform-add andromeda .
 .nf
-# Gitea UI: ORG/stardust, empty, private
+# Gitea UI: ORG/andromeda, empty, private
 cd /path/to/artifacts
 git init && git checkout -B devel
-git add stardust-install.sh stardust stardust.1 stardust-lib \e
-  crdir crdir.1 newfeature stardust-tutorial.txt .gitignore
-git commit -m "stardust CLI"
-git remote add origin git@git.example:org/stardust.git
+git add andromeda-install.sh andromeda andromeda.1 andromeda-lib \e
+  crdir crdir.1 newfeature andromeda-tutorial.txt .gitignore
+git commit -m "andromeda CLI"
+git remote add origin git@git.example:org/andromeda.git
 git remote -v
 ssh -T git@git.example
 git push -u origin devel
@@ -562,39 +562,39 @@ git push
 .PP
 On the devel host or the VPS:
 .nf
-git clone -b devel git@git.example:org/stardust.git /home/deploy/stardust
-cd /home/deploy/stardust
-./stardust-install.sh \-n \-m devel
+git clone -b devel git@git.example:org/andromeda.git /home/deploy/andromeda
+cd /home/deploy/andromeda
+./andromeda-install.sh \-n \-m devel
 .fi
 .SS Host install variants
 .nf
 # laptop, 127.0.0.1 only, dnsmasq on, no CSF, no certbot
-./stardust-install.sh \-n \-\-localhost
-./stardust-install.sh \-\-localhost
+./andromeda-install.sh \-n \-\-localhost
+./andromeda-install.sh \-\-localhost
 .fi
 .nf
 # devel host devel + optional CSF (SSH only via WireGuard / LAN)
-./stardust-install.sh \-n \-m devel
-./stardust-install.sh \-F \-m devel
+./andromeda-install.sh \-n \-m devel
+./andromeda-install.sh \-F \-m devel
 .fi
 .nf
 # VPS: no dnsmasq (public DNS), certbot yes
-./stardust-install.sh \-n \-m test
-./stardust-install.sh \-F \-m live
+./andromeda-install.sh \-n \-m test
+./andromeda-install.sh \-F \-m live
 .fi
 .SH WORDS YOU WILL SEE
 .TP
 .B deploy
 System account that owns Git trees and runs Bee.
 HOME
-.B /srv/stardust/home ,
+.B /srv/andromeda/home ,
 shell nologin, locked password.
 .TP
 .B www-admin
 File group on every tree. Not a login.
 The installer adds the invoking login to
 .BR www-admin ,
-.BR stardust ,
+.BR andromeda ,
 and
 .B deploy
 only. It never adds group
@@ -647,7 +647,7 @@ on a host whose role is
 Mutating commands also write
 .B rc=
 on the last line of
-.B stardust last .
+.B andromeda last .
 .SH BUGS
 .B site-delete
 is still not implemented.
@@ -660,11 +660,11 @@ by hand.
 .BR crdir (1),
 .BR bee (1),
 .BR apache2 (8),
-.B stardust-install.sh
+.B andromeda-install.sh
 .PP
 Tutorials in the artifacts folder:
-.BR stardust-tutorial.txt ,
+.BR andromeda-tutorial.txt ,
 .BR ecom-multisite-tutorial.txt ,
 .BR mysite-test-live-filesystem-tutorial.docx .
 .SH AUTHOR
-Written for the Stardust Backdrop platforms layout.
+Written for the Andromeda Backdrop platforms layout.

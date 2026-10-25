@@ -5,28 +5,28 @@ Host install order is `apps/MANIFEST`, not filename sort.
 | App | Host phase | Runtime |
 |-----|------------|---------|
 | core | — | `lib/common.sh` |
-| host | `apps/host/install.sh` | `bin/stardust`, `bin/stardust-priv`, `bin/crdir` |
+| host | `apps/host/install.sh` | `bin/andromeda`, `bin/andromeda-priv`, `bin/crdir` |
 | apache | `apps/apache/install.sh` | Apache vhosts via site-add |
-| php | `apps/php/install.sh` | 30-stardust.ini / FPM harden / CLI |
+| php | `apps/php/install.sh` | 30-andromeda.ini / FPM harden / CLI |
 | security | `apps/security/install.sh` | extras, VPS sysctl, CSF `-F` |
-| mariadb | `apps/mariadb/install.sh` | `bd_*` via stardust-priv |
+| mariadb | `apps/mariadb/install.sh` | `bd_*` via andromeda-priv |
 | deploy | `apps/deploy/install.sh` | ship tools, cron, state |
-| bee | `apps/bee/install.sh` | `apps/bee/lib.sh` → `stardust bee` |
+| bee | `apps/bee/install.sh` | `apps/bee/lib.sh` → `andromeda bee` |
 | gitea | `apps/gitea/install.sh` | optional binary + app.ini (absent only) + git template |
 | platform | — | `lib/platform.sh` `lib/promote.sh` |
 | site | — | `lib/site.sh` backup clone check ops |
 | doctor | — | `lib/doctor.sh` |
 | migrate-d7 | — | `lib/d7.sh` `bin/d7-migrate` |
-| ui | — | `bin/stardust-menu` `tui/` |
+| ui | — | `bin/andromeda-menu` `tui/` |
 
-Paths and contract are unchanged: `/srv/platforms`, `/srv/stardust`, `bd_*`,
-`stardust-priv`, ff-only promote, refuse sudo on user binaries.
+Paths and contract are unchanged: `/srv/platforms`, `/srv/andromeda`, `bd_*`,
+`andromeda-priv`, ff-only promote, refuse sudo on user binaries.
 
 ---
 
-# Stardust Control Plane: App-Centric Architecture & Git Guide
+# Andromeda Control Plane: App-Centric Architecture & Git Guide
 
-This document captures the complete architectural blueprint, step-by-step refactoring guidelines, safe deployment procedures, and version control procedures engineered to transition the Stardust automation platform from a legacy monolithic script into an industry-standard, **App-Centric Module system**.
+This document captures the complete architectural blueprint, step-by-step refactoring guidelines, safe deployment procedures, and version control procedures engineered to transition the Andromeda automation platform from a legacy monolithic script into an industry-standard, **App-Centric Module system**.
 
 ---
 
@@ -35,17 +35,17 @@ This document captures the complete architectural blueprint, step-by-step refact
 In modern systems automation, code architecture dictates repository architecture. A monolith relies on rigid top-to-bottom linear execution within a single, brittle file. An App-Centric system uses an **Orchestrator Core** that dynamically scans, inherits global configuration tokens, and sources **Isolated, Single-Responsibility App Workers**.
 
 ```
-[ GitHub Remote Repository: github.com/landNull/Stardust.git ]
+[ GitHub Remote Repository: github.com/landNull/Andromeda.git ]
   └── devel Branch (Your Main Integration Stream — Current Stable Codebase)
         └── feature/modularize-installer (Your Isolated Testing Sandbox)
               │
-              ├── [ The Orchestrator ] install-stardust.sh (Manages global variables & loop)
+              ├── [ The Orchestrator ] install-andromeda.sh (Manages global variables & loop)
               │     │
               │     └───► Iterates sequentially matching: modules/[0-9][0-9]-*.sh
               │
-              ├── [ The Validator ] test-stardust-vars.sh (Audits variable hand-offs)
+              ├── [ The Validator ] test-andromeda-vars.sh (Audits variable hand-offs)
               │
-              ├── [ The Purger ] cleanup-stardust.sh (Unprompted reverse tear-down engine)
+              ├── [ The Purger ] cleanup-andromeda.sh (Unprompted reverse tear-down engine)
               │
               └── [ The App Workers ] modules/
                     ├── 10-core-prereqs.sh  (Prerequisites, system users, groups, sudo privileges)
@@ -60,7 +60,7 @@ In modern systems automation, code architecture dictates repository architecture
 
 ## 🏷️ Operational Naming Conventions
 
-* **`install-stardust.sh`**: Changed from a passive noun (`stardust-installer.sh`) to an action-oriented verb prefix (`install-stardust`). This instantly clarifies intent and matches traditional platform conventions.
+* **`install-andromeda.sh`**: Changed from a passive noun (`andromeda-installer.sh`) to an action-oriented verb prefix (`install-andromeda`). This instantly clarifies intent and matches traditional platform conventions.
 * **Numeric Sequence Prefixes (`10-`, `20-`, `30-`)**: Order of execution is non-negotiable in shell infrastructure automation. You cannot optimize an InnoDB buffer pool (`40-mariadb.sh`) before the package manager installs the database binary. By assigning two-digit sequence numbers, the operating system's native alphabetical file sorting layout handles the execution stack automatically, mirroring native patterns like `/etc/sysctl.d/` or `/etc/sudoers.d/`.
 * **Branch Categorization (`feature/modularize-installer`)**: Forward-slash prefixes act as functional visual anchors. They signal context clearly to dashboards, team reviewers, and automated CI pipelines before a single line of code is inspected.
 
@@ -68,12 +68,12 @@ In modern systems automation, code architecture dictates repository architecture
 
 ## 🛠️ Core Control Scripts
 
-### 1. The Central Orchestrator (`install-stardust.sh`)
+### 1. The Central Orchestrator (`install-andromeda.sh`)
 This file establishes constants, auto-detects package managers (`apt`, `apk`, `dnf`, `yum`) and init suites (`systemd`, `sysvinit`, `openrc`), and drives the main module loading loop.
 
 ```sh
 #!/bin/sh
-# install-stardust.sh — Modular orchestrator control engine for Stardust
+# install-andromeda.sh — Modular orchestrator control engine for Andromeda
 set -eu
 
 PROG=${0##*/}
@@ -87,12 +87,12 @@ fi
 if [ -d "$HERE/bin" ] && [ -d "$HERE/lib" ]; then
   BINDIR=$HERE/bin; LIBSRC=$HERE/lib; MANDIR=$HERE/man; TUIDIR=$HERE/tui
 else
-  BINDIR=$HERE; LIBSRC=$HERE/stardust-lib; MANDIR=$HERE; TUIDIR=$HERE/stardust-tui
+  BINDIR=$HERE; LIBSRC=$HERE/andromeda-lib; MANDIR=$HERE; TUIDIR=$HERE/andromeda-tui
 fi
 
 export DRYRUN=0; export DO_CSF=0; export LOCALHOST=0; export ROLE=devel
 export OWNER="${OWNER:-deploy}"; export ADMIN="${ADMIN:-www-admin}"; export GROUP="${GROUP:-www-admin}"
-HUMAN=""; DAEMON=""; PLATFORMS=/srv/platforms; export STARDUST=/srv/stardust
+HUMAN=""; DAEMON=""; PLATFORMS=/srv/platforms; export STARDUST=/srv/andromeda
 CSF_ALLOW="10.8.0.0/24 192.168.1.0/24"; BEE_SRC=https://github.com/backdrop-contrib/bee.git
 BEE_DST=/usr/local/src/bee; BEE_BIN=/usr/local/bin/bee
 
@@ -210,7 +210,7 @@ write_dropin() {
 write_if_absent() { dest=\$1; [ -e "\$dest" ] && echo "exists: \$dest" || write_dropin "\$dest"; }
 
 write_etc_conf() {
-  dest=/etc/stardust.conf
+  dest=/etc/andromeda.conf
   [ -f "\$dest" ] && echo "global config exists: \$dest" && return 0
   [ "\$DRYRUN" -eq 1 ] && echo "+ write \$dest" && return 0
   as_root sh -c "cat > '\$dest'" <<EOF
@@ -251,18 +251,18 @@ gitea_conf_path() {
 gitea_installed() { have gitea && return 0; [ -x /usr/local/bin/gitea ] && return 0; gitea_conf_path >/dev/null && return 0; return 1; }
 
 maybe_gitea_defaults() {
-  if [ "\$LOCALHOST" -ne 1 ] && [ "\$ROLE" != "devel" ] || stardust_git_configured || ! gitea_installed; then return 0; fi
+  if [ "\$LOCALHOST" -ne 1 ] && [ "\$ROLE" != "devel" ] || andromeda_git_configured || ! gitea_installed; then return 0; fi
   host_def=gitforge
   [ -f "\$HOME/.ssh/config" ] && host_def=\$(awk 'tolower(\$1)=="host" && \$2 !~ /[*?]/ { if (\$2 ~ /gitea|github|gitlab|git/) { print \$2; exit } }' "\$HOME/.ssh/config" 2>/dev/null || echo "gitforge")
   host=\$(install_prompt "Git SSH host" "\$host_def" "SSH configuration host string.")
   owner=\$(install_prompt "Git owner/org" "" "Username or organization partition name.")
   [ -z "\$owner" ] && return 0
   tpl="git@\${host}:\${owner}/%s.git"
-  [ -f /etc/stardust.conf ] && as_root sh -c "printf 'STARDUST_GIT_TEMPLATE=%s\n' '\$tpl' >> /etc/stardust.conf"
+  [ -f /etc/andromeda.conf ] && as_root sh -c "printf 'STARDUST_GIT_TEMPLATE=%s\n' '\$tpl' >> /etc/andromeda.conf"
 }
 
-stardust_git_configured() {
-  for f in "\$HOME/.stardust.conf" /etc/stardust.conf; do
+andromeda_git_configured() {
+  for f in "\$HOME/.andromeda.conf" /etc/andromeda.conf; do
     [ -f "\$f" ] || continue
     val=\$(sed -n 's/^STARDUST_GIT_TEMPLATE=//p' "\$f" | tail -n 1)
     case \$val in ''|*YOURORG*|*git.example*) ;; *) return 0 ;; esac
@@ -278,7 +278,7 @@ write_sudoers() {
 user_conf() {
   name=\$1
   home=\$(getent passwd "\$name" 2>/dev/null | cut -d: -f6 || echo "/home/\$name")
-  dest=\$home/.stardust.conf
+  dest=\$home/.andromeda.conf
   [ -f "\$dest" ] && echo "conf exists: \$dest" && return 0
   [ "\$DRYRUN" -eq 1 ] && echo "+ write \$dest" && return 0
   as_root sh -c "cat > '\$dest'" <<EOF
@@ -336,7 +336,7 @@ if [ "\$DRYRUN" -eq 1 ]; then
 fi
 
 echo "===================================================="
-echo "\$PROG \$STARDUST_VERSION — Starting Stardust installation..."
+echo "\$PROG \$STARDUST_VERSION — Starting Andromeda installation..."
 echo "===================================================="
 
 # --- The Sequential Orchestration Loop ---
@@ -351,29 +351,29 @@ for module in "\$HERE/modules/"[0-9][0-9]-*.sh; do
 done
 
 echo ""
-echo "Stardust installation complete!"
+echo "Andromeda installation complete!"
 EOF
 ```
 
-### 2. The Pre-Flight Pre-Check Validator (`test-stardust-vars.sh`)
+### 2. The Pre-Flight Pre-Check Validator (`test-andromeda-vars.sh`)
 Wipes variable fragmentation gaps before real execution runs by forcing explicit checking validations on environment variables.
 
 ```sh
 #!/bin/sh
-# test-stardust-vars.sh — Pre-flight structural validator for Stardust variables
+# test-andromeda-vars.sh — Pre-flight structural validator for Andromeda variables
 set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
 echo "===================================================="
-echo "🔍 Starting Stardust Configuration Hand-Off Audit..."
+echo "🔍 Starting Andromeda Configuration Hand-Off Audit..."
 echo "===================================================="
 
 REQUIRED_VARS="DRYRUN ROLE OWNER ADMIN GROUP PLATFORMS STARDUST PKG INIT OS_ID SVC_APACHE SVC_DB"
 
 DRYRUN=1; ROLE="devel"; OWNER="deploy"; ADMIN="www-admin"; GROUP="www-admin"
-PLATFORMS="/srv/platforms"; STARDUST="/srv/stardust"; PKG="apt"; INIT="systemd"
+PLATFORMS="/srv/platforms"; STARDUST="/srv/andromeda"; PKG="apt"; INIT="systemd"
 OS_ID="debian"; SVC_APACHE="apache2"; SVC_DB="mariadb"
 
 audit_environment() {
@@ -414,18 +414,18 @@ else
 fi
 ```
 
-### 3. The Unprompted Non-Interactive Purger (`cleanup-stardust.sh`)
+### 3. The Unprompted Non-Interactive Purger (`cleanup-andromeda.sh`)
 An advanced environment wipe tool that cleanly reverses state parameters by checking for non-interactive `apt` variables and dropping library layers from the outside in.
 
 ```sh
 #!/bin/sh
-# cleanup-stardust.sh — Modular tear-down control engine for Stardust
+# cleanup-andromeda.sh — Modular tear-down control engine for Andromeda
 set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
-export STARDUST=/srv/stardust
+export STARDUST=/srv/andromeda
 export DRYRUN=0
 export PURGE_ALL=0
 export OWNER="${OWNER:-deploy}"
@@ -459,13 +459,13 @@ if [ "$FORCE" -ne 1 ] && [ "$DRYRUN" -ne 1 ]; then
   if [ "$PURGE_ALL" -eq 1 ]; then
     printf "🚨 CRITICAL WARNING: This will completely UNINSTALL all database, web server, and binary engines. Continue? [y/N]: "
   else
-    printf "⚠️ WARNING: This will completely tear down the Stardust control plane configurations. Continue? [y/N]: "
+    printf "⚠️ WARNING: This will completely tear down the Andromeda control plane configurations. Continue? [y/N]: "
   fi
   read -r ans
   case "$ans" in [yY]|[yY][eE][sS]) ;; *) echo "Tear-down aborted."; exit 0 ;; esac
 fi
 
-echo "🧹 Initializing Stardust system removal..."
+echo "🧹 Initializing Andromeda system removal..."
 
 if [ -d "$HERE/cleanup-modules" ]; then
   for module_path in "$HERE/cleanup-modules/"[0-9][0-9]-*.sh; do
@@ -481,7 +481,7 @@ else
   echo "note: No cleanup modules detected in cleanup-modules/"
 fi
 
-echo "🏁 Stardust platform footprint successfully purged."
+echo "🏁 Andromeda platform footprint successfully purged."
 ```
 
 ---
@@ -519,13 +519,13 @@ prereqs_install_packages() {
 
 prereqs_enforce_security() {
   echo "  ⚙️ Constructing security user profiles..."
-  for g in "$GROUP" stardust adm; do
+  for g in "$GROUP" andromeda adm; do
     if ! getent group "$g" >/dev/null 2>&1; then
       if [ "$DRYRUN" -eq 1 ]; then echo "+ groupadd $g"; else have groupadd && run_root groupadd "$g" || run_root addgroup "$g"; fi
     fi
   done
 
-  for u in "$OWNER:Stardust code owner" "$ADMIN:Stardust file admin"; do
+  for u in "$OWNER:Andromeda code owner" "$ADMIN:Andromeda file admin"; do
     local uname="${u%%:*}"
     local ucomment="${u##*:}"
     if ! id "$uname" >/dev/null 2>&1; then
@@ -550,11 +550,11 @@ prereqs_enforce_security() {
     fi
   done
 
-  write_sudoers /etc/sudoers.d/stardust-deploy <<EOF
-$OWNER ALL=(ALL) NOPASSWD: /usr/local/bin/stardust, /usr/local/bin/crdir, /usr/local/bin/newfeature, /usr/local/sbin/stardust-priv
+  write_sudoers /etc/sudoers.d/andromeda-deploy <<EOF
+$OWNER ALL=(ALL) NOPASSWD: /usr/local/bin/andromeda, /usr/local/bin/crdir, /usr/local/bin/newfeature, /usr/local/sbin/andromeda-priv
 EOF
-  write_sudoers /etc/sudoers.d/stardust-admin <<EOF
-$ADMIN ALL=(ALL) NOPASSWD: /usr/local/bin/stardust, /usr/local/bin/crdir, /usr/local/bin/newfeature, /usr/local/sbin/stardust-priv
+  write_sudoers /etc/sudoers.d/andromeda-admin <<EOF
+$ADMIN ALL=(ALL) NOPASSWD: /usr/local/bin/andromeda, /usr/local/bin/crdir, /usr/local/bin/newfeature, /usr/local/sbin/andromeda-priv
 EOF
 
   for user_profile in "$OWNER" "$ADMIN" "$HUMAN"; do
@@ -594,7 +594,7 @@ apache_tune_speed() {
   done
 
   if [ "$PKG" = "apt" ] || [ "$PKG" = "dnf" ] || [ "$PKG" = "yum" ]; then
-    local apache_perf_conf="/etc/apache2/conf-available/stardust-perf.conf"
+    local apache_perf_conf="/etc/apache2/conf-available/andromeda-perf.conf"
     local body="<IfModule mpm_event_module>
   StartServers 2
   MinSpareThreads 25
@@ -614,13 +614,13 @@ apache_tune_speed() {
     printf '%s
 ' "$body" | write_dropin "$apache_perf_conf"
     run_root mkdir -p /etc/apache2/conf-enabled
-    run_root ln -sf "../conf-available/stardust-perf.conf" /etc/apache2/conf-enabled/stardust-perf.conf
+    run_root ln -sf "../conf-available/andromeda-perf.conf" /etc/apache2/conf-enabled/andromeda-perf.conf
   fi
 }
 
 apache_tune_security() {
   echo "  ⚙️ Stripping server signatures..."
-  local apache_h_conf="/etc/apache2/conf-available/stardust-harden.conf"
+  local apache_h_conf="/etc/apache2/conf-available/andromeda-harden.conf"
   local body="ServerTokens Prod
 ServerSignature Off
 TraceEnable Off
@@ -632,7 +632,7 @@ MaxKeepAliveRequests 100"
   if [ -d /etc/apache2/conf-available ]; then
     printf '%s
 ' "$body" | write_dropin "$apache_h_conf"
-    have a2enconf && run_root a2enconf stardust-harden >/dev/null 2>&1 || true
+    have a2enconf && run_root a2enconf andromeda-harden >/dev/null 2>&1 || true
   fi
 }
 
@@ -666,7 +666,7 @@ php_install() {
 
 php_tune_runtime() {
   echo "  ⚙️ Customizing memory limits and runtime boundaries..."
-  local shared="; Stardust Shared Engine
+  local shared="; Andromeda Shared Engine
 memory_limit = 256M
 upload_max_filesize = 64M
 post_max_size = 64M
@@ -685,7 +685,7 @@ opcache.revalidate_freq = 2"
   if [ "$ROLE" = "live" ] || [ "$ROLE" = "test" ]; then opc_web="opcache.validate_timestamps = 0
 opcache.revalidate_freq = 0"; fi
 
-  local web="; Stardust FPM Configuration
+  local web="; Andromeda FPM Configuration
 disable_functions = passthru,popen,proc_open,proc_close,dl,pcntl_exec,pcntl_fork
 allow_url_fopen = On
 session.cookie_httponly = 1
@@ -694,7 +694,7 @@ session.use_strict_mode = 1
   if [ "$ROLE" = "live" ] || [ "$ROLE" = "test" ]; then web="\${web}
 session.cookie_secure = 1"; fi
 
-  local cli="; Stardust CLI Override
+  local cli="; Andromeda CLI Override
 opcache.enable_cli = 0
 opcache.validate_timestamps = 1"
 
@@ -703,12 +703,12 @@ opcache.validate_timestamps = 1"
     for d in /etc/php/*/apache2/conf.d /etc/php/*/cli/conf.d /etc/php/*/fpm/conf.d; do
       [ -d "$d" ] || continue
       printf '%s
-' "$shared" | write_dropin "$d/30-stardust.ini"
+' "$shared" | write_dropin "$d/30-andromeda.ini"
       case $d in
         */cli/conf.d) printf '%s
-' "$cli" | write_dropin "$d/35-stardust-cli.ini" ;;
+' "$cli" | write_dropin "$d/35-andromeda-cli.ini" ;;
         *) printf '%s
-' "$web" | write_dropin "$d/35-stardust-harden.ini" ;;
+' "$web" | write_dropin "$d/35-andromeda-harden.ini" ;;
       esac
       written=1
     done
@@ -716,7 +716,7 @@ opcache.validate_timestamps = 1"
 
   if [ "$written" -eq 0 ] && [ -d /etc/php.d ]; then
     printf '%s
-' "$shared" | write_dropin /etc/php.d/30-stardust.ini
+' "$shared" | write_dropin /etc/php.d/30-andromeda.ini
     written=1
   fi
 }
@@ -746,7 +746,7 @@ mysql_install() {
 
 mysql_tune_storage() {
   echo "  ⚙️ Customizing transactional buffer sizes and InnoDB limits..."
-  local body="; Stardust SQL Parameter Overrides
+  local body="; Andromeda SQL Parameter Overrides
 [mysqld]
 bind-address = 127.0.0.1
 skip-networking = 0
@@ -759,13 +759,13 @@ collation-server = utf8mb4_unicode_ci"
 
   if [ -d /etc/mysql/mariadb.conf.d ]; then
     printf '%s
-' "$body" | write_dropin /etc/mysql/mariadb.conf.d/90-stardust.cnf
+' "$body" | write_dropin /etc/mysql/mariadb.conf.d/90-andromeda.cnf
   elif [ -d /etc/mysql/conf.d ]; then
     printf '%s
-' "$body" | write_dropin /etc/mysql/conf.d/90-stardust.cnf
+' "$body" | write_dropin /etc/mysql/conf.d/90-andromeda.cnf
   elif [ -d /etc/my.cnf.d ]; then
     printf '%s
-' "$body" | write_dropin /etc/my.cnf.d/90-stardust.cnf
+' "$body" | write_dropin /etc/my.cnf.d/90-andromeda.cnf
   fi
 }
 
@@ -906,17 +906,17 @@ git fetch --all --prune
 git reset --hard origin/feature/modularize-installer
 
 # 2. Perform the aggressive environment wipe (Vanilla scrubbing reset)
-sudo ./cleanup-stardust.sh -p
+sudo ./cleanup-andromeda.sh -p
 
 # 3. Execute pre-flight parameters sanity hand-off check
-./test-stardust-vars.sh
+./test-andromeda-vars.sh
 
 # 4. Fire the dry-run simulation mode log verification test
-./install-stardust.sh -n
+./install-andromeda.sh -n
 
 # 5. Execute the live App-Centric modular installation cascade
-sudo ./install-stardust.sh
+sudo ./install-andromeda.sh
 
 # 6. Run final platform diagnostic verification check
-stardust doctor
+andromeda doctor
 ```

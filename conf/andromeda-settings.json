@@ -1,6 +1,6 @@
 {
   "project": {
-    "name": "Stardust",
+    "name": "Andromeda",
     "version": "0.4.0",
     "supersedes": "Artix/nginx/pacman/podman draft (Pasted Text 2026-09-16)",
     "purpose": "CLI control plane that replaces Drupal Aegir / BOA for Backdrop CMS. Manages platforms and sites: create, backup, restore, clone, migrate, upgrade, disable, delete. No Aegir frontend.",
@@ -23,7 +23,7 @@
   "environment": {
     "os": "Devuan Linux",
     "init": "sysvinit",
-    "hostname": "Stardust",
+    "hostname": "Andromeda",
     "cpu": "any",
     "ram": "32GB",
     "storage": {
@@ -40,7 +40,7 @@
       "test_live": "public DNS + Cloudflare on the VPS",
       "legacy_wildcards_not_used": "*.star was in the Artix draft; devel host already uses <product>.devel"
     },
-    "firewall": "CSF on top of iptables. SSH is not world-open: allow 22 only from WireGuard 10.8.0.0/24 and LAN 192.168.1.0/24. UDP 51820 open for WG. HTTP 80 on devel; 80+443 on test/live. Enable with stardust-install.sh -F (TESTING=1 first).",
+    "firewall": "CSF on top of iptables. SSH is not world-open: allow 22 only from WireGuard 10.8.0.0/24 and LAN 192.168.1.0/24. UDP 51820 open for WG. HTTP 80 on devel; 80+443 on test/live. Enable with andromeda-install.sh -F (TESTING=1 first).",
     "vpn": {
       "type": "WireGuard",
       "subnet": "10.8.0.0/24",
@@ -70,7 +70,7 @@
       "No custom settings.php path overrides, no Nginx aliases"
     ],
     "structure": {
-      "control_plane": "/srv/stardust",
+      "control_plane": "/srv/andromeda",
       "platforms_root": "/srv/platforms",
       "platform_checkout": "/srv/platforms/<platform>",
       "docroot": "/srv/platforms/<platform>/web",
@@ -79,9 +79,9 @@
       "private_files": "/srv/platforms/<platform>/files_private/<product>/",
       "config_active": "/srv/platforms/<platform>/config/<product>/active/",
       "config_staging": "/srv/platforms/<platform>/config/<product>/staging/",
-      "backups": "/srv/stardust/backups/<platform>/<product>/<env>/",
-      "state": "/srv/stardust/state.json",
-      "conf": "/etc/stardust.conf or /home/deploy/.stardust.conf"
+      "backups": "/srv/andromeda/backups/<platform>/<product>/<env>/",
+      "state": "/srv/andromeda/state.json",
+      "conf": "/etc/andromeda.conf or /home/deploy/.andromeda.conf"
     },
     "environment_checkouts": {
       "devel host_devel": "/srv/platforms/<platform>          branch devel",
@@ -143,16 +143,16 @@
   },
 
   "cli": {
-    "name": "stardust",
+    "name": "andromeda",
     "language": "POSIX sh (same as crdir/newfeature). No Python runtime required on the devel host.",
-    "install": "/usr/local/bin/stardust",
-    "config": "~/.stardust.conf",
+    "install": "/usr/local/bin/andromeda",
+    "config": "~/.andromeda.conf",
     "verbs": {
       "platform-add": "clone a Backdrop tree into /srv/platforms/<name>, run crdir for known product dirs",
       "platform-list": "read state.json + disk",
       "platform-upgrade": "git pull + bee updb per product (after backup)",
       "site-add": "create DB user, settings.local.php, crdir files/config, bee install, Apache ServerAlias if needed",
-      "site-backup": "bee db-export + tar files + tar private + copy config/active → /srv/stardust/backups/...",
+      "site-backup": "bee db-export + tar files + tar private + copy config/active → /srv/andromeda/backups/...",
       "site-restore": "inverse of backup onto a named checkout",
       "site-clone": "backup source + site-add dest + restore files/db + rewrite trusted_host_patterns",
       "site-migrate": "clone across platform or env checkouts",
@@ -170,7 +170,7 @@
   },
 
   "bootstrap_script": {
-    "name": "stardust-install.sh",
+    "name": "andromeda-install.sh",
     "purpose": "Idempotent Devuan setup. Prepares packages, dirs, Bee, conf. Does not wipe existing /srv/platforms/ecom.",
     "modes": ["devel (192.168.1.120 + 10.8.0.1)", "vps-test", "vps-live"],
     "package_manager": "apt-get (Devuan). Not pacman.",
@@ -180,21 +180,21 @@
       "PHP: memory_limit 256M, upload/post 64M, opcache on; keep conservative defaults",
       "Install Bee from git to /usr/local/bin/bee if missing",
       "Install crdir + crdir.1 if missing",
-      "Create /srv/stardust/{backups,bin,state} owned deploy",
+      "Create /srv/andromeda/{backups,bin,state} owned deploy",
       "Do not recreate /srv/platforms if it already holds ecom",
-      "Write /home/deploy/.stardust.conf",
+      "Write /home/deploy/.andromeda.conf",
       "Apache: do not install a catch-all *.star vhost; keep per-platform env vhosts",
       "sysvinit: /etc/init.d/apache2 and /etc/init.d/mysql only; no openrc, no systemd"
     ]
   },
 
   "dev_pod_script": {
-    "name": "stardust-pod.sh",
+    "name": "andromeda-pod.sh",
     "status": "deferred",
     "reason": "devel host already runs Apache + PHP + MariaDB on the metal. A Podman pod (nginx + php-fpm + mariadb) duplicates RAM and fights the existing DocumentRoot layout. Revisit only if a laptop without Devuan Apache needs an isolated demo.",
     "if_revived": {
       "publish": "127.0.0.1:8080:80",
-      "volumes": ["/srv/platforms:/srv/platforms", "/srv/stardust:/srv/stardust"]
+      "volumes": ["/srv/platforms:/srv/platforms", "/srv/andromeda:/srv/andromeda"]
     }
   },
 
@@ -245,8 +245,8 @@
 
   "implementation_order": [
     "1. Freeze this file as the contract",
-    "2. stardust-install.sh (apt, dirs, Bee, ~/.stardust.conf) — no-op if already present",
-    "3. stardust CLI skeleton: list, backup (wraps bee db-export + tar)",
+    "2. andromeda-install.sh (apt, dirs, Bee, ~/.andromeda.conf) — no-op if already present",
+    "3. andromeda CLI skeleton: list, backup (wraps bee db-export + tar)",
     "4. site-add wrapping crdir + bee install + settings.local.php template",
     "5. clone/migrate/restore",
     "6. platform-upgrade (git + updb + config-import) with mandatory backup first",

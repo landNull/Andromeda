@@ -37,10 +37,10 @@ http_check() {
     return 0
   fi
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ curl -sS -o /tmp/stardust-check.body -w %{http_code} $url"
+    echo "+ curl -sS -o /tmp/andromeda-check.body -w %{http_code} $url"
     return 0
   fi
-  body=/tmp/stardust-check.$$.body
+  body=/tmp/andromeda-check.$$.body
   code=$(curl -sS -L --max-time 20 -o "$body" -w '%{http_code}' "$url" || echo 000)
   badpat='Parse error|Fatal error|PDOException|DatabaseException|White Screen|Backdrop already installed'
   if [ "$code" = 000 ]; then
@@ -99,29 +99,29 @@ cmd_site_check() {
     return 0
   fi
 
-  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" status >/tmp/stardust-check.status 2>&1; then
+  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" status >/tmp/andromeda-check.status 2>&1; then
     ok "bee status"
   else
     bad "bee status failed"
-    sed -n '1,20p' /tmp/stardust-check.status >&2 || true
+    sed -n '1,20p' /tmp/andromeda-check.status >&2 || true
     fail=1
   fi
 
   # update-db without applying: look at listing. Bee may prompt; feed "n".
-  if printf 'n\n' | as_root -u "$OWNER" "$bee" --root="$web" --site="$product" update-db >/tmp/stardust-check.updb 2>&1; then
-    if grep -Eiq 'pending|available update' /tmp/stardust-check.updb && \
-       ! grep -Eiq 'no pending|no database updates|there are no' /tmp/stardust-check.updb; then
+  if printf 'n\n' | as_root -u "$OWNER" "$bee" --root="$web" --site="$product" update-db >/tmp/andromeda-check.updb 2>&1; then
+    if grep -Eiq 'pending|available update' /tmp/andromeda-check.updb && \
+       ! grep -Eiq 'no pending|no database updates|there are no' /tmp/andromeda-check.updb; then
       bad "pending database updates remain"
       fail=1
     else
       ok "no pending updb"
     fi
   else
-    note "bee update-db returned non-zero (inspect /tmp/stardust-check.updb)"
+    note "bee update-db returned non-zero (inspect /tmp/andromeda-check.updb)"
   fi
 
-  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" log >/tmp/stardust-check.log 2>&1; then
-    if grep -Eiq 'emergency|alert|critical|^error' /tmp/stardust-check.log; then
+  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" log >/tmp/andromeda-check.log 2>&1; then
+    if grep -Eiq 'emergency|alert|critical|^error' /tmp/andromeda-check.log; then
       note "watchdog has error-class lines (see bee log)"
     else
       ok "bee log (no obvious critical/error in listing)"

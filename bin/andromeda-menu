@@ -1,18 +1,18 @@
 #!/bin/sh
-# stardust-menu — Aegir-shaped picker over the Stardust CLI
+# andromeda-menu — Aegir-shaped picker over the Andromeda CLI
 # Prefers gum; falls back to whiptail, then dialog.
 # Does not reimplement backup/upgrade. Do not sudo this wrapper.
 
 set -eu
 
 PROG=${0##*/}
-SD=${STARDUST_BIN:-stardust}
-TITLE="Stardust"
+SD=${STARDUST_BIN:-andromeda}
+TITLE="Andromeda"
 
 if [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" -eq 0 ]; then
   echo "$PROG: do not run this with sudo or as root." >&2
   echo "$PROG: log in as your operator account and run: $PROG" >&2
-  echo "$PROG: stardust calls sudo -n only when a command needs root." >&2
+  echo "$PROG: andromeda calls sudo -n only when a command needs root." >&2
   exit 2
 fi
 
@@ -117,7 +117,7 @@ sites_list() {
 pick_site() {
   items=$(sites_list)
   if [ -z "$items" ]; then
-    echo "$PROG: no products (stardust inventory is empty)" >&2
+    echo "$PROG: no products (andromeda inventory is empty)" >&2
     return 1
   fi
   # shellcheck disable=SC2086
@@ -167,7 +167,7 @@ quit
 
 while :; do
   # shellcheck disable=SC2086
-  choice=$(pick "Stardust  ($UI)" $MAIN) || exit 0
+  choice=$(pick "Andromeda  ($UI)" $MAIN) || exit 0
   case $choice in
     doctor) $SD doctor; pause ;;
     list) $SD list; pause ;;

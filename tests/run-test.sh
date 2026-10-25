@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# run-test.sh — Stardust interactive test runner.
+# run-test.sh — Andromeda interactive test runner.
 # Prompts for needed values with defaults. Never opens a root shell.
-# sudo is used only for stardust-priv, bee, git, crdir (existing sudoers).
+# sudo is used only for andromeda-priv, bee, git, crdir (existing sudoers).
 #
 #   ./tests/run-test.sh                 # prompt, then --all
 #   ./tests/run-test.sh --all
@@ -50,7 +50,7 @@ ENV_NAME="${ENV_NAME:-devel}"
 usage() {
     cat << USAGE
 Usage: ./tests/$PROG [OPTIONS]
-Interactive Stardust test runner. Prompts for values when needed.
+Interactive Andromeda test runner. Prompts for values when needed.
 
 Options:
   --all              Prompt, then run all modules
@@ -164,29 +164,29 @@ fi
 # --- groups: refuse a root shell ----------------------------------------
 in_group() { id -nG 2>/dev/null | grep -qw "$1"; }
 
-if ! in_group www-admin || ! in_group stardust; then
+if ! in_group www-admin || ! in_group andromeda; then
     echo "ERROR"
     echo "LAYER: host"
     echo "FILE: /etc/group"
-    echo "WHAT: Current user is missing group www-admin or stardust."
-    echo "WHY: Mutating Stardust commands require both groups. A sudo shell would create root-owned files and break Bee."
-    echo "FIX: sudo usermod -aG www-admin,stardust \$USER ; then log out and log back in. Do not run this script under sudo."
-    printf '%s\n' '{"module":"host","status":"fail","what":"missing www-admin or stardust"}'
-    printf 'SPEAK: Cannot run. You are not in www-admin and stardust. Log out and back in after usermod.\n'
+    echo "WHAT: Current user is missing group www-admin or andromeda."
+    echo "WHY: Mutating Andromeda commands require both groups. A sudo shell would create root-owned files and break Bee."
+    echo "FIX: sudo usermod -aG www-admin,andromeda \$USER ; then log out and log back in. Do not run this script under sudo."
+    printf '%s\n' '{"module":"host","status":"fail","what":"missing www-admin or andromeda"}'
+    printf 'SPEAK: Cannot run. You are not in www-admin and andromeda. Log out and back in after usermod.\n'
     exit 1
 fi
 
 # Limited sudo helper — only the four sudoers commands
-stardust_sudo() {
-    # stardust_sudo stardust-priv|bee|git|crdir [args...]
+andromeda_sudo() {
+    # andromeda_sudo andromeda-priv|bee|git|crdir [args...]
     case "$1" in
-        stardust-priv|bee|git|crdir) sudo -- "$@" ;;
-        *) echo "REFUSED: sudo only allowed for stardust-priv, bee, git, crdir" >&2; return 1 ;;
+        andromeda-priv|bee|git|crdir) sudo -- "$@" ;;
+        *) echo "REFUSED: sudo only allowed for andromeda-priv, bee, git, crdir" >&2; return 1 ;;
     esac
 }
 
 echo "=========================================================="
-echo " Stardust run-test"
+echo " Andromeda run-test"
 echo " Time: $(date)"
 echo " Log:  $LOG_FILE"
 echo " Repo: $REPO_ROOT"
@@ -274,7 +274,7 @@ fi
 # --- diagnosis -----------------------------------------------------------
 echo ""
 echo "---- STACK DIAGNOSIS ----"
-ok_block host /etc/group "operator is in www-admin and stardust"
+ok_block host /etc/group "operator is in www-admin and andromeda"
 
 if id deploy >/dev/null 2>&1; then
     ok_block host /etc/passwd "deploy user exists"
@@ -282,7 +282,7 @@ else
     error_block host /etc/passwd \
         "User deploy does not exist." \
         "platform-add runs bee as deploy." \
-        "Re-run install-stardust.sh so STEP deploy creates the account."
+        "Re-run install-andromeda.sh so STEP deploy creates the account."
 fi
 
 if [ -d /srv/platforms ]; then
@@ -303,13 +303,13 @@ else
         "Run: sudo mkdir -p /srv/platforms && sudo chown deploy:www-admin /srv/platforms && sudo chmod 2775 /srv/platforms"
 fi
 
-if [ -x "$REPO_ROOT/bin/stardust" ]; then
-    ok_block runtime bin/stardust "CLI present"
+if [ -x "$REPO_ROOT/bin/andromeda" ]; then
+    ok_block runtime bin/andromeda "CLI present"
 else
-    error_block runtime bin/stardust \
+    error_block runtime bin/andromeda \
         "CLI binary is missing." \
         "Tests and the operator call this file." \
-        "Restore bin/stardust from the repo."
+        "Restore bin/andromeda from the repo."
 fi
 
 echo "---- END DIAGNOSIS ----"
@@ -385,8 +385,8 @@ echo " Log: $LOG_FILE"
 echo "=========================================================="
 emit_json "summary" "$([ "$FAILED" -eq 0 ] && echo pass || echo fail)" "passed=$PASSED failed=$FAILED"
 if [ "$FAILED" -eq 0 ]; then
-    emit_speak "Stardust tests passed. $PASSED checks, 0 failed."
+    emit_speak "Andromeda tests passed. $PASSED checks, 0 failed."
 else
-    emit_speak "Stardust tests failed. $PASSED passed, $FAILED failed. See the log."
+    emit_speak "Andromeda tests failed. $PASSED passed, $FAILED failed. See the log."
 fi
 [ "$FAILED" -eq 0 ] && exit 0 || exit 1

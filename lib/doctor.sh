@@ -24,7 +24,7 @@ EOF
 
 cmd_list() {
   if [ ! -d "$PLATFORMS" ]; then
-    echo "$PROG:$PLATFORMS missing. Run stardust-install.sh first." >&2
+    echo "$PROG:$PLATFORMS missing. Run andromeda-install.sh first." >&2
     exit 1
   fi
   found=0
@@ -156,7 +156,7 @@ cmd_site_list() {
 
 cmd_doctor() {
   fail=0
-  echo "Stardust doctor"
+  echo "Andromeda doctor"
   echo "role=${STARDUST_ROLE:-unset} host=$(hostname 2>/dev/null || echo unknown)"
 
   if id "$OWNER" >/dev/null 2>&1; then ok "user $OWNER"; else bad "user $OWNER missing"; fail=1; fi
@@ -166,7 +166,7 @@ cmd_doctor() {
     note "no extra admin login (group $GROUP is the web-admin grant)"
   fi
   if getent group "$GROUP" >/dev/null 2>&1; then ok "group $GROUP"; else bad "group $GROUP missing"; fail=1; fi
-  if getent group stardust >/dev/null 2>&1; then ok "group stardust"; else bad "group stardust missing"; fail=1; fi
+  if getent group andromeda >/dev/null 2>&1; then ok "group andromeda"; else bad "group andromeda missing"; fail=1; fi
   me=$(id -un)
   groups_me=$(id -nG 2>/dev/null || true)
   note "running as $me groups=$groups_me"
@@ -178,12 +178,12 @@ cmd_doctor() {
   else
     bad "not in $GROUP — usermod -aG$GROUP,$OWNER$me"; fail=1
   fi
-  if echo " $groups_me " | grep -q " stardust "; then
-    ok "in group stardust (secrets)"
+  if echo " $groups_me " | grep -q " andromeda "; then
+    ok "in group andromeda (secrets)"
   else
-    note "not in stardust — secrets stay unreadable"
+    note "not in andromeda — secrets stay unreadable"
   fi
-  if [ -f /etc/sudoers.d/stardust-deploy ]; then ok "sudoers deploy+%${GROUP}"; else note "sudoers stardust-deploy missing"; fi
+  if [ -f /etc/sudoers.d/andromeda-deploy ]; then ok "sudoers deploy+%${GROUP}"; else note "sudoers andromeda-deploy missing"; fi
   owner_home=$(getent passwd "$OWNER" 2>/dev/null | cut -d: -f6)
   if [ -n "$owner_home" ] && [ -d "$owner_home" ]; then
     ok "owner home $owner_home"
@@ -208,12 +208,12 @@ cmd_doctor() {
   else
     note "STARDUST_GIT_TEMPLATE empty — platform-add falls back to bee dl-core"
   fi
-  if [ -x /usr/local/sbin/stardust-priv ]; then ok "stardust-priv"; else note "stardust-priv missing"; fi
+  if [ -x /usr/local/sbin/andromeda-priv ]; then ok "andromeda-priv"; else note "andromeda-priv missing"; fi
   if have setfacl; then ok "setfacl"; else note "acl package missing"; fi
   if have getfacl && [ -d "$PLATFORMS" ]; then
     eff=$(getfacl -p "$PLATFORMS" 2>/dev/null | grep '#effective' || true)
     if echo "$eff" | grep -q 'r--'; then
-      bad "ACL mask effective r-- on $PLATFORMS — run stardust-priv setacl$PLATFORMS"
+      bad "ACL mask effective r-- on $PLATFORMS — run andromeda-priv setacl$PLATFORMS"
       fail=1
     else
       ok "ACL mask on $PLATFORMS not clipped to r--"
@@ -235,7 +235,7 @@ cmd_doctor() {
   if have csf || [ -x /usr/sbin/csf ]; then
     ok "csf present"
   else
-    note "csf not installed (stardust-install.sh -F)"
+    note "csf not installed (andromeda-install.sh -F)"
   fi
   if [ -d /etc/wireguard ] || have wg; then
     ok "wireguard tools or /etc/wireguard"
@@ -243,8 +243,8 @@ cmd_doctor() {
     note "wireguard not detected — remote SSH should still be via 10.8.0.0/24"
   fi
 
-  if [ -f /etc/sudoers.d/stardust-deploy ]; then ok "sudoers deploy"; else note "sudoers deploy snippet missing"; fi
-  if [ -n "${LIBDIR:-}" ] && [ -f "$LIBDIR/common.sh" ]; then ok "lib $LIBDIR"; else bad "stardust-lib missing"; fail=1; fi
+  if [ -f /etc/sudoers.d/andromeda-deploy ]; then ok "sudoers deploy"; else note "sudoers deploy snippet missing"; fi
+  if [ -n "${LIBDIR:-}" ] && [ -f "$LIBDIR/common.sh" ]; then ok "lib $LIBDIR"; else bad "andromeda-lib missing"; fail=1; fi
 
   phpbin=$(command -v php 2>/dev/null || true)
   if [ -n "$phpbin" ]; then ok "php $phpbin"; else bad "php missing"; fail=1; fi

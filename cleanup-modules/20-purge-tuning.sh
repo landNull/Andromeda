@@ -9,20 +9,20 @@ rm_if() {
 }
 
 echo "  Apache..."
-rm_if /etc/apache2/conf-enabled/stardust-perf.conf
-rm_if /etc/apache2/conf-available/stardust-perf.conf
-rm_if /etc/apache2/conf-enabled/stardust-harden.conf
-rm_if /etc/apache2/conf-available/stardust-harden.conf
-rm_if /etc/apache2/conf-enabled/stardust-localhost.conf
-rm_if /etc/apache2/conf-available/stardust-localhost.conf
+rm_if /etc/apache2/conf-enabled/andromeda-perf.conf
+rm_if /etc/apache2/conf-available/andromeda-perf.conf
+rm_if /etc/apache2/conf-enabled/andromeda-harden.conf
+rm_if /etc/apache2/conf-available/andromeda-harden.conf
+rm_if /etc/apache2/conf-enabled/andromeda-localhost.conf
+rm_if /etc/apache2/conf-available/andromeda-localhost.conf
 
-# Platform / site vhosts that point at /srv/platforms or carry the stardust- prefix.
+# Platform / site vhosts that point at /srv/platforms or carry the andromeda- prefix.
 if [ -d /etc/apache2/sites-available ]; then
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ scan /etc/apache2/sites-* for stardust-* and /srv/platforms vhosts"
+    echo "+ scan /etc/apache2/sites-* for andromeda-* and /srv/platforms vhosts"
   else
-    for f in /etc/apache2/sites-available/stardust-*.conf \
-             /etc/apache2/sites-enabled/stardust-*.conf; do
+    for f in /etc/apache2/sites-available/andromeda-*.conf \
+             /etc/apache2/sites-enabled/andromeda-*.conf; do
       [ -e "$f" ] || [ -L "$f" ] || continue
       base=$(basename "$f" .conf)
       if command -v a2dissite >/dev/null 2>&1; then
@@ -50,40 +50,40 @@ fi
 
 echo "  PHP..."
 if [ "$DRYRUN" -eq 1 ]; then
-  echo "+ rm /etc/php*/**/{30-stardust.ini,35-stardust-*.ini,pool.d/stardust.conf}"
+  echo "+ rm /etc/php*/**/{30-andromeda.ini,35-andromeda-*.ini,pool.d/andromeda.conf}"
 else
   find /etc/php /etc/php.d -type f \( \
-    -name "30-stardust.ini" -o \
-    -name "35-stardust-*.ini" -o \
-    -name "stardust.ini" \
+    -name "30-andromeda.ini" -o \
+    -name "35-andromeda-*.ini" -o \
+    -name "andromeda.ini" \
   \) 2>/dev/null | while read -r ini_file; do
     as_root rm -f "$ini_file"
     echo "  removed $ini_file"
   done
-  find /etc/php -type f -path "*/fpm/pool.d/stardust.conf" 2>/dev/null | while read -r pool; do
+  find /etc/php -type f -path "*/fpm/pool.d/andromeda.conf" 2>/dev/null | while read -r pool; do
     as_root rm -f "$pool"
     echo "  removed $pool"
   done
-  as_root rm -f /run/php/stardust-fpm.sock /run/php/stardust-fpm.sock.default
+  as_root rm -f /run/php/andromeda-fpm.sock /run/php/andromeda-fpm.sock.default
 fi
 
 echo "  MariaDB drop-ins..."
 if [ "$DRYRUN" -eq 1 ]; then
-  echo "+ rm */90-stardust.cnf"
+  echo "+ rm */90-andromeda.cnf"
 else
-  find /etc/mysql /etc/my.cnf.d -type f -name "90-stardust.cnf" 2>/dev/null | while read -r cnf_file; do
+  find /etc/mysql /etc/my.cnf.d -type f -name "90-andromeda.cnf" 2>/dev/null | while read -r cnf_file; do
     as_root rm -f "$cnf_file"
     echo "  removed $cnf_file"
   done
 fi
 
 echo "  sysctl / limits / logrotate / apt / dns / profile..."
-rm_if /etc/sysctl.d/60-stardust.conf
-rm_if /etc/security/limits.d/stardust.conf
-rm_if /etc/logrotate.d/stardust
-rm_if /etc/apt/apt.conf.d/52stardust-unattended
-rm_if /etc/dnsmasq.d/stardust.conf
-rm_if /etc/profile.d/stardust.sh
+rm_if /etc/sysctl.d/60-andromeda.conf
+rm_if /etc/security/limits.d/andromeda.conf
+rm_if /etc/logrotate.d/andromeda
+rm_if /etc/apt/apt.conf.d/52andromeda-unattended
+rm_if /etc/dnsmasq.d/andromeda.conf
+rm_if /etc/profile.d/andromeda.sh
 if [ "$DRYRUN" -ne 1 ]; then
   as_root sysctl --system >/dev/null 2>&1 || true
 fi

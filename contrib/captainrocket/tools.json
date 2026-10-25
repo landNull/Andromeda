@@ -1,11 +1,11 @@
 {
   "schema": "captainrocket.tools/v1",
-  "repo": "github.com/landNull/Stardust",
+  "repo": "github.com/landNull/Andromeda",
   "cwd": "{repo}",
   "tools": [
     {
-      "name": "stardust-tests",
-      "summary": "Run Stardust test modules the way a webadmin does.",
+      "name": "andromeda-tests",
+      "summary": "Run Andromeda test modules the way a webadmin does.",
       "argv": [
         "./tests/run-test.sh",
         "--json",
@@ -28,7 +28,7 @@
       }
     },
     {
-      "name": "stardust-daily",
+      "name": "andromeda-daily",
       "summary": "One day of webadmin work: doctor, site-add, check, backup, restore, clone.",
       "argv": [
         "./tests/run-test.sh",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "name": "stardust-diagnose",
+      "name": "andromeda-diagnose",
       "summary": "Host groups, deploy user, platforms dir, CLI present.",
       "argv": [
         "./tests/run-test.sh",
@@ -57,8 +57,8 @@
       ]
     },
     {
-      "name": "stardust-preflight",
-      "summary": "Preflight a Stardust command. Heal if safe, then run only if the check passes.",
+      "name": "andromeda-preflight",
+      "summary": "Preflight a Andromeda command. Heal if safe, then run only if the check passes.",
       "argv": [
         "./contrib/captainrocket/run-tool.sh",
         "preflight"
@@ -71,7 +71,7 @@
       "json_line": true
     },
     {
-      "name": "stardust-heal-all",
+      "name": "andromeda-heal-all",
       "summary": "Heal every site that site-debug reports as failing.",
       "argv": [
         "./contrib/captainrocket/run-tool.sh",
@@ -84,7 +84,7 @@
       "json_line": true
     },
     {
-      "name": "stardust-last-log",
+      "name": "andromeda-last-log",
       "summary": "Print the path of the most recent timestamped run log.",
       "argv": [
         "./contrib/captainrocket/run-tool.sh",

@@ -1,5 +1,5 @@
 #!/bin/sh
-# cleanup-stardust.sh — Modular tear-down for Stardust
+# cleanup-andromeda.sh — Modular tear-down for Andromeda
 # Default: wipe the control plane, non-apt apps (Bee, Gitea, …),
 # their files, and the accounts/homes those apps created.
 # -p also purges the apt packages the installer added.
@@ -9,7 +9,7 @@ set -eu
 PROG=${0##*/}
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
-export STARDUST="${STARDUST:-/srv/stardust}"
+export STARDUST="${STARDUST:-/srv/andromeda}"
 export PLATFORMS="${PLATFORMS:-/srv/platforms}"
 export DRYRUN=0
 export PURGE_ALL=0
@@ -36,18 +36,18 @@ Usage: $PROG [-n] [-f] [-p]
   -p  Also purge apt packages the installer added (Apache, PHP, MariaDB, …).
 
 Always (with or without -p):
-  stop Stardust services
+  stop Andromeda services
   drop bd_* and gitea databases when MariaDB still answers
   remove non-apt apps (Bee, Gitea binary + /etc/gitea + /var/lib/gitea)
-  remove /srv/stardust and /srv/platforms
+  remove /srv/andromeda and /srv/platforms
   remove shipped CLIs, drop-ins, sudoers, cron, php-fpm pool, vhosts
   userdel -r app accounts (git, $OWNER, leftover $ADMIN login) and their
-    /home trees; strip Stardust groups
+    /home trees; strip Andromeda groups
 
 Never:
   delete the invoking login (${INVOKER:-unknown}) or that account's home
   delete stock daemons (www-data, mysql, root)
-  delete this Stardust git checkout
+  delete this Andromeda git checkout
 EOF
 }
 
@@ -177,15 +177,15 @@ purge_group() {
 
 if [ "$FORCE" -ne 1 ] && [ "$DRYRUN" -ne 1 ]; then
   if [ "$PURGE_ALL" -eq 1 ]; then
-    printf "CRITICAL: wipe Stardust, non-apt apps + homes, AND apt packages. Continue? [y/N]: "
+    printf "CRITICAL: wipe Andromeda, non-apt apps + homes, AND apt packages. Continue? [y/N]: "
   else
-    printf "WARNING: wipe Stardust, Bee/Gitea, /srv trees, and app accounts/homes. Continue? [y/N]: "
+    printf "WARNING: wipe Andromeda, Bee/Gitea, /srv trees, and app accounts/homes. Continue? [y/N]: "
   fi
   read -r ans
   case "$ans" in [yY]|[yY][eE][sS]) ;; *) echo "Tear-down aborted."; exit 0 ;; esac
 fi
 
-echo "Initializing Stardust removal (invoker=${INVOKER:-none} owner=$OWNER)..."
+echo "Initializing Andromeda removal (invoker=${INVOKER:-none} owner=$OWNER)..."
 
 # Numeric order: stop + DB drop + apt, then non-apt apps, tuning, users, trees.
 if [ -d "$HERE/cleanup-modules" ]; then
@@ -202,4 +202,4 @@ else
   echo "note: no cleanup-modules/"
 fi
 
-echo "Stardust footprint purged. Reinstall with ./install-stardust.sh"
+echo "Andromeda footprint purged. Reinstall with ./install-andromeda.sh"

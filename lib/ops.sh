@@ -73,7 +73,7 @@ with_lock() {
   name=$(slug "${1:-global}")
   shift
   run_root mkdir -p "$LOCKDIR"
-  run_root chown "$OWNER:stardust" "$LOCKDIR"
+  run_root chown "$OWNER:andromeda" "$LOCKDIR"
   run_root chmod 2775 "$LOCKDIR"
   lock=$LOCKDIR/${name}.lock
   if [ "${DRYRUN:-0}" -eq 1 ]; then
@@ -119,12 +119,12 @@ write_secret() {
     return 0
   fi
   run_root mkdir -p "$SECRETDIR/$platform"
-  # operator is in stardust and must be able to stat the .cnf
-  run_root chown "$OWNER:stardust" "$SECRETDIR" "$SECRETDIR/$platform"
+  # operator is in andromeda and must be able to stat the .cnf
+  run_root chown "$OWNER:andromeda" "$SECRETDIR" "$SECRETDIR/$platform"
   run_root chmod 2750 "$SECRETDIR" "$SECRETDIR/$platform"
   # tee, not sh -c cat: sudo does not forward a heredoc to sh -c
   as_root tee "$dest" >/dev/null <<EOF
-# stardust secret — do not commit
+# andromeda secret — do not commit
 db=$db
 user=$user
 pass=$pass

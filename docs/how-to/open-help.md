@@ -4,8 +4,8 @@ Open a page from the docs satellite with `-h` or `help`.
 
 ## Steps
 
-1. Type `stardust -h` to open the outline.
-2. Type `stardust -h pull` to open the page for that topic.
+1. Type `andromeda -h` to open the outline.
+2. Type `andromeda -h pull` to open the page for that topic.
 3. At any prompt that shows `(? help)`, type `?` or `help` to open the matching page.
 4. Press `q` to return to the prompt.
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# purge-gitea.sh - Completely purge Gitea from Stardust / starhq.knarr
+# purge-gitea.sh - Completely purge Gitea from Andromeda / starhq.knarr
 set -eu
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -31,16 +31,16 @@ echo "==> [3/7] Cleaning Gitea application, configuration, and repository paths.
 rm -rf /etc/gitea
 rm -rf /var/lib/gitea /var/lib/git /srv/gitea
 rm -rf /var/log/gitea
-rm -f /srv/stardust/state/secrets/gitea*
-rm -f /etc/ssh/ssh_config.d/50-stardust-gitea.conf
+rm -f /srv/andromeda/state/secrets/gitea*
+rm -f /etc/ssh/ssh_config.d/50-andromeda-gitea.conf
 
 echo "==> [4/7] Removing Apache reverse proxy configurations..."
-if [ -f /etc/apache2/sites-available/stardust-gitea.conf ]; then
+if [ -f /etc/apache2/sites-available/andromeda-gitea.conf ]; then
     if command -v a2dissite >/dev/null 2>&1; then
-        a2dissite stardust-gitea.conf 2>/dev/null || true
+        a2dissite andromeda-gitea.conf 2>/dev/null || true
     fi
-    rm -f /etc/apache2/sites-available/stardust-gitea.conf
-    rm -f /etc/apache2/sites-enabled/stardust-gitea.conf
+    rm -f /etc/apache2/sites-available/andromeda-gitea.conf
+    rm -f /etc/apache2/sites-enabled/andromeda-gitea.conf
     if [ -x /etc/init.d/apache2 ]; then
         /etc/init.d/apache2 reload 2>/dev/null || true
     fi
@@ -61,11 +61,11 @@ delgroup git 2>/dev/null || groupdel git 2>/dev/null || true
 rm -rf /home/git
 rm -f /var/mail/git /var/spool/mail/git
 
-echo "==> [7/7] Cleaning Stardust Git template settings..."
-if [ -f /etc/stardust.conf ]; then
-    sed -i '/STARDUST_GIT_TEMPLATE/d' /etc/stardust.conf
+echo "==> [7/7] Cleaning Andromeda Git template settings..."
+if [ -f /etc/andromeda.conf ]; then
+    sed -i '/STARDUST_GIT_TEMPLATE/d' /etc/andromeda.conf
 fi
-for user_conf in /home/*/.stardust.conf /root/.stardust.conf /srv/stardust/home/.stardust.conf; do
+for user_conf in /home/*/.andromeda.conf /root/.andromeda.conf /srv/andromeda/home/.andromeda.conf; do
     if [ -f "$user_conf" ]; then
         sed -i '/STARDUST_GIT_TEMPLATE/d' "$user_conf"
     fi
@@ -95,8 +95,8 @@ echo "=========================================================="
    sudo ./purge-gitea.sh
    ```[span_4](start_span)[span_4](end_span)
 
-3. Run the doctor command to confirm Stardust's baseline status[span_5](start_span)[span_5](end_span):
+3. Run the doctor command to confirm Andromeda's baseline status[span_5](start_span)[span_5](end_span):
    ```bash
-   stardust doctor
+   andromeda doctor
    ```[span_6](start_span)[span_6](end_span)
    * It will report `note gitea not on this host (forge may be elsewhere — optional STEP 60)` and `note STARDUST_GIT_TEMPLATE empty — platform-add falls back to bee dl-core`, which is the intended default state when no forge is present[span_7](start_span)[span_7](end_span).

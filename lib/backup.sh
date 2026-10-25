@@ -13,7 +13,7 @@ cmd_site_backup() {
     product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
     found=$(latest_backup "$platform" "$product" "${STARDUST_ROLE:-devel}" || true)
     if [ -z "$found" ]; then
-      found=$(ls -1d /srv/stardust/backups/$platform/$product/*/20* 2>/dev/null | sort | tail -n 1)
+      found=$(ls -1d /srv/andromeda/backups/$platform/$product/*/20* 2>/dev/null | sort | tail -n 1)
     fi
     [ -n "$found" ] && echo "$found"
     return 0

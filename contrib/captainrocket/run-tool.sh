@@ -1,6 +1,6 @@
 #!/bin/sh
 # contrib/captainrocket/run-tool.sh — one entry for Capcom.
-# Resolves a module name or a spoken phrase, then runs the Stardust
+# Resolves a module name or a spoken phrase, then runs the Andromeda
 # test runner with --json --speak. Prints JSON lines and one SPEAK: line.
 #
 #   ./contrib/captainrocket/run-tool.sh daily
@@ -59,7 +59,7 @@ if [ -z "$flags" ]; then
     last-log|lastlog|log) flags="--last-log" ;;
     complete*|starcoder*|finish*) flags="--starcoder" ;;
     *)
-      printf 'SPEAK: No Stardust tool matches that phrase.\n'
+      printf 'SPEAK: No Andromeda tool matches that phrase.\n'
       printf '%s\n' '{"module":"usage","status":"fail","what":"unknown phrase"}'
       exit 2
       ;;
@@ -86,21 +86,21 @@ case $flags in
       exit 2
     fi
     # shellcheck disable=SC2086
-    stardust test $rest
+    andromeda test $rest
     exit $?
     ;;
   --heal-all)
-    stardust heal all
+    andromeda heal all
     exit $?
     ;;
   --last-log)
-    stardust last
+    andromeda last
     exit $?
     ;;
 esac
 
 if [ ! -x "$RUNNER" ]; then
-  printf 'SPEAK: The Stardust test runner is missing.\n'
+  printf 'SPEAK: The Andromeda test runner is missing.\n'
   printf '%s\n' '{"module":"runner","status":"fail","what":"tests/run-test.sh not executable"}'
   exit 1
 fi

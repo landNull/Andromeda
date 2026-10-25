@@ -1,5 +1,5 @@
 # shellcheck shell=sh
-# Migrate a full Backdrop docroot from /var/www into a Stardust platform.
+# Migrate a full Backdrop docroot from /var/www into a Andromeda platform.
 # The docroot lands at /srv/platforms/<name>/web, not under web/sites.
 
 is_docroot() {
@@ -101,7 +101,7 @@ cmd_migrate_heal() {
 _scan_one() {
   plat=$1
   web=$PLATFORMS/$plat/web
-  mark=/srv/stardust/state/migrate/$plat
+  mark=/srv/andromeda/state/migrate/$plat
   echo "== $plat"
   if [ ! -f "$mark" ]; then
     echo "skip  no $mark  (not a migrated platform)"
@@ -259,7 +259,7 @@ cmd_migrate_www() {
 
   # Standalone installs keep config under files/config_HASH and modules in
   # the docroot. Move both into the platform store so the site matches a
-  # native Stardust site.
+  # native Andromeda site.
   _convert_standalone "$dest" "$web" "$plat"
 
   echo "platform $plat"
@@ -322,8 +322,8 @@ cmd_migrate_www() {
 
   _map_site "$web" "$host" "$plat"
   _write_default_vhost "$plat" "$web"
-  mkdir -p /srv/stardust/state/migrate
-  : > /srv/stardust/state/migrate/$plat
+  mkdir -p /srv/andromeda/state/migrate
+  : > /srv/andromeda/state/migrate/$plat
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
 }
 

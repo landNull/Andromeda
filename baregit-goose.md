@@ -11,7 +11,7 @@
 - Daemon Service: Managed via `/usr/local/bin/git-daemon-ctl {start|stop|restart|status}`.
 - Active Daemon Invocation:
   `nohup /usr/bin/git daemon --reuseaddr --export-all --enable=receive-pack --port=9418 --base-path=/var/git /var/git`
-- Stardust Configuration (`/etc/stardust.conf`):
+- Andromeda Configuration (`/etc/andromeda.conf`):
   `STARDUST_GIT_TEMPLATE="git://127.0.0.1/%s.git"`
 
 ## Operational Protocols for Agent

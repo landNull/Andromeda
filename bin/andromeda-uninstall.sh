@@ -1,6 +1,6 @@
 #!/bin/sh
-# stardust-uninstall.sh — Remove Stardust and its managed platforms/sites.
-# Usage: ./stardust-uninstall.sh [-n] [--force] [--keep-backups]
+# andromeda-uninstall.sh — Remove Andromeda and its managed platforms/sites.
+# Usage: ./andromeda-uninstall.sh [-n] [--force] [--keep-backups]
 #   -n: Dry run (show what would be deleted).
 #   --force: Skip confirmation prompts (DANGEROUS).
 #   --keep-backups: Preserve backup directories (default: delete).
@@ -11,7 +11,7 @@ PROG=${0##*/}
 DRYRUN=0
 FORCE=0
 KEEP_BACKUPS=0
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/stardust}
+STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
 BACKUP_ROOT=${BACKUP_ROOT:-$STARDUST_ROOT/backups}
 APACHE_CONF=${APACHE_CONF:-/etc/apache2}
@@ -25,7 +25,7 @@ NC='\033[0m' # No Color
 
 usage() {
   cat <<EOF
-${PROG} — Uninstall Stardust and its managed platforms/sites.
+${PROG} — Uninstall Andromeda and its managed platforms/sites.
 
 USAGE:
   ${PROG} [-n] [--force] [--keep-backups]
@@ -42,7 +42,7 @@ EXAMPLES:
 
 NOTES:
   - This script must be run as root or via sudo.
-  - It will remove ALL platforms under ${PLATFORMS} and Stardust files under ${STARDUST_ROOT}.
+  - It will remove ALL platforms under ${PLATFORMS} and Andromeda files under ${STARDUST_ROOT}.
   - Databases prefixed with 'bd_' will be dropped unless --keep-backups is used.
 EOF
 }
@@ -97,9 +97,9 @@ done
 # Check for root or sudo
 check_sudo
 
-# Confirm Stardust is installed
+# Confirm Andromeda is installed
 if [ ! -d "$STARDUST_ROOT" ] || [ ! -d "$PLATFORMS" ]; then
-  error "Stardust does not appear to be installed (missing $STARDUST_ROOT or $PLATFORMS)."
+  error "Andromeda does not appear to be installed (missing $STARDUST_ROOT or $PLATFORMS)."
 fi
 
 # List platforms
@@ -133,8 +133,8 @@ confirm() {
   printf "${YELLOW}WARNING: This will IRREVERSIBLY delete:${NC}\n"
   printf "  - All platforms in ${PLATFORMS}\n"
   printf "  - All databases prefixed with 'bd_'\n"
-  printf "  - All Apache vhosts managed by Stardust\n"
-  printf "  - Stardust files in ${STARDUST_ROOT}\n"
+  printf "  - All Apache vhosts managed by Andromeda\n"
+  printf "  - Andromeda files in ${STARDUST_ROOT}\n"
   if [ "$KEEP_BACKUPS" -eq 0 ]; then
     printf "  - All backups in ${BACKUP_ROOT}\n"
   fi
@@ -157,7 +157,7 @@ run_cmd() {
 
 # Main uninstall logic
 uninstall() {
-  log "Starting Stardust uninstallation..."
+  log "Starting Andromeda uninstallation..."
 
   # 1. Disable and remove Apache vhosts
   for vhost in $(list_vhosts); do
@@ -195,22 +195,22 @@ uninstall() {
     log "Preserved backups: ${BACKUP_ROOT}"
   fi
 
-  # 5. Remove Stardust root
+  # 5. Remove Andromeda root
   if [ -d "$STARDUST_ROOT" ]; then
     run_cmd "rm -rf ${STARDUST_ROOT}"
-    log "Removed Stardust root: ${STARDUST_ROOT}"
+    log "Removed Andromeda root: ${STARDUST_ROOT}"
   fi
 
   # 6. Remove cron jobs
-  if [ -f "/etc/cron.d/stardust" ]; then
-    run_cmd "rm -f /etc/cron.d/stardust"
-    log "Removed cron file: /etc/cron.d/stardust"
+  if [ -f "/etc/cron.d/andromeda" ]; then
+    run_cmd "rm -f /etc/cron.d/andromeda"
+    log "Removed cron file: /etc/cron.d/andromeda"
   fi
 
-  # 7. Remove stardust-priv
-  if [ -f "/usr/local/sbin/stardust-priv" ]; then
-    run_cmd "rm -f /usr/local/sbin/stardust-priv"
-    log "Removed stardust-priv: /usr/local/sbin/stardust-priv"
+  # 7. Remove andromeda-priv
+  if [ -f "/usr/local/sbin/andromeda-priv" ]; then
+    run_cmd "rm -f /usr/local/sbin/andromeda-priv"
+    log "Removed andromeda-priv: /usr/local/sbin/andromeda-priv"
   fi
 
   # 8. Reload Apache
@@ -240,7 +240,7 @@ if [ "$DRYRUN" -eq 1 ]; then
   for vhost in $(list_vhosts); do
     echo "  - ${vhost}.conf"
   done
-  echo "Stardust Root: ${STARDUST_ROOT}"
+  echo "Andromeda Root: ${STARDUST_ROOT}"
   if [ "$KEEP_BACKUPS" -eq 0 ]; then
     echo "Backups: ${BACKUP_ROOT}"
   else

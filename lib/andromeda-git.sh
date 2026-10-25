@@ -1,13 +1,13 @@
 #!/bin/sh
-# lib/stardust-git.sh — git template prompting for bare git setup
+# lib/andromeda-git.sh — git template prompting for bare git setup
 
 # Prompts for STARDUST_GIT_TEMPLATE without Gitea-specific logic.
-prompt_stardust_git_template() {
+prompt_andromeda_git_template() {
   if [ "${LOCALHOST:-0}" -ne 1 ] && [ "${ROLE:-}" != devel ]; then
     return 0
   fi
   # If already configured, skip prompting
-  for f in "${HOME:-}/.stardust.conf" /etc/stardust.conf; do
+  for f in "${HOME:-}/.andromeda.conf" /etc/andromeda.conf; do
     [ -f "$f" ] || continue
     val=$(sed -n 's/^STARDUST_GIT_TEMPLATE=//p' "$f" | tail -n 1)
     case $val in
@@ -19,8 +19,8 @@ prompt_stardust_git_template() {
     esac
   done
 
-  echo "Note: The Stardust Git template helps 'stardust platform-add' clone projects."
-  echo "You can set STARDUST_GIT_TEMPLATE in /etc/stardust.conf manually later."
+  echo "Note: The Andromeda Git template helps 'andromeda platform-add' clone projects."
+  echo "You can set STARDUST_GIT_TEMPLATE in /etc/andromeda.conf manually later."
 
   if [ "${DRYRUN:-0}" -eq 1 ]; then
     echo "+ prompt STARDUST_GIT_TEMPLATE"
@@ -56,7 +56,7 @@ prompt_stardust_git_template() {
     tpl="git://${host}/%s.git"
   fi
 
-  dest=/etc/stardust.conf
+  dest=/etc/andromeda.conf
   if [ -f "$dest" ] && grep -q '^STARDUST_GIT_TEMPLATE=' "$dest"; then
     run_root sed -i "s|^STARDUST_GIT_TEMPLATE=.*|STARDUST_GIT_TEMPLATE=$tpl|" "$dest"
   elif [ -f "$dest" ]; then

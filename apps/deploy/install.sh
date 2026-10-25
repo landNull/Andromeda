@@ -1,5 +1,5 @@
 #!/bin/sh
-# modules/45-deployment.sh — ship CLIs, state, cron, /etc/stardust.conf
+# modules/45-deployment.sh — ship CLIs, state, cron, /etc/andromeda.conf
 # Leaves /srv/platforms trees alone.
 
 echo "STEP 45: ship tools, state, cron, host conf"

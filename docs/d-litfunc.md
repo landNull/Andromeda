@@ -7,7 +7,7 @@ Source of truth: the d-LitFunc git repository.
 - Standards: `standards.md`
 - Standards pointer for application docs: `standards-standalone.md`
 - Standard: `d-LitFunc.md`
-- Stardust SM: `stardust.md`
+- Andromeda SM: `andromeda.md`
 - Captain Rocket SM: `captain-rocket.md`
 - Documentation rule: `docs-source.md`
 

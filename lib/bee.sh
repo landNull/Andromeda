@@ -9,7 +9,7 @@ elif [ -n "${HERE:-}" ] && [ -f "$HERE/apps/bee/lib.sh" ]; then
   # shellcheck disable=SC1091
   . "$HERE/apps/bee/lib.sh"
 else
-  # Flattened install: /usr/local/lib/stardust/bee.sh is a copy of apps/bee/lib.sh
+  # Flattened install: /usr/local/lib/andromeda/bee.sh is a copy of apps/bee/lib.sh
   # This branch is only reached if someone sources this shim after a bad ship.
   :
 fi

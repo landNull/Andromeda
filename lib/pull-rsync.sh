@@ -60,7 +60,7 @@ pull_db() {
   bee=$(bee_bin)
   dump=$(mktemp)
   echo "db    export on $vps"
-  ssh "$vps" "stardust bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
+  ssh "$vps" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
     ssh "$vps" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
     echo "db    import"

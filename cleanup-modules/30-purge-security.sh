@@ -7,7 +7,7 @@ echo "STEP 30: sudoers, app accounts, groups"
 echo "--------------------------------------"
 
 purge_sudoers() {
-  for slice in stardust-deploy stardust-admin stardust; do
+  for slice in andromeda-deploy andromeda-admin andromeda; do
     do_rm "/etc/sudoers.d/$slice"
   done
 }
@@ -18,8 +18,8 @@ strip_user_conf() {
   [ -n "$_name" ] || return 0
   _home=$(getent passwd "$_name" 2>/dev/null | cut -d: -f6 || true)
   [ -n "$_home" ] || _home=/home/$_name
-  if [ -f "$_home/.stardust.conf" ]; then
-    do_rm "$_home/.stardust.conf"
+  if [ -f "$_home/.andromeda.conf" ]; then
+    do_rm "$_home/.andromeda.conf"
   fi
 }
 
@@ -29,7 +29,7 @@ purge_sudoers
 if [ -n "$INVOKER" ]; then
   strip_user_conf "$INVOKER"
   if id "$INVOKER" >/dev/null 2>&1; then
-    for g in "$GROUP" stardust "$OWNER" git; do
+    for g in "$GROUP" andromeda "$OWNER" git; do
       [ -n "$g" ] || continue
       if [ "$DRYRUN" -eq 1 ]; then
         echo "+ gpasswd -d $INVOKER $g"
@@ -62,7 +62,7 @@ fi
 
 # Groups after the logins are gone. www-admin is group-only by current policy.
 purge_group git
-purge_group stardust
+purge_group andromeda
 if [ -n "$OWNER" ]; then
   purge_group "$OWNER"
 fi

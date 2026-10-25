@@ -1,11 +1,11 @@
 # cleanup-modules/10-purge-packages.sh
-# Stop listeners, drop Stardust databases while MariaDB still answers,
+# Stop listeners, drop Andromeda databases while MariaDB still answers,
 # then optionally apt-purge the packages the installer added.
 
 echo "STEP 10: services, databases, apt packages"
 echo "------------------------------------------"
 
-drop_stardust_databases() {
+drop_andromeda_databases() {
   cli=""
   if command -v mariadb >/dev/null 2>&1; then
     cli=mariadb
@@ -38,7 +38,7 @@ drop_stardust_databases() {
   echo "  dropped MariaDB user gitea (if it existed)"
 }
 
-stop_stardust_services() {
+stop_andromeda_services() {
   echo "  stopping listeners..."
   stop_svc gitea
   stop_svc apache2
@@ -48,7 +48,7 @@ stop_stardust_services() {
     [ -x "$s" ] || continue
     stop_svc "$(basename "$s")"
   done
-  # Leave MariaDB up until drop_stardust_databases has run.
+  # Leave MariaDB up until drop_andromeda_databases has run.
 }
 
 APT_PACKAGES="apache2 mariadb-server php-fpm php-cli php-mysql php-xml php-gd php-mbstring php-curl php-zip php-intl php-bcmath php-imagick php-apcu apache2-utils mariadb-backup msmtp-mta unattended-upgrades needrestart logwatch goaccess etckeeper smartmontools irqbalance haveged moreutils jq pv age dnsmasq"
@@ -76,6 +76,6 @@ purge_package_framework() {
   echo "  apt packages purged"
 }
 
-stop_stardust_services
-drop_stardust_databases
+stop_andromeda_services
+drop_andromeda_databases
 purge_package_framework

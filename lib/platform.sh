@@ -46,7 +46,7 @@ cmd_repo_ensure() {
     git -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -C "$work" checkout -B "$b"
   done
   git -C "$work" checkout devel
-  state=/srv/stardust/state/platforms
+  state=/srv/andromeda/state/platforms
   mkdir -p "$state"
   cat > "$state/$name.json" << JSON
 {
@@ -254,7 +254,7 @@ cmd_platform_remove() {
   echo
   echo "backup $name"
   stamp=$(date +%Y%m%d-%H%M%S)
-  snap=/srv/stardust/backups/$name/platform/$stamp
+  snap=/srv/andromeda/backups/$name/platform/$stamp
   sudo mkdir -p "$snap"
   sudo tar -C "$PLATFORMS" -czf "$snap/tree.tgz" "$name" || {
     echo "$PROG: backup failed, not removing" >&2
@@ -269,8 +269,8 @@ cmd_platform_remove() {
   done
   sudo rm -rf "$dest"
   sudo rm -rf "/srv/git/$name.git"
-  sudo rm -f "/srv/stardust/state/platforms/$name.json"
-  sudo rm -f "/srv/stardust/state/migrate/$name"
+  sudo rm -f "/srv/andromeda/state/platforms/$name.json"
+  sudo rm -f "/srv/andromeda/state/migrate/$name"
   apache_reload || true
   echo "removed $name"
   echo "backup  $snap/tree.tgz"

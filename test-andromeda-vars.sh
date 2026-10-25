@@ -1,25 +1,25 @@
 #!/bin/sh
-# test-stardust-vars.sh — Pre-flight structural validator for Stardust variables
+# test-andromeda-vars.sh — Pre-flight structural validator for Andromeda variables
 set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 
 echo "===================================================="
-echo "🔍 Starting Stardust Configuration Hand-Off Audit..."
+echo "🔍 Starting Andromeda Configuration Hand-Off Audit..."
 echo "===================================================="
 
 # 1. Define the exact array of critical variables required by worker modules
 REQUIRED_VARS="DRYRUN ROLE OWNER GROUP PLATFORMS STARDUST PKG INIT OS_ID SVC_APACHE SVC_DB"
 
-# 2. Mock a standard runtime baseline context (mimicking install-stardust.sh behavior)
+# 2. Mock a standard runtime baseline context (mimicking install-andromeda.sh behavior)
 DRYRUN=1
 ROLE="devel"
 OWNER="deploy"
 ADMIN=""
 GROUP="www-admin"
 PLATFORMS="/srv/platforms"
-STARDUST="/srv/stardust"
+STARDUST="/srv/andromeda"
 PKG="apt"
 INIT="sysvinit"
 OS_ID="devuan"

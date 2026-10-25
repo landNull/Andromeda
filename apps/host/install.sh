@@ -1,6 +1,6 @@
 #!/bin/sh
 # modules/10-core-prereqs.sh — packages, identities, sudoers, control-plane dirs
-# Sourced by install-stardust.sh. Uses helpers from the orchestrator.
+# Sourced by install-andromeda.sh. Uses helpers from the orchestrator.
 
 echo "STEP 10: packages, users, groups, sudoers, /srv layout"
 
@@ -52,16 +52,16 @@ ensure_log_group() {
 
 ensure_group "$GROUP"
 ensure_group "$OWNER"
-ensure_group stardust
+ensure_group andromeda
 ensure_owner
 if [ -n "$ADMIN" ]; then
-  ensure_user "$ADMIN" "Stardust web admin"
-  ensure_stardust_groups "$ADMIN"
+  ensure_user "$ADMIN" "Andromeda web admin"
+  ensure_andromeda_groups "$ADMIN"
   ensure_log_group "$ADMIN"
 fi
 # Invoking login (or -H NAME): groups only. Never useradd. Never group sudo.
 if [ -n "$HUMAN" ]; then
-  ensure_stardust_groups "$HUMAN"
+  ensure_andromeda_groups "$HUMAN"
   ensure_log_group "$HUMAN"
 fi
 if id "$DAEMON" >/dev/null 2>&1; then
@@ -73,28 +73,28 @@ if id "$DAEMON" >/dev/null 2>&1; then
 fi
 
 # --- sudoers (limited; same on every host) -------------------------
-# User binaries refuse sudo. Only stardust-priv is the root helper.
+# User binaries refuse sudo. Only andromeda-priv is the root helper.
 # Humans get rights via group $GROUP, not via usermod -aG sudo and
 # not via a per-user sudoers line.
-SUDO_PRIV="# Stardust — priv helper on $HOSTN
+SUDO_PRIV="# Andromeda — priv helper on $HOSTN
 # $OWNER is the service account. Humans are in group $GROUP.
 Defaults:$OWNER !requiretty
 Defaults:%$GROUP !requiretty
-$OWNER ALL=(root) NOPASSWD: /usr/local/sbin/stardust-priv
+$OWNER ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
 $OWNER ALL=(root) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/a2enmod
-%$GROUP ALL=(root) NOPASSWD: /usr/local/sbin/stardust-priv
+%$GROUP ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
 %$GROUP ALL=($OWNER) NOPASSWD: /usr/local/bin/bee, /usr/bin/git, /usr/local/bin/crdir
 "
 
 if [ -d /etc/sudoers.d ]; then
-  write_sudoers /etc/sudoers.d/stardust-deploy "$SUDO_PRIV"
+  write_sudoers /etc/sudoers.d/andromeda-deploy "$SUDO_PRIV"
 else
   echo "note: /etc/sudoers.d missing; add the limited sudo rules by hand"
 fi
 
-PROFILE=/etc/profile.d/stardust.sh
-PROFILE_BODY="# Stardust: PATH + group-writable files for members of $GROUP
-export PATH=\"/usr/local/bin:/srv/stardust/bin:\$PATH\"
+PROFILE=/etc/profile.d/andromeda.sh
+PROFILE_BODY="# Andromeda: PATH + group-writable files for members of $GROUP
+export PATH=\"/usr/local/bin:/srv/andromeda/bin:\$PATH\"
 case \" \$(id -nG 2>/dev/null) \" in
   *\" $GROUP \"*)
     umask 002
@@ -125,7 +125,7 @@ run_root mkdir -p \
 
 run_root chown "$OWNER:$GROUP" "$STARDUST" "$STARDUST/backups" "$STARDUST/bin" "$STARDUST/state"
 run_root chmod 2770 "$STARDUST" "$STARDUST/backups" "$STARDUST/bin" "$STARDUST/state"
-run_root chown "$OWNER:stardust" "$STARDUST/state/secrets"
+run_root chown "$OWNER:andromeda" "$STARDUST/state/secrets"
 run_root chmod 0750 "$STARDUST/state/secrets"
 if have setfacl; then
   if [ "$DRYRUN" -eq 1 ]; then
@@ -136,9 +136,9 @@ if have setfacl; then
     as_root setfacl -d -m "u:${OWNER}:rwx,g:${GROUP}:rwx,u:${DAEMON}:rwx,o::---" \
       "$PLATFORMS" "$STARDUST" "$STARDUST/backups" 2>/dev/null || true
     as_root setfacl -b "$STARDUST/state/secrets" 2>/dev/null || true
-    as_root setfacl -m "u:${OWNER}:rwx,g:stardust:r-x,o::---" "$STARDUST/state/secrets" 2>/dev/null || true
-    as_root setfacl -d -m "u:${OWNER}:rw,g:stardust:r,o::---" "$STARDUST/state/secrets" 2>/dev/null || true
-    echo "ACL default on $PLATFORMS and $STARDUST (secrets: deploy:stardust only)"
+    as_root setfacl -m "u:${OWNER}:rwx,g:andromeda:r-x,o::---" "$STARDUST/state/secrets" 2>/dev/null || true
+    as_root setfacl -d -m "u:${OWNER}:rw,g:andromeda:r,o::---" "$STARDUST/state/secrets" 2>/dev/null || true
+    echo "ACL default on $PLATFORMS and $STARDUST (secrets: deploy:andromeda only)"
   fi
 else
   echo "note: setfacl missing — install the acl package"

@@ -35,10 +35,10 @@ purge_gitea_files() {
   do_rm /var/lib/gitea
   do_rm /home/git/gitea
   if [ "$DRYRUN" -ne 1 ] && command -v a2dissite >/dev/null 2>&1; then
-    as_root a2dissite stardust-gitea >/dev/null 2>&1 || true
+    as_root a2dissite andromeda-gitea >/dev/null 2>&1 || true
   fi
-  do_rm /etc/apache2/sites-available/stardust-gitea.conf
-  do_rm /etc/apache2/sites-enabled/stardust-gitea.conf
+  do_rm /etc/apache2/sites-available/andromeda-gitea.conf
+  do_rm /etc/apache2/sites-enabled/andromeda-gitea.conf
 }
 
 purge_bee

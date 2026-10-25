@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stress_tests/00_stress.sh — multi-variation exercise of Stardust and Bee.
+# stress_tests/00_stress.sh — multi-variation exercise of Andromeda and Bee.
 #
 # Variations (in order):
 #   1. Download Backdrop OLD_VER (default 1.31.0 — first with PHP 8.4) into a dedicated platform
@@ -17,7 +17,7 @@
 #  12. Bee cron, config-export, config-import, uli
 #  13. D7 toolkit: d7-stubs and d7-toolkit (no dump; full d7-prep needs one)
 #  14. inventory + doctor + log
-#  15. Write Capcom packs (stardust, bee, d7convert, moduleheal) and the fix prompt
+#  15. Write Capcom packs (andromeda, bee, d7convert, moduleheal) and the fix prompt
 #  16. Download Drupal 7
 #  17. Install D7 stubs, unsupported field type, and the bad module
 #  18. php -l the broken module (must fail) so Capcom /fixloop has a target
@@ -73,7 +73,7 @@ cleanup() {
     echo "--> cleanup"
     for plat in "$OLD_PLAT" "$NEW_PLAT"; do
         for prod in "$PROD" "$SECOND" "$PREVIEW" "$CROSS"; do
-            stardust site-delete "$plat" "$prod" --force >/dev/null 2>&1 || true
+            andromeda site-delete "$plat" "$prod" --force >/dev/null 2>&1 || true
         done
         sudo a2dissite "${plat}-devel" >/dev/null 2>&1 || true
         sudo rm -f "/etc/apache2/sites-available/${plat}-devel.conf" \
@@ -180,9 +180,9 @@ echo "OK core $OLD_VER at $PLATFORMS/$OLD_PLAT/web"
 
 # 2. First site on the old core (Bee path).
 step "2 site-add $PROD on old core (Bee)"
-stardust site-add "$OLD_PLAT" "$PROD" --host "$HOST" --name "Stress $PROD"
+andromeda site-add "$OLD_PLAT" "$PROD" --host "$HOST" --name "Stress $PROD"
 # 1.28.x dies on PHP 8.4 (CSS_THEME). Confirm the DB is not empty before continuing.
-if stardust bee "$OLD_PLAT" "$PROD" status 2>&1 | grep -q 'Database status.*Empty\|not installed'; then
+if andromeda bee "$OLD_PLAT" "$PROD" status 2>&1 | grep -q 'Database status.*Empty\|not installed'; then
     echo "ERROR"
     echo "LAYER: runtime"
     echo "FILE: $PLATFORMS/$OLD_PLAT/web"
@@ -191,16 +191,16 @@ if stardust bee "$OLD_PLAT" "$PROD" status 2>&1 | grep -q 'Database status.*Empt
     echo "FIX: Set STARDUST_STRESS_OLD=1.31.0 or newer and re-run."
     exit 1
 fi
-stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
+andromeda site-check "$OLD_PLAT" "$PROD" --host "$HOST"
 
 # 3. Bee status and cache.
 step "3 bee status + cc all"
-stardust bee "$OLD_PLAT" "$PROD" status
-stardust bee "$OLD_PLAT" "$PROD" cc all
+andromeda bee "$OLD_PLAT" "$PROD" status
+andromeda bee "$OLD_PLAT" "$PROD" cc all
 
 # 4. Backup before the upgrade.
 step "4 site-backup $PROD"
-stardust site-backup "$OLD_PLAT" "$PROD"
+andromeda site-backup "$OLD_PLAT" "$PROD"
 
 # 5. Upgrade core in place: latest over the old web, then updb.
 # 5. Upgrade core in place. Bee refuses to dl-core into an existing install,
@@ -224,67 +224,67 @@ if [ ! -d "$LATEST/web/core" ]; then
 fi
 sudo -u deploy cp -a "$LATEST/web/core/." "$PLATFORMS/$OLD_PLAT/web/core/"
 sudo rm -rf "$LATEST"
-stardust bee "$OLD_PLAT" "$PROD" updb
-stardust bee "$OLD_PLAT" "$PROD" config-import || true
-stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
+andromeda bee "$OLD_PLAT" "$PROD" updb
+andromeda bee "$OLD_PLAT" "$PROD" config-import || true
+andromeda site-check "$OLD_PLAT" "$PROD" --host "$HOST"
 
 # 6. platform-upgrade --no-pull (backup every product, updb, check).
 step "6 platform-upgrade --no-pull"
-stardust platform-upgrade "$OLD_PLAT" --no-pull
+andromeda platform-upgrade "$OLD_PLAT" --no-pull
 
 # 7. Second site on the same platform (install.sh path).
 step "7 site-add $SECOND (install.sh, not Bee)"
-stardust site-add "$OLD_PLAT" "$SECOND" --host "$SECOND_HOST" --name "Stress $SECOND"
-stardust site-check "$OLD_PLAT" "$SECOND" --host "$SECOND_HOST"
+andromeda site-add "$OLD_PLAT" "$SECOND" --host "$SECOND_HOST" --name "Stress $SECOND"
+andromeda site-check "$OLD_PLAT" "$SECOND" --host "$SECOND_HOST"
 
 # 8. Same-platform clone to a preview host.
 step "8 site-clone $PROD -> $PREVIEW"
-stardust site-clone "$OLD_PLAT" "$PROD" "$OLD_PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
-stardust site-check "$OLD_PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
+andromeda site-clone "$OLD_PLAT" "$PROD" "$OLD_PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
+andromeda site-check "$OLD_PLAT" "$PREVIEW" --host "$PREVIEW_HOST"
 
 # 9. Cross-platform clone onto a fresh latest platform.
 step "9 platform-add $NEW_PLAT (latest) + cross-clone"
-stardust platform-add "$NEW_PLAT"
-stardust site-clone "$OLD_PLAT" "$PROD" "$NEW_PLAT" "$CROSS" --host "$CROSS_HOST"
-stardust site-check "$NEW_PLAT" "$CROSS" --host "$CROSS_HOST"
+andromeda platform-add "$NEW_PLAT"
+andromeda site-clone "$OLD_PLAT" "$PROD" "$NEW_PLAT" "$CROSS" --host "$CROSS_HOST"
+andromeda site-check "$NEW_PLAT" "$CROSS" --host "$CROSS_HOST"
 
 # 10. Disable and enable.
 step "10 site-disable / site-enable $PROD"
-stardust site-disable "$OLD_PLAT" "$PROD"
-stardust site-enable "$OLD_PLAT" "$PROD"
-stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
+andromeda site-disable "$OLD_PLAT" "$PROD"
+andromeda site-enable "$OLD_PLAT" "$PROD"
+andromeda site-check "$OLD_PLAT" "$PROD" --host "$HOST"
 
 # 11. Restore the pre-upgrade backup onto the old site.
 step "11 site-restore $PROD from latest backup"
-stardust site-restore "$OLD_PLAT" "$PROD"
-stardust site-check "$OLD_PLAT" "$PROD" --host "$HOST"
+andromeda site-restore "$OLD_PLAT" "$PROD"
+andromeda site-check "$OLD_PLAT" "$PROD" --host "$HOST"
 
 # 12. Bee extras.
 step "12 bee cron / config-export / config-import / uli"
-stardust bee "$OLD_PLAT" "$PROD" cron || true
-stardust bee "$OLD_PLAT" "$PROD" config-export || true
-stardust bee "$OLD_PLAT" "$PROD" config-import || true
-stardust bee "$OLD_PLAT" "$PROD" uli || true
+andromeda bee "$OLD_PLAT" "$PROD" cron || true
+andromeda bee "$OLD_PLAT" "$PROD" config-export || true
+andromeda bee "$OLD_PLAT" "$PROD" config-import || true
+andromeda bee "$OLD_PLAT" "$PROD" uli || true
 
 # 13. D7 toolkit. Full d7-prep/d7-apply needs a D7 dump; these do not.
 step "13 d7-stubs + d7-toolkit"
 D7_OUT="/tmp/stress-d7-stubs-${STAMP}"
 mkdir -p "$D7_OUT"
-stardust d7-stubs || true
-stardust d7-toolkit "$OLD_PLAT" || true
+andromeda d7-stubs || true
+andromeda d7-toolkit "$OLD_PLAT" || true
 
 # 14. Inventory, doctor, log.
 step "14 inventory / doctor / log"
-stardust inventory || true
-stardust doctor || true
-stardust log 10 || true
+andromeda inventory || true
+andromeda doctor || true
+andromeda log 10 || true
 
 # 15. Capcom packs. Copy into CaptainRocket if the tree is present.
 step "15 write Capcom packs"
 PACK_SRC="$HERE/packs"
 CAPCOM_PACKS="${CAPCOM_ROOT:-$HOME/Apps/CaptainRocket}/.captainrocket/packs"
 mkdir -p "$CAPCOM_PACKS" 2>/dev/null || true
-for pack in stardust bee d7convert moduleheal; do
+for pack in andromeda bee d7convert moduleheal; do
     if [ -d "$CAPCOM_PACKS" ]; then
         cp "$PACK_SRC/${pack}.json" "$CAPCOM_PACKS/${pack}.json"
         echo "OK pack $pack -> $CAPCOM_PACKS"
@@ -359,18 +359,18 @@ if [ -d "$PLATFORMS/$OLD_PLAT/web/modules" ]; then
     sudo chown -R deploy:www-admin "$PLATFORMS/$OLD_PLAT/web/modules/stress_bad"
     echo "OK stress_bad in $PLATFORMS/$OLD_PLAT/web/modules"
     echo "Autocomplete path: stress-bad/autocomplete (callback is broken on purpose)"
-    echo "Bee: stardust bee $OLD_PLAT $PROD en stress_bad   # will fail until Capcom fixes the include"
+    echo "Bee: andromeda bee $OLD_PLAT $PROD en stress_bad   # will fail until Capcom fixes the include"
 else
     echo "NOTE platform web missing — skip Backdrop install of stress_bad"
 fi
 
 # 20. Module enable/disable cycle on a known-good module if Bee can see one.
 step "20 bee enable/disable cycle (best effort)"
-stardust bee "$OLD_PLAT" "$PROD" pml || true
+andromeda bee "$OLD_PLAT" "$PROD" pml || true
 
 echo ""
 echo "PASS: Stress completed."
-echo "Capcom packs: stardust bee d7convert moduleheal"
+echo "Capcom packs: andromeda bee d7convert moduleheal"
 echo "Fix target: $HERE/modules/stress_bad/stress_bad.broken.inc"
 echo "Autocomplete target: $HERE/modules/stress_bad/stress_bad.autocomplete.inc"
 STRESS_OK=1

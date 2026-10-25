@@ -1,5 +1,5 @@
 ### TASK:
-Refactor the provided "Stardust stack" setup/installation scripts and configuration to completely eliminate Gitea and replace it with a minimal, zero-bloat Bare Git repository workflow using `git-daemon` and standard SSH.
+Refactor the provided "Andromeda stack" setup/installation scripts and configuration to completely eliminate Gitea and replace it with a minimal, zero-bloat Bare Git repository workflow using `git-daemon` and standard SSH.
 
 ### CONTEXT & GOAL:
 - The target runtime environment is inside a proot container (low overhead, no systemd, syscall/ptrace overhead must be minimized).

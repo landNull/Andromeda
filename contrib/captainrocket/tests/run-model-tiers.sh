@@ -9,7 +9,7 @@
 #   ./run-model-tiers.sh --dry-run
 #   ./run-model-tiers.sh --style strict --tier 2
 #
-# Cache: $HOME/.cache/stardust/capcom-model-tiers/<model>.txt
+# Cache: $HOME/.cache/andromeda/capcom-model-tiers/<model>.txt
 # One line: TIER|LANG|TASK|STYLE
 
 set -eu
@@ -18,7 +18,7 @@ PROG=${0##*/}
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 TIERS="$HERE/tiers.txt"
 STYLES="$HERE/prompt-styles"
-CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/stardust/capcom-model-tiers"
+CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/andromeda/capcom-model-tiers"
 
 MODEL=""
 ENDPOINT="${CAPCOM_MODEL_ENDPOINT:-http://127.0.0.1:11434}"

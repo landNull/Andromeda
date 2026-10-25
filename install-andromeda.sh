@@ -1,18 +1,18 @@
 #!/bin/sh
-# install-stardust.sh — idempotent bootstrap for Stardust
+# install-andromeda.sh — idempotent bootstrap for Andromeda
 # Same script on a devel workstation and a remote test/live host.
-# Contract: artifacts/stardust-settings.json
+# Contract: artifacts/andromeda-settings.json
 #
 # Detects package manager and init. Does not assume Devuan or systemd.
 # Creates system account deploy (HOME under $STARDUST/home, nologin) +
-# group www-admin, ships crdir/newfeature/stardust, tunes
+# group www-admin, ships crdir/newfeature/andromeda, tunes
 # PHP/MariaDB/Apache, writes logrotate + state. No PHP GUI.
 # Does not wipe /srv/platforms or existing platform checkouts.
 # Does not install nginx, Podman, or rewrite firewall/VPN.
 #
 # Usage:
-#   stardust-install.sh [-n] [-m ROLE] [-u USER] [-g GROUP] [-a ADMIN]
-#   stardust-install.sh -h
+#   andromeda-install.sh [-n] [-m ROLE] [-u USER] [-g GROUP] [-a ADMIN]
+#   andromeda-install.sh -h
 #
 # ROLE: devel | test | live
 #       devel, vps-test, vps-live still accepted as aliases.
@@ -37,9 +37,9 @@ if [ -d "$HERE/bin" ] && [ -d "$HERE/lib" ]; then
   TUIDIR=$HERE/tui
 else
   BINDIR=$HERE
-  LIBSRC=$HERE/stardust-lib
+  LIBSRC=$HERE/andromeda-lib
   MANDIR=$HERE
-  TUIDIR=$HERE/stardust-tui
+  TUIDIR=$HERE/andromeda-tui
 fi
 DRYRUN=0
 DO_CSF=0
@@ -51,7 +51,7 @@ HUMAN=""
 DAEMON=""
 GROUP=""
 PLATFORMS=/srv/platforms
-STARDUST=/srv/stardust
+STARDUST=/srv/andromeda
 CONF=""
 CSF_ALLOW="10.8.0.0/24 192.168.1.0/24"
 BEE_SRC=https://github.com/backdrop-contrib/bee.git
@@ -67,16 +67,16 @@ RELOAD_APACHE=""
 
 usage() {
   cat <<EOF
-$PROG $STARDUST_VERSION — prepare any Stardust host (Apache + PHP + MariaDB + Bee)
+$PROG $STARDUST_VERSION — prepare any Andromeda host (Apache + PHP + MariaDB + Bee)
 
 WHAT THIS IS FOR
   One script for any host. Detects apt vs other managers and
   sysvinit vs systemd vs OpenRC. Creates system account deploy
   (HOME $STARDUST/home, shell nologin, locked password) and group
   www-admin, the $STARDUST control plane, missing packages, PHP/MariaDB snippets,
-  companion CLIs (crdir, newfeature, stardust, bee, glow, gum), and conf files.
-  PHP: 30-stardust.ini every SAPI; 35-stardust-harden.ini FPM/apache2
-  only; 35-stardust-cli.ini leaves Bee able to exec.
+  companion CLIs (crdir, newfeature, andromeda, bee, glow, gum), and conf files.
+  PHP: 30-andromeda.ini every SAPI; 35-andromeda-harden.ini FPM/apache2
+  only; 35-andromeda-cli.ini leaves Bee able to exec.
   Also: php-intl/bcmath/imagick/apcu, apache2-utils, mariadb-backup,
   msmtp-mta, unattended-upgrades (no auto-reboot), needrestart,
   logwatch, goaccess, etckeeper, smartmontools, irqbalance, haveged,
@@ -89,9 +89,9 @@ USERS
                  Not a human login. sudo -u $OWNER bee|git|crdir.
   $GROUP      file group on every tree (default: www-admin).
                  Not a login. This is the web-admin grant.
-  stardust    secrets group. Not www-data.
+  andromeda    secrets group. Not www-data.
   invoking    the login that ran this script is added to
-                 $GROUP, stardust, and $OWNER only.
+                 $GROUP, andromeda, and $OWNER only.
                  Never added to sudo, admin, or wheel.
                  The account is not created; it must already exist.
   extra login  only if you pass -a NAME and NAME is not $GROUP.
@@ -117,7 +117,7 @@ FLAGS
   -a admin   Optional extra login. Omitted by default. Ignored when
              NAME equals the file group (www-admin): that name is a
              group, not a user.
-  -H user    Existing login to put in Stardust groups
+  -H user    Existing login to put in Andromeda groups
              (default: whoever ran this script). Not created.
   -g group   File group on every tree (default: www-admin)
   -F         Install/apply CSF. SSH is not world-open: only 10.8.0.0/24
@@ -478,24 +478,24 @@ is_privilege_group() {
   esac
 }
 
-# Groups a human needs to admin Stardust. Never sudo/admin/wheel.
-stardust_admin_groups() {
+# Groups a human needs to admin Andromeda. Never sudo/admin/wheel.
+andromeda_admin_groups() {
   echo "$GROUP"
-  echo stardust
+  echo andromeda
   echo "$OWNER"
 }
 
-ensure_stardust_groups() {
-  # ensure_stardust_groups LOGIN — add only Stardust admin groups.
+ensure_andromeda_groups() {
+  # ensure_andromeda_groups LOGIN — add only Andromeda admin groups.
   name=$1
   [ -n "$name" ] || return 0
   if ! id "$name" >/dev/null 2>&1; then
     echo "note: login $name does not exist; not creating it"
-    echo "note: after adduser $name: usermod -aG $GROUP,stardust,$OWNER $name"
+    echo "note: after adduser $name: usermod -aG $GROUP,andromeda,$OWNER $name"
     return 0
   fi
   usermod_bin=$(find_admin_bin usermod || true)
-  for g in $(stardust_admin_groups); do
+  for g in $(andromeda_admin_groups); do
     [ -n "$g" ] || continue
     if is_privilege_group "$g"; then
       echo "note: refusing to add $name to privilege group $g"
@@ -512,7 +512,7 @@ ensure_stardust_groups() {
       run_root "$usermod_bin" -aG "$g" "$name" 2>/dev/null || true
     fi
   done
-  echo "groups for $name: $GROUP,stardust,$OWNER (not sudo)"
+  echo "groups for $name: $GROUP,andromeda,$OWNER (not sudo)"
 }
 
 ensure_owner_home() {
@@ -540,30 +540,30 @@ ensure_owner() {
   useradd_bin=$(find_admin_bin useradd || true)
   if id "$OWNER" >/dev/null 2>&1; then
     echo "user ok: $OWNER (existing; not rewriting shell or home)"
-    ensure_stardust_groups "$OWNER"
+    ensure_andromeda_groups "$OWNER"
     ensure_owner_home
     return 0
   fi
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ mkdir -p $home"
     if [ -n "$adduser_bin" ] && [ "$PKG" = apt ]; then
-      echo "+ adduser --system --home $home --shell $shell --disabled-password --ingroup $OWNER --gecos 'Stardust deploy' $OWNER"
+      echo "+ adduser --system --home $home --shell $shell --disabled-password --ingroup $OWNER --gecos 'Andromeda deploy' $OWNER"
     else
-      echo "+ useradd -r -m -d $home -s $shell -g $OWNER -c 'Stardust deploy' $OWNER"
+      echo "+ useradd -r -m -d $home -s $shell -g $OWNER -c 'Andromeda deploy' $OWNER"
     fi
-    echo "+ usermod -aG $GROUP,stardust $OWNER"
+    echo "+ usermod -aG $GROUP,andromeda $OWNER"
     return 0
   fi
   run_root mkdir -p "$STARDUST"
   if [ -n "$adduser_bin" ] && [ "$PKG" = apt ]; then
     run_root "$adduser_bin" --system --home "$home" --shell "$shell" \
-      --disabled-password --ingroup "$OWNER" --gecos "Stardust deploy" "$OWNER" || {
+      --disabled-password --ingroup "$OWNER" --gecos "Andromeda deploy" "$OWNER" || {
       echo "$PROG: cannot create system user $OWNER (adduser failed)" >&2
       return 1
     }
   elif [ -n "$useradd_bin" ]; then
     run_root "$useradd_bin" -r -m -d "$home" -s "$shell" -g "$OWNER" \
-      -c "Stardust deploy" "$OWNER" || {
+      -c "Andromeda deploy" "$OWNER" || {
       echo "$PROG: cannot create system user $OWNER (useradd failed)" >&2
       return 1
     }
@@ -572,7 +572,7 @@ ensure_owner() {
     return 1
   fi
   echo "system user: $OWNER home=$home shell=$shell"
-  ensure_stardust_groups "$OWNER"
+  ensure_andromeda_groups "$OWNER"
   ensure_owner_home
 }
 
@@ -652,7 +652,7 @@ ensure_user() {
 
 
 write_wg_sudoers() {
-  dest=/etc/sudoers.d/stardust-wg
+  dest=/etc/sudoers.d/andromeda-wg
   body="%${GROUP} ALL=(root) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick"
   write_sudoers "$dest" "$body"
 }
@@ -685,7 +685,7 @@ user_conf() {
   if [ -z "$home" ]; then
     home=/home/$name
   fi
-  dest=$home/.stardust.conf
+  dest=$home/.andromeda.conf
   if [ -f "$dest" ]; then
     echo "conf exists: $dest (not overwritten)"
     return 0
@@ -695,7 +695,7 @@ user_conf() {
     return 0
   fi
   as_root sh -c "cat > '$dest'" <<EOF
-# Stardust config — generated by $PROG
+# Andromeda config — generated by $PROG
 # role=$ROLE host=$HOSTN os=$OS_ID pkg=$PKG init=$INIT user=$name
 
 STARDUST_ROLE=$ROLE
@@ -759,43 +759,43 @@ ship_tools() {
   install_tool "$BINDIR/crdir" /usr/local/bin/crdir 0755
   install_tool "$BINDIR/newfeature" /usr/local/bin/newfeature 0755
   install_tool "$BINDIR/d7-migrate" /usr/local/bin/d7-migrate 0755
-  install_tool "$BINDIR/stardust" /usr/local/bin/stardust 0755
-  install_tool "$BINDIR/stardust-priv" /usr/local/sbin/stardust-priv 0750
-  install_tool "$BINDIR/stardust-menu" /usr/local/bin/stardust-menu 0755
-  if [ -f "$HERE/tui/stardust_ui.py" ]; then
-    run_root mkdir -p /usr/local/share/stardust/tui
-    run_root install -m 0644 "$HERE/tui/stardust_ui.py" /usr/local/share/stardust/tui/stardust_ui.py
+  install_tool "$BINDIR/andromeda" /usr/local/bin/andromeda 0755
+  install_tool "$BINDIR/andromeda-priv" /usr/local/sbin/andromeda-priv 0750
+  install_tool "$BINDIR/andromeda-menu" /usr/local/bin/andromeda-menu 0755
+  if [ -f "$HERE/tui/andromeda_ui.py" ]; then
+    run_root mkdir -p /usr/local/share/andromeda/tui
+    run_root install -m 0644 "$HERE/tui/andromeda_ui.py" /usr/local/share/andromeda/tui/andromeda_ui.py
     echo "installed Textual UI"
   fi
-  if [ -x "$TUIDIR/stardust-tui" ]; then
-    install_tool "$TUIDIR/stardust-tui" /usr/local/bin/stardust-tui 0755
+  if [ -x "$TUIDIR/andromeda-tui" ]; then
+    install_tool "$TUIDIR/andromeda-tui" /usr/local/bin/andromeda-tui 0755
   elif [ -d "$TUIDIR" ] && [ -f "$TUIDIR/main.go" ] && command -v go >/dev/null 2>&1; then
-    echo "building stardust-tui"
-    (cd "$TUIDIR" && GOPROXY=https://proxy.golang.org,direct go build -o stardust-tui .) && \
-      install_tool "$TUIDIR/stardust-tui" /usr/local/bin/stardust-tui 0755
+    echo "building andromeda-tui"
+    (cd "$TUIDIR" && GOPROXY=https://proxy.golang.org,direct go build -o andromeda-tui .) && \
+      install_tool "$TUIDIR/andromeda-tui" /usr/local/bin/andromeda-tui 0755
   else
-    echo "stardust-tui binary absent (optional; use stardust-menu)"
+    echo "andromeda-tui binary absent (optional; use andromeda-menu)"
   fi
-  if [ -f "$HERE/install-stardust.sh" ]; then
-    install_tool "$HERE/install-stardust.sh" /usr/local/sbin/install-stardust.sh 0755
-    run_root ln -sfn /usr/local/sbin/install-stardust.sh /usr/local/sbin/stardust-install.sh
+  if [ -f "$HERE/install-andromeda.sh" ]; then
+    install_tool "$HERE/install-andromeda.sh" /usr/local/sbin/install-andromeda.sh 0755
+    run_root ln -sfn /usr/local/sbin/install-andromeda.sh /usr/local/sbin/andromeda-install.sh
   else
-    install_tool "$HERE/stardust-install.sh" /usr/local/sbin/stardust-install.sh 0755
+    install_tool "$HERE/andromeda-install.sh" /usr/local/sbin/andromeda-install.sh 0755
   fi
   if [ -d "$LIBSRC" ]; then
-    run_root mkdir -p /usr/local/lib/stardust "$STARDUST/lib"
+    run_root mkdir -p /usr/local/lib/andromeda "$STARDUST/lib"
     for f in "$LIBSRC"/*.sh "$LIBSRC"/d7-catalog.txt; do
       [ -f "$f" ] || continue
       # apps/bee/lib.sh is the real bee runtime; skip the checkout shim
       if [ "$(basename "$f")" = bee.sh ] && [ -f "$HERE/apps/bee/lib.sh" ]; then
         continue
       fi
-      run_root install -m 0644 "$f" "/usr/local/lib/stardust/$(basename "$f")"
+      run_root install -m 0644 "$f" "/usr/local/lib/andromeda/$(basename "$f")"
       run_root install -m 0644 "$f" "$STARDUST/lib/$(basename "$f")"
     done
-    echo "installed stardust-lib from $LIBSRC"
+    echo "installed andromeda-lib from $LIBSRC"
     if [ -f "$HERE/apps/bee/lib.sh" ]; then
-      run_root install -m 0644 "$HERE/apps/bee/lib.sh" /usr/local/lib/stardust/bee.sh
+      run_root install -m 0644 "$HERE/apps/bee/lib.sh" /usr/local/lib/andromeda/bee.sh
       run_root install -m 0644 "$HERE/apps/bee/lib.sh" "$STARDUST/lib/bee.sh"
       echo "installed apps/bee/lib.sh as bee.sh"
     fi
@@ -805,10 +805,10 @@ ship_tools() {
     run_root install -m 0644 "$MANDIR/crdir.1" /usr/local/share/man/man1/crdir.1
     echo "installed man crdir"
   fi
-  if [ -f "$MANDIR/stardust.1" ]; then
+  if [ -f "$MANDIR/andromeda.1" ]; then
     run_root mkdir -p /usr/local/share/man/man1
-    run_root install -m 0644 "$MANDIR/stardust.1" /usr/local/share/man/man1/stardust.1
-    echo "installed man stardust"
+    run_root install -m 0644 "$MANDIR/andromeda.1" /usr/local/share/man/man1/andromeda.1
+    echo "installed man andromeda"
   fi
   if [ -f "$MANDIR/d7-migrate.1" ]; then
     run_root mkdir -p /usr/local/share/man/man1
@@ -818,10 +818,10 @@ ship_tools() {
   DOCSRC=""
   [ -d "$HERE/docs" ] && DOCSRC=$HERE/docs
   if [ -n "$DOCSRC" ]; then
-    run_root mkdir -p /usr/local/share/stardust/docs "$STARDUST/docs"
+    run_root mkdir -p /usr/local/share/andromeda/docs "$STARDUST/docs"
     for f in "$DOCSRC"/*.txt "$DOCSRC"/*.md; do
       [ -f "$f" ] || continue
-      run_root install -m 0644 "$f" "/usr/local/share/stardust/docs/$(basename "$f")"
+      run_root install -m 0644 "$f" "/usr/local/share/andromeda/docs/$(basename "$f")"
       run_root install -m 0644 "$f" "$STARDUST/docs/$(basename "$f")"
     done
     echo "installed docs from $DOCSRC"
@@ -833,18 +833,18 @@ tune_php_fpm() {
   pool=""
   for d in /etc/php/*/fpm/pool.d; do
     [ -d "$d" ] || continue
-    pool=$d/stardust.conf
+    pool=$d/andromeda.conf
     break
   done
   if [ -z "$pool" ]; then
     echo "note: no php-fpm pool.d — skip FPM"
     return 0
   fi
-  body="; Stardust — single pool, user $DAEMON
-[stardust]
+  body="; Andromeda — single pool, user $DAEMON
+[andromeda]
 user = $DAEMON
 group = $GROUP
-listen = /run/php/stardust-fpm.sock
+listen = /run/php/andromeda-fpm.sock
 listen.owner = $DAEMON
 listen.group = $DAEMON
 pm = ondemand
@@ -857,7 +857,7 @@ pm.process_idle_timeout = 10s
     run_root a2enmod mpm_event >/dev/null 2>&1 || true
     run_root a2enmod proxy_fcgi setenvif >/dev/null 2>&1 || true
   fi
-  echo "php-fpm pool $pool (Event MPM). Confirm sites use SetHandler proxy:unix:/run/php/stardust-fpm.sock|fcgi://localhost/"
+  echo "php-fpm pool $pool (Event MPM). Confirm sites use SetHandler proxy:unix:/run/php/andromeda-fpm.sock|fcgi://localhost/"
 }
 
 tune_extras() {
@@ -866,7 +866,7 @@ tune_extras() {
     printf '%s\n' \
       'Unattended-Upgrade::Automatic-Reboot "false";' \
       'Unattended-Upgrade::Mail "";' \
-      | write_dropin /etc/apt/apt.conf.d/52stardust-unattended
+      | write_dropin /etc/apt/apt.conf.d/52andromeda-unattended
   fi
   if have etckeeper && [ ! -d /etc/.git ]; then
     if [ "$DRYRUN" -eq 1 ]; then
@@ -889,7 +889,7 @@ tune_extras() {
 tune_php() {
   # Shared limits on every SAPI. Hardening and live OPcache only on FPM/apache2.
   # CLI must keep exec/passthru so Bee, cron, and site-check work.
-  shared="; Stardust PHP — shared (8-core / 32G and small VPS)
+  shared="; Andromeda PHP — shared (8-core / 32G and small VPS)
 memory_limit = 256M
 upload_max_filesize = 64M
 post_max_size = 64M
@@ -912,7 +912,7 @@ opcache.revalidate_freq = 0
 opcache.revalidate_freq = 2
 "
   fi
-  web="; Stardust PHP — FPM / apache2 only (not CLI)
+  web="; Andromeda PHP — FPM / apache2 only (not CLI)
 disable_functions = passthru,popen,proc_open,proc_close,dl,pcntl_exec,pcntl_fork
 allow_url_fopen = On
 session.cookie_httponly = 1
@@ -922,7 +922,7 @@ $opc_web"
     web="${web}session.cookie_secure = 1
 "
   fi
-  cli="; Stardust PHP — CLI only
+  cli="; Andromeda PHP — CLI only
 ; do not set disable_functions here — Bee needs the process functions
 opcache.enable_cli = 0
 opcache.validate_timestamps = 1
@@ -931,27 +931,27 @@ opcache.validate_timestamps = 1
   if [ -d /etc/php ]; then
     for d in /etc/php/*/apache2/conf.d /etc/php/*/cli/conf.d /etc/php/*/fpm/conf.d; do
       [ -d "$d" ] || continue
-      printf '%s\n' "$shared" | write_dropin "$d/30-stardust.ini"
+      printf '%s\n' "$shared" | write_dropin "$d/30-andromeda.ini"
       case $d in
         */cli/conf.d)
-          printf '%s\n' "$cli" | write_dropin "$d/35-stardust-cli.ini"
+          printf '%s\n' "$cli" | write_dropin "$d/35-andromeda-cli.ini"
           ;;
         *)
-          printf '%s\n' "$web" | write_dropin "$d/35-stardust-harden.ini"
+          printf '%s\n' "$web" | write_dropin "$d/35-andromeda-harden.ini"
           ;;
       esac
       written=1
     done
   fi
   if [ "$written" -eq 0 ] && [ -d /etc/php.d ]; then
-    printf '%s\n' "$shared" | write_dropin /etc/php.d/30-stardust.ini
+    printf '%s\n' "$shared" | write_dropin /etc/php.d/30-andromeda.ini
     written=1
     echo "note: single /etc/php.d — FPM harden not split; check php --ini"
   fi
   if [ "$written" -eq 0 ]; then
     echo "note: no PHP conf.d found; set memory_limit by hand"
   else
-    echo "PHP: shared 30-stardust.ini; FPM/apache harden 35-stardust-harden.ini; CLI 35-stardust-cli.ini"
+    echo "PHP: shared 30-andromeda.ini; FPM/apache harden 35-andromeda-harden.ini; CLI 35-andromeda-cli.ini"
   fi
 }
 
@@ -962,7 +962,7 @@ tune_vps() {
     echo "VPS harden skipped (localhost/devel)"
     return 0
   fi
-  sysctl_body="# Stardust VPS — do not set ip_forward=0 (WireGuard)
+  sysctl_body="# Andromeda VPS — do not set ip_forward=0 (WireGuard)
 vm.swappiness = 10
 vm.dirty_ratio = 20
 vm.dirty_background_ratio = 5
@@ -987,17 +987,17 @@ kernel.randomize_va_space = 2
 net.ipv4.tcp_congestion_control = bbr
 "
   fi
-  printf '%s\n' "$sysctl_body" | write_dropin /etc/sysctl.d/60-stardust.conf
+  printf '%s\n' "$sysctl_body" | write_dropin /etc/sysctl.d/60-andromeda.conf
   if [ "$DRYRUN" -eq 0 ] && have sysctl; then
-    as_root sysctl --system >/dev/null 2>&1 || as_root sysctl -p /etc/sysctl.d/60-stardust.conf >/dev/null 2>&1 || true
+    as_root sysctl --system >/dev/null 2>&1 || as_root sysctl -p /etc/sysctl.d/60-andromeda.conf >/dev/null 2>&1 || true
   fi
   printf '%s\n' \
     "www-data soft nofile 65535" \
     "www-data hard nofile 65535" \
     "deploy soft nofile 65535" \
     "deploy hard nofile 65535" \
-    | write_dropin /etc/security/limits.d/stardust.conf
-  apache_h="# Stardust VPS Apache
+    | write_dropin /etc/security/limits.d/andromeda.conf
+  apache_h="# Andromeda VPS Apache
 ServerTokens Prod
 ServerSignature Off
 TraceEnable Off
@@ -1007,17 +1007,17 @@ KeepAliveTimeout 5
 MaxKeepAliveRequests 100
 "
   if [ -d /etc/apache2/conf-available ]; then
-    printf '%s\n' "$apache_h" | write_dropin /etc/apache2/conf-available/stardust-harden.conf
+    printf '%s\n' "$apache_h" | write_dropin /etc/apache2/conf-available/andromeda-harden.conf
     if have a2enconf; then
-      run_root a2enconf stardust-harden >/dev/null 2>&1 || true
+      run_root a2enconf andromeda-harden >/dev/null 2>&1 || true
     fi
   fi
-  echo "VPS harden: sysctl 60-stardust, limits, Apache tokens/timeouts"
+  echo "VPS harden: sysctl 60-andromeda, limits, Apache tokens/timeouts"
   echo "note: provider disk snapshots are not a CMS backup — keep backup-all + offsite"
 }
 
 tune_mysql() {
-  body="# Stardust MariaDB — bind local, modest buffer
+  body="# Andromeda MariaDB — bind local, modest buffer
 [mysqld]
 bind-address = 127.0.0.1
 skip-networking = 0
@@ -1030,11 +1030,11 @@ character-set-server = utf8mb4
 collation-server = utf8mb4_unicode_ci
 "
   if [ -d /etc/mysql/mariadb.conf.d ]; then
-    printf '%s\n' "$body" | write_dropin /etc/mysql/mariadb.conf.d/90-stardust.cnf
+    printf '%s\n' "$body" | write_dropin /etc/mysql/mariadb.conf.d/90-andromeda.cnf
   elif [ -d /etc/mysql/conf.d ]; then
-    printf '%s\n' "$body" | write_dropin /etc/mysql/conf.d/90-stardust.cnf
+    printf '%s\n' "$body" | write_dropin /etc/mysql/conf.d/90-andromeda.cnf
   elif [ -d /etc/my.cnf.d ]; then
-    printf '%s\n' "$body" | write_dropin /etc/my.cnf.d/90-stardust.cnf
+    printf '%s\n' "$body" | write_dropin /etc/my.cnf.d/90-andromeda.cnf
   else
     echo "note: no MariaDB conf.d; set bind-address = 127.0.0.1 by hand"
   fi
@@ -1059,18 +1059,18 @@ $STARDUST/backups/*/*/*/*.log
 }
 "
   if [ -d /etc/logrotate.d ]; then
-    printf '%s\n' "$body" | write_dropin /etc/logrotate.d/stardust
+    printf '%s\n' "$body" | write_dropin /etc/logrotate.d/andromeda
   fi
 }
 
 write_cron() {
-  dest=/etc/cron.d/stardust
-  body="# Stardust — nightly backup + per-site Bee cron
+  dest=/etc/cron.d/andromeda
+  body="# Andromeda — nightly backup + per-site Bee cron
 # m h dom mon dow user command
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-15 3 * * * $OWNER /usr/local/bin/stardust backup-all >/srv/stardust/state/backup-all.log 2>&1
-7,22,37,52 * * * * $OWNER /usr/local/bin/stardust cron-all >/srv/stardust/state/cron-all.log 2>&1
+15 3 * * * $OWNER /usr/local/bin/andromeda backup-all >/srv/andromeda/state/backup-all.log 2>&1
+7,22,37,52 * * * * $OWNER /usr/local/bin/andromeda cron-all >/srv/andromeda/state/cron-all.log 2>&1
 "
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ write $dest"
@@ -1129,7 +1129,7 @@ bootstrap_deps() {
       echo "+ etckeeper init"
     else
       as_root etckeeper init >/dev/null 2>&1 || true
-      as_root etckeeper commit -m "stardust first run" >/dev/null 2>&1 || true
+      as_root etckeeper commit -m "andromeda first run" >/dev/null 2>&1 || true
       echo "etckeeper: initialized /etc"
     fi
   fi
@@ -1137,7 +1137,7 @@ bootstrap_deps() {
   if have needrestart && [ -d /etc/needrestart/conf.d ]; then
     printf '%s
 ' '$nrconf{restart} = "l";' \
-      | write_if_absent /etc/needrestart/conf.d/stardust.conf
+      | write_if_absent /etc/needrestart/conf.d/andromeda.conf
   fi
 
   if have logwatch; then
@@ -1169,7 +1169,7 @@ bootstrap_deps() {
     else
       as_root mkdir -p "$STARDUST/state/secrets"
       as_root age-keygen -o "$age_key"
-      as_root chown "$OWNER:stardust" "$age_key"
+      as_root chown "$OWNER:andromeda" "$age_key"
       as_root chmod 0640 "$age_key"
       echo "age: wrote $age_key"
     fi
@@ -1181,7 +1181,7 @@ bootstrap_deps() {
     else
       printf '%s
 ' \
-        "# Stardust msmtp — fill host/user/password, then: chmod 0640 /etc/msmtprc" \
+        "# Andromeda msmtp — fill host/user/password, then: chmod 0640 /etc/msmtprc" \
         "defaults" \
         "auth           on" \
         "tls            on" \
@@ -1190,20 +1190,20 @@ bootstrap_deps() {
         "account        default" \
         "host           mail.example" \
         "port           587" \
-        "from           stardust@example" \
-        "user           stardust@example" \
+        "from           andromeda@example" \
+        "user           andromeda@example" \
         "password       CHANGE-ME" \
         | write_if_absent /etc/msmtprc.example
       if [ "$DRYRUN" -eq 0 ] && [ -t 0 ]; then
         nmail=$(prompt_line "NOTIFY email — where backup/fail mail goes (empty skip)" "" \
-          "Stardust can mail after backup-all or a failed site-check.
-This only sets NOTIFY= in /etc/stardust.conf.
+          "Andromeda can mail after backup-all or a failed site-check.
+This only sets NOTIFY= in /etc/andromeda.conf.
 You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
-        if [ -n "$nmail" ] && [ -f /etc/stardust.conf ]; then
-          if grep -q '^NOTIFY=' /etc/stardust.conf; then
-            as_root sed -i "s|^NOTIFY=.*|NOTIFY=$nmail|" /etc/stardust.conf
+        if [ -n "$nmail" ] && [ -f /etc/andromeda.conf ]; then
+          if grep -q '^NOTIFY=' /etc/andromeda.conf; then
+            as_root sed -i "s|^NOTIFY=.*|NOTIFY=$nmail|" /etc/andromeda.conf
           else
-            as_root sh -c "printf 'NOTIFY=%s\n' '$nmail' >> /etc/stardust.conf"
+            as_root sh -c "printf 'NOTIFY=%s\n' '$nmail' >> /etc/andromeda.conf"
           fi
           echo "NOTIFY=$nmail — copy /etc/msmtprc.example to /etc/msmtprc and edit SMTP"
         fi
@@ -1228,7 +1228,7 @@ You still copy /etc/msmtprc.example to /etc/msmtprc and put real SMTP there.")
 
 
 write_etc_conf() {
-  dest=/etc/stardust.conf
+  dest=/etc/andromeda.conf
   if [ -f "$dest" ]; then
     echo "conf exists: $dest (not overwritten)"
     return 0
@@ -1238,7 +1238,7 @@ write_etc_conf() {
     return 0
   fi
   as_root sh -c "cat > '$dest'" <<EOF
-# System-wide Stardust defaults (per-user ~/.stardust.conf overrides)
+# System-wide Andromeda defaults (per-user ~/.andromeda.conf overrides)
 STARDUST_ROLE=$ROLE
 STARDUST_ROOT=$STARDUST
 PLATFORMS=$PLATFORMS
@@ -1290,7 +1290,7 @@ setup_csf() {
     echo "+ write $policy (SSH via WG/LAN only, UDP 51820, TCP $tcp_in)"
   else
     as_root sh -c "cat > '$policy'" <<EOF
-# Stardust CSF policy — remote admin only over WireGuard
+# Andromeda CSF policy — remote admin only over WireGuard
 # SSH is not in TCP_IN. Allow SSH from these sources in csf.allow:
 #   10.8.0.0/24     WireGuard (default)
 #   192.168.1.0/24  private LAN (override CSF_ALLOW)
@@ -1350,7 +1350,7 @@ EOF
 
   for src in ${CSF_ALLOW:-10.8.0.0/24 192.168.1.0/24}; do
     if ! grep -q "$src" /etc/csf/csf.allow 2>/dev/null; then
-      as_root sh -c "echo '$src # Stardust SSH/WG' >> /etc/csf/csf.allow"
+      as_root sh -c "echo '$src # Andromeda SSH/WG' >> /etc/csf/csf.allow"
     fi
   done
 
@@ -1486,9 +1486,9 @@ else
   echo "file group: $GROUP (no extra admin login; pass -a NAME to add one)"
 fi
 if [ -z "$HUMAN" ]; then
-  echo "note: no invoking login to add to Stardust groups (pass -H NAME)"
+  echo "note: no invoking login to add to Andromeda groups (pass -H NAME)"
 else
-  echo "operator login: $HUMAN (groups only: $GROUP,stardust,$OWNER — not sudo)"
+  echo "operator login: $HUMAN (groups only: $GROUP,andromeda,$OWNER — not sudo)"
 fi
 
 HOSTN=$(hostname 2>/dev/null || echo unknown)
@@ -1576,15 +1576,15 @@ case $shell_name in
 esac
 # Global zsh function. @ is eaten before any binary runs, so this
 # must live in zsh, on the system path, not in the checkout.
-wrap="$HOME/.zsh_stardust"
+wrap="$HOME/.zsh_andromeda"
 cat > "$wrap" << 'WRAP'
-stardust() {
-  noglob command stardust "$@"
+andromeda() {
+  noglob command andromeda "$@"
 }
 WRAP
 if [ "$shell_name" = "zsh" ]; then
-  line="source \"$HOME/.zsh_stardust\""
-  if [ -n "$rc" ] && ! grep -q '.zsh_stardust' "$rc" 2>/dev/null; then
+  line="source \"$HOME/.zsh_andromeda\""
+  if [ -n "$rc" ] && ! grep -q '.zsh_andromeda' "$rc" 2>/dev/null; then
     echo "$line" >> "$rc"
   fi
   echo "shell: zsh"
@@ -1593,16 +1593,16 @@ if [ "$shell_name" = "zsh" ]; then
   else
     echo "shell: bash"
     echo "@ is not special in bash. No wrapper needed."
-    echo "cmd:   stardust site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
+    echo "cmd:   andromeda site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
   fi
 fi
 
 echo "$OWNER is a system account (nologin, locked). No passwd."
 if [ -n "$HUMAN" ]; then
   echo "refresh groups: exec su - $HUMAN"
-  echo "confirm:        id $HUMAN   # must list $GROUP and stardust, not require sudo"
+  echo "confirm:        id $HUMAN   # must list $GROUP and andromeda, not require sudo"
 fi
-echo "check host:    stardust doctor"
-echo "list sites:    stardust list"
+echo "check host:    andromeda doctor"
+echo "list sites:    andromeda list"
 echo "Bee: bee --root=$PLATFORMS/<platform>/web --site=<product> <cmd>"
 echo "reload apache with: $RELOAD_APACHE"

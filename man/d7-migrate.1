@@ -1,8 +1,8 @@
-.TH D7-MIGRATE 1 "17 September 2026" "Stardust" "System Administration"
+.TH D7-MIGRATE 1 "17 September 2026" "Andromeda" "System Administration"
 .SH NAME
-d7-migrate \- Drupal 7 / BOA to Backdrop on a Stardust host
+d7-migrate \- Drupal 7 / BOA to Backdrop on a Andromeda host
 .SH SYNOPSIS
-.B stardust
+.B andromeda
 .RB [ \-n ]
 .B d7
 .I verb
@@ -32,8 +32,8 @@ on that database.
 On knarr,
 .B d7-migrate
 execs
-.B stardust d7
-when Stardust is installed and you are not root.
+.B andromeda d7
+when Andromeda is installed and you are not root.
 On a BOA box it sources
 .B lib/d7.sh
 directly.
@@ -87,7 +87,7 @@ cache-rebuild.
 .TP
 .B attach \-\-platform NAME \-\-product NAME
 Apache alias and
-.B stardust site-check .
+.B andromeda site-check .
 .TP
 .B toolkit PLATFORM
 Download
@@ -128,7 +128,7 @@ Wrap
 for one custom module.
 .TP
 .B tools
-Print the official Backdrop testers and what Stardust wraps.
+Print the official Backdrop testers and what Andromeda wraps.
 .TP
 .B all
 prep + assess + convert + attach.
@@ -184,7 +184,7 @@ after convert.
 .TP
 .B lib/d7.sh
 Module sourced by
-.B stardust
+.B andromeda
 and
 .BR d7-migrate .
 .TP
@@ -202,13 +202,13 @@ Machine plan written by
 Leftover human steps after
 .BR apply .
 .SH SEE ALSO
-.BR stardust (1),
+.BR andromeda (1),
 .BR crdir (1),
 docs/d7-migration.txt,
 https://docs.backdropcms.org/documentation/upgrading-from-drupal-7-overview
 .SH NOTES
 Do not prefix
-.B stardust
+.B andromeda
 with
 .BR sudo .
 Operator user only.

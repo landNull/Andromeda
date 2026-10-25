@@ -11,7 +11,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo "--> Creating platform: $PLATFORM_NAME (using bee dl-core fallback)"
-stardust platform-add "$PLATFORM_NAME"
+andromeda platform-add "$PLATFORM_NAME"
 
 if [ ! -d "/srv/platforms/$PLATFORM_NAME" ]; then
     echo "FAIL: /srv/platforms/$PLATFORM_NAME directory was not created."

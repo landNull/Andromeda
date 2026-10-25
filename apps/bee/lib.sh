@@ -4,10 +4,10 @@
 # one-off `bee --root=... --site=...` variants.
 #
 # Usage from the dispatcher:
-#   stardust bee PLATFORM PRODUCT [bee-args...]
-#   stardust bee PLATFORM PRODUCT status
-#   stardust bee PLATFORM PRODUCT -y update-db
-#   stardust bee PLATFORM --root-only dl-core web
+#   andromeda bee PLATFORM PRODUCT [bee-args...]
+#   andromeda bee PLATFORM PRODUCT status
+#   andromeda bee PLATFORM PRODUCT -y update-db
+#   andromeda bee PLATFORM --root-only dl-core web
 
 bee_site_cmd() {
   # bee_site_cmd WEB PRODUCT [args...]  — always passes --root and --site
@@ -35,8 +35,8 @@ bee_root_cmd() {
 }
 
 cmd_bee() {
-  # stardust bee PLATFORM PRODUCT [bee-args]
-  # stardust bee PLATFORM --root-only [bee-args]
+  # andromeda bee PLATFORM PRODUCT [bee-args]
+  # andromeda bee PLATFORM --root-only [bee-args]
   platform=${1:-}
   shift || true
   if [ -z "$platform" ]; then
