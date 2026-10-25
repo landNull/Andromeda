@@ -151,6 +151,36 @@ _scan_one() {
   echo "scan  $plat"
 }
 
+
+_convert_standalone() {
+  dest=$1
+  web=$2
+  product=$3
+  # Move hashed config out of files/ into the platform config store.
+  hashed=$(find "$web/files" -maxdepth 1 -type d -name "config_*" 2>/dev/null | head -n 1)
+  if [ -n "$hashed" ] && [ -d "$hashed/active" ]; then
+    echo "move  $hashed -> $dest/config/$product"
+    sudo mkdir -p "$dest/config/$product"
+    sudo cp -a "$hashed/active" "$dest/config/$product/active"
+    [ -d "$hashed/staging" ] && sudo cp -a "$hashed/staging" "$dest/config/$product/staging"
+    sudo mkdir -p "$dest/config/$product/staging"
+    sudo chown -R "$OWNER:$GROUP" "$dest/config/$product" 2>/dev/null || true
+  fi
+  # Custom modules/themes/layouts stay in the platform web tree. A standalone
+  # site already has them there. Nothing to move.
+  # Point settings at the platform config store. Absolute, so multi-site depth
+  # does not matter.
+  localphp="$web/sites/$product/settings.local.php"
+  sudo mkdir -p "$web/sites/$product"
+  if [ -f "$localphp" ] && grep -q "config_directories" "$localphp"; then
+    sudo sed -i "s|config_directories\['active'\].*|config_directories['active']  = '$dest/config/$product/active';|" "$localphp" || true
+    sudo sed -i "s|config_directories\['staging'\].*|config_directories['staging'] = '$dest/config/$product/staging';|" "$localphp" || true
+  else
+    printf "%s\n" "\$config_directories['active']  = '$dest/config/$product/active';" "\$config_directories['staging'] = '$dest/config/$product/staging';" | sudo tee -a "$localphp" >/dev/null
+  fi
+  echo "config $dest/config/$product/active"
+}
+
 cmd_migrate_www() {
   src_root=${WWW_ROOT:-/var/www}
   if [ ! -d "$src_root" ]; then
@@ -222,6 +252,11 @@ cmd_migrate_www() {
   chown_code "$web" || sudo chown -R "$OWNER:$GROUP" "$web"
   [ -d "$dest/files" ] && chown_files "$dest/files" || true
   [ -d "$dest/files_private" ] && chown_files "$dest/files_private" || true
+
+  # Standalone installs keep config under files/config_HASH and modules in
+  # the docroot. Move both into the platform store so the site matches a
+  # native Stardust site.
+  _convert_standalone "$dest" "$web" "$plat"
 
   echo "platform $plat"
   echo "web root  $web"
