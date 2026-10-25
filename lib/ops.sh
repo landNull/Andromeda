@@ -2,34 +2,70 @@
 # Journal, locks, secrets, backup-all, cron-all, log/last.
 
 TASKS=${STARDUST_ROOT}/state/tasks.log
+LOGDIR=${STARDUST_ROOT}/state/logs
+ERRORS=${STARDUST_ROOT}/state/errors.log
 LOCKDIR=${STARDUST_ROOT}/state/locks
 SECRETDIR=${STARDUST_ROOT}/state/secrets
 KEEP_BACKUPS=${KEEP_BACKUPS:-7}
+
+# Current run's log file. Set by open_run_log.
+RUN_LOG=${RUN_LOG:-}
+
+open_run_log() {
+  # open_run_log CMD
+  # Creates $LOGDIR/YYYY-MM-DDTHH-MM-SSZ-cmd.log and points latest.log at it.
+  if [ "${DRYRUN:-0}" -eq 1 ]; then
+    return 0
+  fi
+  run_root mkdir -p "$LOGDIR"
+  stamp=$(date -u +%Y-%m-%dT%H-%M-%SZ)
+  name=$(printf '%s' "${1:-run}" | tr ' /' '--' | tr -cd 'A-Za-z0-9._-')
+  RUN_LOG="$LOGDIR/${stamp}-${name}.log"
+  export RUN_LOG
+  : > "$RUN_LOG" 2>/dev/null || as_root sh -c ": > '$RUN_LOG'"
+  if [ -w "$LOGDIR" ]; then
+    ln -sfn "$RUN_LOG" "$LOGDIR/latest.log" 2>/dev/null || true
+  else
+    as_root ln -sfn "$RUN_LOG" "$LOGDIR/latest.log" 2>/dev/null || true
+  fi
+  printf 'start %s cmd=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${1:-}" >> "$RUN_LOG" 2>/dev/null || true
+}
+
+close_run_log() {
+  # close_run_log RC
+  if [ -z "$RUN_LOG" ] || [ "${DRYRUN:-0}" -eq 1 ]; then
+    return 0
+  fi
+  rc=${1:-0}
+  printf 'end   %s rc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$rc" >> "$RUN_LOG" 2>/dev/null || true
+  if [ "$rc" -ne 0 ]; then
+    printf '%s rc=%s log=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$rc" "$RUN_LOG" >> "$ERRORS" 2>/dev/null || \
+      as_root sh -c "printf '%s rc=%s log=%s\n' '$(date -u +%Y-%m-%dT%H:%M:%SZ)' '$rc' '$RUN_LOG' >> '$ERRORS'"
+  fi
+}
 
 task_log() {
   # task_log CMD RC [detail]
   if [ "${DRYRUN:-0}" -eq 1 ]; then
     return 0
   fi
-  line=$(printf '%s host=%s role=%s user=%s cmd=%s rc=%s %s\n' \
+  line=$(printf '%s host=%s role=%s user=%s cmd=%s rc=%s log=%s %s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$(hostname 2>/dev/null || echo unknown)" \
     "${STARDUST_ROLE}" \
     "$(id -un 2>/dev/null || echo ?)" \
     "${1:-?}" \
     "${2:-0}" \
+    "${RUN_LOG:-}" \
     "${3:-}")
   run_root mkdir -p "$STARDUST_ROOT/state"
-  if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ journal $line"
-    return 0
-  fi
   if [ -w "$TASKS" ] || [ -w "$STARDUST_ROOT/state" ]; then
     printf '%s\n' "$line" >> "$TASKS" 2>/dev/null || \
       as_root sh -c "printf '%s\n' '$line' >> '$TASKS'"
   else
     as_root sh -c "printf '%s\n' '$line' >> '$TASKS'"
   fi
+  close_run_log "${2:-0}"
 }
 
 with_lock() {
@@ -113,14 +149,25 @@ read_secret_pass() {
 
 cmd_log() {
   n=${1:-30}
+  if [ -f "$LOGDIR/latest.log" ]; then
+    echo "latest: $LOGDIR/latest.log"
+    echo "----"
+    tail -n "$n" "$LOGDIR/latest.log"
+    echo "----"
+  fi
   if [ ! -f "$TASKS" ]; then
     echo "(no $TASKS yet)"
     return 0
   fi
+  echo "journal:"
   tail -n "$n" "$TASKS"
 }
 
 cmd_last() {
+  if [ -L "$LOGDIR/latest.log" ] || [ -f "$LOGDIR/latest.log" ]; then
+    echo "$LOGDIR/latest.log"
+    return 0
+  fi
   if [ ! -f "$TASKS" ]; then
     echo "(no tasks yet)"
     return 0

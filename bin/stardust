@@ -119,6 +119,8 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG ui               # Textual full-screen (Aegir layout)
 
   log / last        task journal ($STARDUST_ROOT/state/tasks.log)
+                    per-run logs in $STARDUST_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log
+                    latest.log points at the most recent; errors.log lists failures
   promote           ff-only origin/test|live on the VPS checkout, then upgrade
   backup-all        every product; prune to KEEP_BACKUPS (default 7)
   cron-all          bee --site=PRODUCT cron, staggered (installer cron.d)
@@ -343,22 +345,28 @@ dispatch() {
 
 case $cmd in
   platform-upgrade|site-restore|promote|backup-all|site-delete)
-    if with_lock mutate dispatch "$@"; then
-      task_log "$cmd $*" 0
-    else
-      rc=$?
-      task_log "$cmd $*" "$rc"
-      exit "$rc"
-    fi
+    open_run_log "$cmd"
+    rcfile=$(mktemp)
+    {
+      with_lock mutate dispatch "$@"
+      echo $? > "$rcfile"
+    } 2>&1 | tee -a "${RUN_LOG:-/dev/null}"
+    rc=$(cat "$rcfile" 2>/dev/null || echo 1)
+    rm -f "$rcfile"
+    task_log "$cmd $*" "$rc"
+    [ "$rc" -eq 0 ] || exit "$rc"
     ;;
   site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
-    if dispatch "$@"; then
-      task_log "$cmd $*" 0
-    else
-      rc=$?
-      task_log "$cmd $*" "$rc"
-      exit "$rc"
-    fi
+    open_run_log "$cmd"
+    rcfile=$(mktemp)
+    {
+      dispatch "$@"
+      echo $? > "$rcfile"
+    } 2>&1 | tee -a "${RUN_LOG:-/dev/null}"
+    rc=$(cat "$rcfile" 2>/dev/null || echo 1)
+    rm -f "$rcfile"
+    task_log "$cmd $*" "$rc"
+    [ "$rc" -eq 0 ] || exit "$rc"
     ;;
   *)
     dispatch "$@"

@@ -35,6 +35,15 @@ stardust upgrade platform ecom
 
 Captain Rocket emits natural language. Verb-first matches how a human says the action, so Capcom has less to rewrite before the call.
 
+## Logging
+
+Every mutating command writes two records:
+
+- A one-line journal entry in `$STARDUST_ROOT/state/tasks.log` with UTC timestamp, host, role, user, command, return code, and the path of the run log.
+- A per-run log in `$STARDUST_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log` that captures stdout and stderr. `$STARDUST_ROOT/state/logs/latest.log` is a symlink to the most recent. Failures are also appended to `$STARDUST_ROOT/state/errors.log`.
+
+`stardust log` shows the latest run log and the journal tail. `stardust last` prints the path of the latest run log.
+
 ## File movement
 
 Code and versioned config move by Git (`platform-add`, `platform-upgrade`, `promote`, `pull site`). User content (`files/`, `files_private/`, database) moves by Bee and rsync. `settings.local.php` is written once, by a single template pass, never appended. `sites.php` mappings belong in the platform repo.
