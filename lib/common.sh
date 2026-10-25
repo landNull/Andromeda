@@ -122,24 +122,63 @@ git_template_ok() {
   return 0
 }
 
+# Tiny markdown renderer. Handles headings, bullets, bold, and links.
+# Pure awk. No network. Falls back to glow when it is present.
+render_md() {
+  if command -v glow >/dev/null 2>&1; then
+    glow -s dark -w 78 -
+    return 0
+  fi
+  awk '
+    BEGIN {
+      BOLD="\033[1m"; DIM="\033[2m"; RESET="\033[0m"
+      CYAN="\033[36m"; YELLOW="\033[33m"; GREEN="\033[32m"
+    }
+    /^# /   { print BOLD CYAN substr($0,3) RESET; next }
+    /^## /  { print BOLD YELLOW substr($0,4) RESET; next }
+    /^### / { print BOLD substr($0,5) RESET; next }
+    /^- /   { print "  " GREEN "•" RESET " " substr($0,3); next }
+    /^\* /  { print "  " GREEN "•" RESET " " substr($0,3); next }
+    {
+      # **bold**
+      while (match($0, /\*\*[^*]+\*\*/)) {
+        pre=substr($0,1,RSTART-1)
+        mid=substr($0,RSTART+2,RLENGTH-4)
+        $0=pre BOLD mid RESET substr($0,RSTART+RLENGTH)
+      }
+      # [text](url)
+      while (match($0, /\[[^]]+\]\([^)]+\)/)) {
+        pre=substr($0,1,RSTART-1)
+        rest=substr($0,RSTART)
+        split(rest, a, /\]\(/)
+        text=substr(a[1],2)
+        url=substr(a[2],1,index(a[2],")")-1)
+        $0=pre CYAN text RESET DIM " (" url ")" RESET substr(rest, index(rest,")")+1)
+      }
+      print
+    }
+  '
+}
+
 show_help_pager() {
   # apt-listchanges style: pager, then q returns to the prompt.
   text=$1
   [ -n "$text" ] || return 0
+  rendered=$(printf '%s\n' "$text" | render_md)
   pager=${PAGER:-}
   if [ -z "$pager" ] && command -v sensible-pager >/dev/null 2>&1; then
     pager=sensible-pager
   fi
   if [ -z "$pager" ] && command -v less >/dev/null 2>&1; then
-    pager="less -F -X -E -P q\\ leave\\ \\ \\?\\ more\\ \\ n\\ next\\ \\ b\\ back"
+    pager="less -R -F -X -E -P q\\ leave\\ \\ \\?\\ more\\ \\ n\\ next\\ \\ b\\ back"
   fi
   if [ -z "$pager" ] && command -v more >/dev/null 2>&1; then
     pager=more
   fi
   if [ -n "$pager" ]; then
-    printf '%s\n' "$text" | $pager
+    printf '%s\n' "$rendered" | $pager
   else
-    printf '%s\n' "$text" >&2
+    printf '%s\n' "$rendered" >&2
     printf 'Press Enter to continue... ' >&2
     IFS= read -r _ || true
   fi
