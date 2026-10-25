@@ -88,18 +88,23 @@ ensure_local_php() {
     echo "settings.local.php exists: $dest (not overwritten)"
     return 0
   fi
-  pre="FALSE"
-  if [ "$role" = live ]; then
-    pre="TRUE"
-  fi
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ write $dest"
     return 0
+  fi
+  # Prefer the allowlisted writer. Fall back to the inline template.
+  if priv settings-write "$dest" "$dsn" "$hostpat" "$role" 2>/dev/null; then
+    return 0
+  fi
+  pre="FALSE"
+  if [ "$role" = live ]; then
+    pre="TRUE"
   fi
   as_root tee "$dest" >/dev/null <<EOF
 <?php
 \$database = '$dsn';
 \$settings['trusted_host_patterns'] = array('$hostpat');
+\$settings['cache'] = $pre;
 \$config['system.core']['preprocess_css'] = $pre;
 \$config['system.core']['preprocess_js']  = $pre;
 EOF
@@ -138,6 +143,10 @@ ensure_vhost() {
     echo "+ vhost $conf ServerName/Alias $host DocumentRoot $web"
     return 0
   fi
+  # Prefer the allowlisted writer. Fall back to the inline template.
+  if priv vhost-write "$platform" "$host" "$web" "$root" "$role" 2>/dev/null; then
+    return 0
+  fi
   if [ ! -f "$conf" ]; then
     as_root tee "$conf" >/dev/null <<EOF
 <VirtualHost *:80>
@@ -164,7 +173,7 @@ EOF
   if have a2ensite; then
     run_root a2ensite "${platform}-${role}.conf" >/dev/null 2>&1 || true
   fi
-  run_root sh -c "$APACHE_RELOAD" || true
+  apache_reload || true
 }
 
 cmd_site_add() {
