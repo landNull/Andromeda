@@ -41,7 +41,16 @@ Code and versioned config move by Git (`platform-add`, `platform-upgrade`, `prom
 
 ## Apache reload
 
-Every reload runs `apache2ctl configtest` first. A failed configtest refuses the reload. heal, migrate, and platform-remove use this path.
+Every reload runs `apache2ctl configtest` first. A failed configtest refuses the reload. heal, migrate, and platform-remove use this path. The gate also lives inside `stardust-priv apache-reload`, so no caller can skip it.
+
+## Privileged helpers
+
+`stardust-priv` is the only root helper. New verbs:
+
+- `vhost-write PLATFORM HOST WEB ROOT ROLE` — writes one known-good vhost, runs configtest, enables the site only on success.
+- `settings-write DEST DSN HOSTPAT ROLE` — writes `settings.local.php` in one atomic pass with trusted host and cache flag.
+
+`ensure_vhost` and `ensure_local_php` call these first. The inline templates remain as a fallback.
 
 ## Backup format
 
