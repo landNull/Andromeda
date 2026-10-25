@@ -11,9 +11,9 @@ PROG=${0##*/}
 DRYRUN=0
 FORCE=0
 KEEP_BACKUPS=0
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
+ANDROMEDA_ROOT=${ANDROMEDA_ROOT:-/srv/andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
-BACKUP_ROOT=${BACKUP_ROOT:-$STARDUST_ROOT/backups}
+BACKUP_ROOT=${BACKUP_ROOT:-$ANDROMEDA_ROOT/backups}
 APACHE_CONF=${APACHE_CONF:-/etc/apache2}
 MYSQL_CMD="mysql -u root"
 
@@ -42,7 +42,7 @@ EXAMPLES:
 
 NOTES:
   - This script must be run as root or via sudo.
-  - It will remove ALL platforms under ${PLATFORMS} and Andromeda files under ${STARDUST_ROOT}.
+  - It will remove ALL platforms under ${PLATFORMS} and Andromeda files under ${ANDROMEDA_ROOT}.
   - Databases prefixed with 'bd_' will be dropped unless --keep-backups is used.
 EOF
 }
@@ -98,8 +98,8 @@ done
 check_sudo
 
 # Confirm Andromeda is installed
-if [ ! -d "$STARDUST_ROOT" ] || [ ! -d "$PLATFORMS" ]; then
-  error "Andromeda does not appear to be installed (missing $STARDUST_ROOT or $PLATFORMS)."
+if [ ! -d "$ANDROMEDA_ROOT" ] || [ ! -d "$PLATFORMS" ]; then
+  error "Andromeda does not appear to be installed (missing $ANDROMEDA_ROOT or $PLATFORMS)."
 fi
 
 # List platforms
@@ -134,7 +134,7 @@ confirm() {
   printf "  - All platforms in ${PLATFORMS}\n"
   printf "  - All databases prefixed with 'bd_'\n"
   printf "  - All Apache vhosts managed by Andromeda\n"
-  printf "  - Andromeda files in ${STARDUST_ROOT}\n"
+  printf "  - Andromeda files in ${ANDROMEDA_ROOT}\n"
   if [ "$KEEP_BACKUPS" -eq 0 ]; then
     printf "  - All backups in ${BACKUP_ROOT}\n"
   fi
@@ -196,9 +196,9 @@ uninstall() {
   fi
 
   # 5. Remove Andromeda root
-  if [ -d "$STARDUST_ROOT" ]; then
-    run_cmd "rm -rf ${STARDUST_ROOT}"
-    log "Removed Andromeda root: ${STARDUST_ROOT}"
+  if [ -d "$ANDROMEDA_ROOT" ]; then
+    run_cmd "rm -rf ${ANDROMEDA_ROOT}"
+    log "Removed Andromeda root: ${ANDROMEDA_ROOT}"
   fi
 
   # 6. Remove cron jobs
@@ -240,7 +240,7 @@ if [ "$DRYRUN" -eq 1 ]; then
   for vhost in $(list_vhosts); do
     echo "  - ${vhost}.conf"
   done
-  echo "Andromeda Root: ${STARDUST_ROOT}"
+  echo "Andromeda Root: ${ANDROMEDA_ROOT}"
   if [ "$KEEP_BACKUPS" -eq 0 ]; then
     echo "Backups: ${BACKUP_ROOT}"
   else

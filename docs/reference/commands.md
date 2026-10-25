@@ -52,8 +52,8 @@ andromeda test site-check ecom kl_devel
 
 Every mutating command writes two records:
 
-- A one-line journal entry in `$STARDUST_ROOT/state/tasks.log` with UTC timestamp, host, role, user, command, return code, and the path of the run log.
-- A per-run log in `$STARDUST_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log` that captures stdout and stderr. `$STARDUST_ROOT/state/logs/latest.log` is a symlink to the most recent. Failures are also appended to `$STARDUST_ROOT/state/errors.log`.
+- A one-line journal entry in `$ANDROMEDA_ROOT/state/tasks.log` with UTC timestamp, host, role, user, command, return code, and the path of the run log.
+- A per-run log in `$ANDROMEDA_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log` that captures stdout and stderr. `$ANDROMEDA_ROOT/state/logs/latest.log` is a symlink to the most recent. Failures are also appended to `$ANDROMEDA_ROOT/state/errors.log`.
 
 `andromeda log` shows the latest run log and the journal tail. `andromeda last` prints the path of the latest run log.
 

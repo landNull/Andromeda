@@ -53,7 +53,7 @@ cmd_promote() {
       ;;
   esac
 
-  if [ "$STARDUST_ROLE" = devel ]; then
+  if [ "$ANDROMEDA_ROLE" = devel ]; then
     echo "$PROG: this host role is devel. promote is for test/live hosts." >&2
     echo "$PROG: commit and push from devel, then run promote on the target host." >&2
     exit 1

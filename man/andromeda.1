@@ -1,4 +1,4 @@
-.TH STARDUST 1 "17 September 2026" "Andromeda" "System Administration"
+.TH ANDROMEDA 1 "17 September 2026" "Andromeda" "System Administration"
 .SH NAME
 andromeda \- manage Backdrop platforms and sites from the shell
 .SH SYNOPSIS
@@ -167,14 +167,14 @@ Clone that Git remote (Gitea).
 .BI \-\-branch " BRANCH"
 Branch to check out after clone.
 Default: the role in
-.B STARDUST_ROLE
+.B ANDROMEDA_ROLE
 (usually
 .BR devel ).
 .PP
 With no
 .B \-\-git
 and a usable
-.B STARDUST_GIT_TEMPLATE
+.B ANDROMEDA_GIT_TEMPLATE
 (written by
 .B install-andromeda.sh
 STEP 60),
@@ -372,10 +372,10 @@ or LAN
 .BR 192.168.1.0/24 .
 .SH ENVIRONMENT
 .TP
-.B STARDUST_CONF
+.B ANDROMEDA_CONF
 If set, load this file instead of the usual conf search.
 .TP
-.B STARDUST_ROLE
+.B ANDROMEDA_ROLE
 .BR devel ", " test ", or " live .
 Picks default branch, default hostname suffix, and database suffix.
 .SH FIRST HOUR ON A NEW BOX
@@ -524,7 +524,7 @@ andromeda last
 .PP
 .B promote
 refuses to run when
-.B STARDUST_ROLE
+.B ANDROMEDA_ROLE
 is
 .BR devel .
 Fast-forward only; a diverged branch is an error, not a merge.

@@ -98,7 +98,7 @@ new-sysadmin help.
 
 - [ ] On devel: re-run `./install-andromeda.sh -m devel` and answer the
       Gitea prompts (or n if the forge lives on GitHub / another host)
-- [ ] Set `STARDUST_GIT_TEMPLATE` (`git@HOST:org/%s.git`) if the
+- [ ] Set `ANDROMEDA_GIT_TEMPLATE` (`git@HOST:org/%s.git`) if the
       installer did not (already-configured templates are skipped)
 - [ ] Put deploy’s *outbound* forge key in the account’s HOME `.ssh`
       (this VM: `/home/deploy/.ssh` until Milestone 2 conversion;

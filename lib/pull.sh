@@ -3,7 +3,7 @@
 # Pull a site from a VPS and stand it up as a devel site.
 # usage: andromeda site-pull VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]
 cmd_site_pull() {
-  role=${STARDUST_ROLE:-devel}
+  role=${ANDROMEDA_ROLE:-devel}
   while [ $# -gt 0 ]; do
     case $1 in
       --role) role=$2; shift 2 ;;
@@ -71,7 +71,7 @@ cmd_site_pull() {
     cmd_platform_add "$dst_p" --no-prompt
   fi
   host="${dst_s}.${role}"
-  STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
+  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
   resolve_site "$dst_p" "$dst_s"
 
   # shellcheck disable=SC1091

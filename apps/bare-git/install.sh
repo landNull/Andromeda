@@ -224,4 +224,4 @@ EOF
 
 echo "To complete the setup, run 'sudo /usr/local/bin/git-daemon-ctl start' after installation."
 echo "Repository URLs will be in the format: git://localhost/<repo-name>.git"
-echo "For Goose integration, update STARDUST_GIT_TEMPLATE in /etc/andromeda.conf to something like: git://127.0.0.1/%s.git"
+echo "For Goose integration, update ANDROMEDA_GIT_TEMPLATE in /etc/andromeda.conf to something like: git://127.0.0.1/%s.git"

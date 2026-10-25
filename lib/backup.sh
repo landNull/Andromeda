@@ -11,7 +11,7 @@ cmd_site_backup() {
   if [ "$latest" -eq 1 ]; then
     platform=$(printf '%s' "$raw_plat" | tr '[:upper:]' '[:lower:]')
     product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
-    found=$(latest_backup "$platform" "$product" "${STARDUST_ROLE:-devel}" || true)
+    found=$(latest_backup "$platform" "$product" "${ANDROMEDA_ROLE:-devel}" || true)
     if [ -z "$found" ]; then
       found=$(ls -1d /srv/andromeda/backups/$platform/$product/*/20* 2>/dev/null | sort | tail -n 1)
     fi
@@ -24,7 +24,7 @@ cmd_site_backup() {
   product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
   root=$PLATFORMS/$platform
   web=$root/web
-  role=$STARDUST_ROLE
+  role=$ANDROMEDA_ROLE
   dest=$(backup_dir "$platform" "$product" "$role")/$(stamp)
   bee=$(bee_bin)
 
@@ -107,7 +107,7 @@ cmd_site_restore() {
       ;;
   esac
   resolve_site "${1:-}" "${2:-}"
-  role=$STARDUST_ROLE
+  role=$ANDROMEDA_ROLE
 
   if [ -z "$from" ]; then
     from=$(latest_backup "$platform" "$product" "$role" || true)

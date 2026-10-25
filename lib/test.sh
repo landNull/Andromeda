@@ -28,7 +28,7 @@ cmd_test() {
   done
 
   echo "test: preflight $*"
-  if [ -n "${STARDUST_SPEAK:-}" ]; then
+  if [ -n "${ANDROMEDA_SPEAK:-}" ]; then
     printf 'SPEAK: Preflighting %s\n' "$*"
   fi
   if [ -n "$plat" ] && [ -n "$prod" ] && [ -d "$PLATFORMS/$plat" ]; then
@@ -42,7 +42,7 @@ cmd_test() {
       echo "$out"
       if printf '%s\n' "$out" | grep -q "FAIL"; then
         echo "test: still failing after heal — refusing to run" >&2
-        if [ -n "${STARDUST_SPEAK:-}" ]; then
+        if [ -n "${ANDROMEDA_SPEAK:-}" ]; then
           printf 'SPEAK: Still failing after heal. Refusing to run.\n'
           printf '%s\n' '{"module":"test","status":"fail","what":"still failing after heal"}'
         fi
@@ -50,7 +50,7 @@ cmd_test() {
       fi
     fi
     echo "test: site OK"
-    if [ -n "${STARDUST_SPEAK:-}" ]; then
+    if [ -n "${ANDROMEDA_SPEAK:-}" ]; then
       printf 'SPEAK: Site OK. Running the command.\n'
     fi
   else

@@ -78,10 +78,10 @@ set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-STARDUST_VERSION=0.4.0
+ANDROMEDA_VERSION=0.4.0
 
 if [ -f "$HERE/VERSION" ]; then
-  STARDUST_VERSION=$(tr -d ' 
+  ANDROMEDA_VERSION=$(tr -d ' 
 ' < "$HERE/VERSION")
 fi
 if [ -d "$HERE/bin" ] && [ -d "$HERE/lib" ]; then
@@ -214,8 +214,8 @@ write_etc_conf() {
   [ -f "\$dest" ] && echo "global config exists: \$dest" && return 0
   [ "\$DRYRUN" -eq 1 ] && echo "+ write \$dest" && return 0
   as_root sh -c "cat > '\$dest'" <<EOF
-STARDUST_ROLE=\$ROLE
-STARDUST_ROOT=\$STARDUST
+ANDROMEDA_ROLE=\$ROLE
+ANDROMEDA_ROOT=\$STARDUST
 PLATFORMS=\$PLATFORMS
 OWNER=\$OWNER
 ADMIN=\$ADMIN
@@ -225,7 +225,7 @@ BEE=\\$(command -v bee 2>/dev/null || echo \$BEE_BIN)
 APACHE_SERVICE=\$SVC_APACHE
 DB_SERVICE=\$SVC_DB
 APACHE_RELOAD="\$RELOAD_APACHE"
-STARDUST_VERSION=\$STARDUST_VERSION
+ANDROMEDA_VERSION=\$ANDROMEDA_VERSION
 EOF
   as_root chmod 0644 "\$dest"
 }
@@ -258,13 +258,13 @@ maybe_gitea_defaults() {
   owner=\$(install_prompt "Git owner/org" "" "Username or organization partition name.")
   [ -z "\$owner" ] && return 0
   tpl="git@\${host}:\${owner}/%s.git"
-  [ -f /etc/andromeda.conf ] && as_root sh -c "printf 'STARDUST_GIT_TEMPLATE=%s\n' '\$tpl' >> /etc/andromeda.conf"
+  [ -f /etc/andromeda.conf ] && as_root sh -c "printf 'ANDROMEDA_GIT_TEMPLATE=%s\n' '\$tpl' >> /etc/andromeda.conf"
 }
 
 andromeda_git_configured() {
   for f in "\$HOME/.andromeda.conf" /etc/andromeda.conf; do
     [ -f "\$f" ] || continue
-    val=\$(sed -n 's/^STARDUST_GIT_TEMPLATE=//p' "\$f" | tail -n 1)
+    val=\$(sed -n 's/^ANDROMEDA_GIT_TEMPLATE=//p' "\$f" | tail -n 1)
     case \$val in ''|*YOURORG*|*git.example*) ;; *) return 0 ;; esac
   done; return 1
 }
@@ -282,8 +282,8 @@ user_conf() {
   [ -f "\$dest" ] && echo "conf exists: \$dest" && return 0
   [ "\$DRYRUN" -eq 1 ] && echo "+ write \$dest" && return 0
   as_root sh -c "cat > '\$dest'" <<EOF
-STARDUST_ROLE=\$ROLE
-STARDUST_ROOT=\$STARDUST
+ANDROMEDA_ROLE=\$ROLE
+ANDROMEDA_ROOT=\$STARDUST
 PLATFORMS=\$PLATFORMS
 OWNER=\$OWNER
 ADMIN=\$ADMIN
@@ -336,7 +336,7 @@ if [ "\$DRYRUN" -eq 1 ]; then
 fi
 
 echo "===================================================="
-echo "\$PROG \$STARDUST_VERSION — Starting Andromeda installation..."
+echo "\$PROG \$ANDROMEDA_VERSION — Starting Andromeda installation..."
 echo "===================================================="
 
 # --- The Sequential Orchestration Loop ---
@@ -406,7 +406,7 @@ fi
 
 echo "===================================================="
 if [ "$failures" -eq 0 ]; then
-  echo "✅ PASS: All global environment variables handed off successfully!"
+  echo "✅ PASS: All global environment variables handrod off successfully!"
   exit 0
 else
   echo "❌ FAIL: Detected $failures validation gaps in your configuration tracking." >&2

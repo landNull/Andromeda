@@ -22,7 +22,7 @@ set -eu
 
 PROG=${0##*/}
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-STARDUST=${STARDUST_BIN:-$HERE/bin/andromeda}
+STARDUST=${ANDROMEDA_BIN:-$HERE/bin/andromeda}
 [ -x "$STARDUST" ] || STARDUST=$(command -v andromeda 2>/dev/null || true)
 if [ -z "${STARDUST:-}" ] || [ ! -x "$STARDUST" ]; then
   echo "$PROG: cannot find andromeda binary (checked $HERE/bin/andromeda and PATH)" >&2
@@ -257,8 +257,8 @@ confirm() {
 # --- gather parameters ----------------------------------------------------
 section "Andromeda product demo — setup"
 
-role=$(grep -E '^STARDUST_ROLE=' /etc/andromeda.conf 2>/dev/null | cut -d= -f2 | tr -d '"' || true)
-role=${role:-${STARDUST_ROLE:-devel}}
+role=$(grep -E '^ANDROMEDA_ROLE=' /etc/andromeda.conf 2>/dev/null | cut -d= -f2 | tr -d '"' || true)
+role=${role:-${ANDROMEDA_ROLE:-devel}}
 explain "This is an automated product demo of Andromeda, the shell control plane for Backdrop CMS.
 It will create a real platform and sites on this host (role=$role), then run every
 operation Andromeda can perform on them. Everything is printed here so you can
@@ -339,9 +339,9 @@ else
 fi
 
 if [ "$DRYRUN" -eq 1 ]; then
-  STARDUST_CMD="$STARDUST -n"
+  ANDROMEDA_CMD="$STARDUST -n"
 else
-  STARDUST_CMD="$STARDUST"
+  ANDROMEDA_CMD="$STARDUST"
 fi
 
 demo_run "Show help (same text as man page EXAMPLES)" $STARDUST help
@@ -359,10 +359,10 @@ exists it is left alone."
 
 if [ -n "$GIT_URL" ]; then
   demo_run "Create platform $PLATFORM from Git" \
-    $STARDUST_CMD platform-add "$PLATFORM" --git "$GIT_URL" --branch "$role" --no-prompt
+    $ANDROMEDA_CMD platform-add "$PLATFORM" --git "$GIT_URL" --branch "$role" --no-prompt
 else
   demo_run "Create platform $PLATFORM (bee dl-core or template)" \
-    $STARDUST_CMD platform-add "$PLATFORM" --branch "$role" --no-prompt
+    $ANDROMEDA_CMD platform-add "$PLATFORM" --branch "$role" --no-prompt
 fi
 
 demo_run "List platforms again — the new one should appear" $STARDUST list
@@ -376,10 +376,10 @@ creates the MariaDB database and user, runs bee install, and writes the
 Apache vhost. The hostname you chose is what Apache and Backdrop will answer."
 
 demo_run "Add product $PRODUCT with host $HOST" \
-  $STARDUST_CMD site-add "$PLATFORM" "$PRODUCT" --host "$HOST" --name "Demo $PRODUCT"
+  $ANDROMEDA_CMD site-add "$PLATFORM" "$PRODUCT" --host "$HOST" --name "Demo $PRODUCT"
 
 demo_run "Check the new site responds" \
-  $STARDUST_CMD site-check "$PLATFORM" "$PRODUCT" --host "$HOST"
+  $ANDROMEDA_CMD site-check "$PLATFORM" "$PRODUCT" --host "$HOST"
 
 # --- day-to-day operations ------------------------------------------------
 section "Day-to-day operations on the site"
@@ -389,28 +389,28 @@ Andromeda provides a thin wrapper that sets --root and --site for you.
 We also take a backup, toggle maintenance mode, and clone the site."
 
 demo_run "Bee status via the andromeda wrapper" \
-  $STARDUST_CMD bee "$PLATFORM" "$PRODUCT" status
+  $ANDROMEDA_CMD bee "$PLATFORM" "$PRODUCT" status
 
 demo_run "Bee cache clear (cc all)" \
-  $STARDUST_CMD bee "$PLATFORM" "$PRODUCT" cc all
+  $ANDROMEDA_CMD bee "$PLATFORM" "$PRODUCT" cc all
 
 demo_run "Backup the site (files + database)" \
-  $STARDUST_CMD site-backup "$PLATFORM" "$PRODUCT"
+  $ANDROMEDA_CMD site-backup "$PLATFORM" "$PRODUCT"
 
 demo_run "Put the site into maintenance mode" \
-  $STARDUST_CMD site-disable "$PLATFORM" "$PRODUCT"
+  $ANDROMEDA_CMD site-disable "$PLATFORM" "$PRODUCT"
 
 demo_run "Bring the site back online" \
-  $STARDUST_CMD site-enable "$PLATFORM" "$PRODUCT"
+  $ANDROMEDA_CMD site-enable "$PLATFORM" "$PRODUCT"
 
 demo_run "Clone the site to $COPY_PRODUCT" \
-  $STARDUST_CMD site-clone "$PLATFORM" "$PRODUCT" "$PLATFORM" "$COPY_PRODUCT" --host "$COPY_HOST"
+  $ANDROMEDA_CMD site-clone "$PLATFORM" "$PRODUCT" "$PLATFORM" "$COPY_PRODUCT" --host "$COPY_HOST"
 
 demo_run "Check the cloned site" \
-  $STARDUST_CMD site-check "$PLATFORM" "$COPY_PRODUCT" --host "$COPY_HOST"
+  $ANDROMEDA_CMD site-check "$PLATFORM" "$COPY_PRODUCT" --host "$COPY_HOST"
 
 demo_run "Restore the original site from its latest backup" \
-  $STARDUST_CMD site-restore "$PLATFORM" "$PRODUCT"
+  $ANDROMEDA_CMD site-restore "$PLATFORM" "$PRODUCT"
 
 # --- platform-level operations --------------------------------------------
 section "Platform-level operations"
@@ -421,13 +421,13 @@ backup-all and cron-all operate on every product on the box.
 promote is only allowed on test/live hosts — on devel it refuses."
 
 demo_run "Upgrade the platform (backup first, then Bee updates)" \
-  $STARDUST_CMD platform-upgrade "$PLATFORM" --no-pull
+  $ANDROMEDA_CMD platform-upgrade "$PLATFORM" --no-pull
 
 demo_run "Backup every product on the box" \
-  $STARDUST_CMD backup-all
+  $ANDROMEDA_CMD backup-all
 
 demo_run "Run Bee cron on every product" \
-  $STARDUST_CMD cron-all
+  $ANDROMEDA_CMD cron-all
 
 demo_run_ok_any "0|1|2" "Try promote to test (refused on devel — that is correct)" \
   $STARDUST -n promote "$PLATFORM" --to test

@@ -33,14 +33,14 @@ cmd_site_clone() {
     echo "$PROG: source backup failed — clone aborted" >&2
     exit 1
   }
-  snap=$(latest_backup "$src_platform" "$src_product" "$STARDUST_ROLE" || true)
+  snap=$(latest_backup "$src_platform" "$src_product" "$ANDROMEDA_ROLE" || true)
   if [ -z "$snap" ]; then
     echo "$PROG: backup dir missing after site-backup" >&2
     exit 1
   fi
 
   if [ -z "$host" ]; then
-    host="${dst_s}.${STARDUST_ROLE}"
+    host="${dst_s}.${ANDROMEDA_ROLE}"
   fi
 
   addargs="$dst_p $dst_s --host $host"

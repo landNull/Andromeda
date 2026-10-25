@@ -86,7 +86,7 @@ d7_usage_die() { echo "${PROG:-andromeda}: $*" >&2; return 2; }
 
 d7_find_catalog() {
   for d in \
-    "${STARDUST_LIB:-}" \
+    "${ANDROMEDA_LIB:-}" \
     "${LIBDIR:-}" \
     /usr/local/lib/andromeda \
     /srv/andromeda/lib
@@ -1085,7 +1085,7 @@ d7_write_plan() {
   product=$(sed -n 's/^product=//p' "$out/meta.txt" 2>/dev/null | head -n 1)
   [ -n "$product" ] || product=$(slug "$(basename "${src_site:-site}")")
   plat=${D7_PLATFORM:-PLATFORM}
-  host=${D7_HOST:-${product}.${STARDUST_ROLE:-devel}}
+  host=${D7_HOST:-${product}.${ANDROMEDA_ROLE:-devel}}
   phpv=$(d7_setting "$settings" php)
   sname=$(d7_setting "$settings" site_name)
   theme=$(d7_setting "$settings" theme_default)
@@ -1278,7 +1278,7 @@ d7_write_plan() {
 
 d7_find_static_tutorial() {
   for d in \
-    "${STARDUST_LIB:-}/../docs" \
+    "${ANDROMEDA_LIB:-}/../docs" \
     "${LIBDIR:-}/../docs" \
     /usr/local/share/andromeda \
     /usr/local/share/andromeda/docs \
@@ -1734,9 +1734,9 @@ d7_crdir() {
 
 d7_dbname() {
   if command -v db_name >/dev/null 2>&1; then
-    db_name "$1" "${2:-${STARDUST_ROLE:-devel}}"
+    db_name "$1" "${2:-${ANDROMEDA_ROLE:-devel}}"
   else
-    printf '%s' "bd_$1_${2:-${STARDUST_ROLE:-devel}}" | tr -c 'a-z0-9_' '_' | cut -c1-64
+    printf '%s' "bd_$1_${2:-${ANDROMEDA_ROLE:-devel}}" | tr -c 'a-z0-9_' '_' | cut -c1-64
   fi
 }
 
@@ -1760,8 +1760,8 @@ cmd_d7_convert() {
     echo "no dump in $bundle" >&2
     return 1
   fi
-  [ -n "$D7_HOST" ] || D7_HOST="${D7_PRODUCT}.${STARDUST_ROLE:-devel}"
-  role=${STARDUST_ROLE:-devel}
+  [ -n "$D7_HOST" ] || D7_HOST="${D7_PRODUCT}.${ANDROMEDA_ROLE:-devel}"
+  role=${ANDROMEDA_ROLE:-devel}
   plats=${PLATFORMS:-/srv/platforms}
   root=$plats/$D7_PLATFORM
   web=$root/web
@@ -1988,8 +1988,8 @@ cmd_d7_attach() {
   [ -n "$D7_PRODUCT" ] || { echo "d7 attach needs --product" >&2; return 2; }
   D7_PLATFORM=$(slug "$D7_PLATFORM")
   D7_PRODUCT=$(slug "$D7_PRODUCT")
-  [ -n "$D7_HOST" ] || D7_HOST="${D7_PRODUCT}.${STARDUST_ROLE:-devel}"
-  role=${STARDUST_ROLE:-devel}
+  [ -n "$D7_HOST" ] || D7_HOST="${D7_PRODUCT}.${ANDROMEDA_ROLE:-devel}"
+  role=${ANDROMEDA_ROLE:-devel}
   plats=${PLATFORMS:-/srv/platforms}
   root=$plats/$D7_PLATFORM
   web=$root/web

@@ -32,7 +32,7 @@ Gitea has been successfully installed and configured. The service `gitea` is run
 
 **Next Steps Recommended**:
 1.  Add the public deploy key (from `/srv/andromeda/home/.ssh/id_ed25519.pub`) to Gitea for the `deploy` user or as an organization deploy key.
-2.  Test Git operations (clone, push) using the configured `STARDUST_GIT_TEMPLATE`.
+2.  Test Git operations (clone, push) using the configured `ANDROMEDA_GIT_TEMPLATE`.
 
 ---
 

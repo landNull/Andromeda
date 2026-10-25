@@ -1,4 +1,4 @@
-# Stardust documentation
+# Andromeda documentation
 
   outline.md         Full map of this folder.
 
@@ -9,15 +9,15 @@
                      New sysadmin walkthrough. Read this before
                      the first live convert.
 
-On a machine after stardust-install.sh:
+On a machine after andromeda-install.sh:
 
-  man stardust
+  man andromeda
   man d7-migrate
   man crdir
-  less /usr/local/share/stardust/docs/d7-migration.txt
-  stardust d7 help
-  stardust d7 tools
-  stardust d7 tutorial --plan DIR
+  less /usr/local/share/andromeda/docs/d7-migration.txt
+  andromeda d7 help
+  andromeda d7 tools
+  andromeda d7 tutorial --plan DIR
 
 Site-specific leftover steps are written next to the plan:
 

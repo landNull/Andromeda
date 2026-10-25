@@ -18,12 +18,12 @@ TITLE="Daily ${PROD}"
 echo "==> [TEST] Daily webadmin flow"
 echo "--> platform=$PLAT product=$PROD host=$HOST"
 
-# Clean on failure, or when STARDUST_KEEP is unset.
-# Capcom exports STARDUST_KEEP=1 so a successful drive leaves the platform.
+# Clean on failure, or when ANDROMEDA_KEEP is unset.
+# Capcom exports ANDROMEDA_KEEP=1 so a successful drive leaves the platform.
 DAILY_OK=0
 cleanup() {
-    if [ "$DAILY_OK" -eq 1 ] && [ -n "${STARDUST_KEEP:-}" ]; then
-        echo "--> keep platform=$PLAT (STARDUST_KEEP set, module passed)"
+    if [ "$DAILY_OK" -eq 1 ] && [ -n "${ANDROMEDA_KEEP:-}" ]; then
+        echo "--> keep platform=$PLAT (ANDROMEDA_KEEP set, module passed)"
         return 0
     fi
     echo "--> cleanup"

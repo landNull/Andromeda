@@ -194,7 +194,7 @@ cmd_site_add() {
 
   resolve_site "$platform" "$product"
 
-  role=$STARDUST_ROLE
+  role=$ANDROMEDA_ROLE
   if [ -z "$host" ]; then
     host="${product}.${role}"
   fi
@@ -306,7 +306,7 @@ cmd_site_delete() {
     esac
   done
   resolve_site "${1:-}" "${2:-}"
-  if [ "$STARDUST_ROLE" = live ] && [ "$force" -ne 1 ]; then
+  if [ "$ANDROMEDA_ROLE" = live ] && [ "$force" -ne 1 ]; then
     echo "$PROG: refuse site-delete on live without --force" >&2
     exit 2
   fi
@@ -315,7 +315,7 @@ cmd_site_delete() {
     echo "$PROG: backup failed — delete aborted" >&2
     exit 1
   }
-  db=$(db_name "$product" "$STARDUST_ROLE")
+  db=$(db_name "$product" "$ANDROMEDA_ROLE")
   user=$(printf '%s' "$db" | cut -c1-32)
   dest=$(secret_file "$platform" "$product")
   if [ -f "$dest" ]; then

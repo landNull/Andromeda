@@ -41,7 +41,7 @@
     ],
     "documentationReferences": [
       "andromeda.1 (System Unix manual baseline)",
-      "STARDUST_CLI_REFERENCE.md (Command matrix details)"
+      "ANDROMEDA_CLI_REFERENCE.md (Command matrix details)"
     ]
   },
   "files.associations": {

@@ -26,7 +26,7 @@
 #
 # Opt-in. Not part of --all. Run with:
 #   ./tests/run-test.sh -n stress
-# Override the old pin with STARDUST_STRESS_OLD=1.30.2
+# Override the old pin with ANDROMEDA_STRESS_OLD=1.30.2
 set -euo pipefail
 
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
@@ -40,7 +40,7 @@ PROD="www${STAMP}"
 SECOND="www${STAMP}b"
 PREVIEW="${PROD}-preview"
 CROSS="www${STAMP}-x"
-OLD_VER="${STARDUST_STRESS_OLD:-1.31.0}"
+OLD_VER="${ANDROMEDA_STRESS_OLD:-1.31.0}"
 HOST="${PROD}.devel"
 SECOND_HOST="${SECOND}.devel"
 PREVIEW_HOST="${PREVIEW}.devel"
@@ -66,8 +66,8 @@ sudo -v || {
 }
 
 cleanup() {
-    if [ -n "${STARDUST_KEEP:-}" ]; then
-        echo "--> keep platforms $OLD_PLAT $NEW_PLAT (STARDUST_KEEP set)"
+    if [ -n "${ANDROMEDA_KEEP:-}" ]; then
+        echo "--> keep platforms $OLD_PLAT $NEW_PLAT (ANDROMEDA_KEEP set)"
         return 0
     fi
     echo "--> cleanup"
@@ -188,7 +188,7 @@ if andromeda bee "$OLD_PLAT" "$PROD" status 2>&1 | grep -q 'Database status.*Emp
     echo "FILE: $PLATFORMS/$OLD_PLAT/web"
     echo "WHAT: Backdrop $OLD_VER did not install. Database is empty."
     echo "WHY: The core is too old for this PHP. PHP 8.4 needs Backdrop 1.31.0 or newer."
-    echo "FIX: Set STARDUST_STRESS_OLD=1.31.0 or newer and re-run."
+    echo "FIX: Set ANDROMEDA_STRESS_OLD=1.31.0 or newer and re-run."
     exit 1
 fi
 andromeda site-check "$OLD_PLAT" "$PROD" --host "$HOST"
@@ -300,7 +300,7 @@ fi
 
 # 16. Download Drupal 7 for the conversion path.
 step "16 download Drupal 7"
-D7_VER="${STARDUST_STRESS_D7:-7.103}"
+D7_VER="${ANDROMEDA_STRESS_D7:-7.103}"
 D7_DIR="/tmp/stress-d7-${STAMP}"
 mkdir -p "$D7_DIR"
 if command -v wget >/dev/null 2>&1; then

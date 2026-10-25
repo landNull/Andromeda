@@ -1,7 +1,7 @@
 #!/bin/sh
 # lib/andromeda-git.sh — git template prompting for bare git setup
 
-# Prompts for STARDUST_GIT_TEMPLATE without Gitea-specific logic.
+# Prompts for ANDROMEDA_GIT_TEMPLATE without Gitea-specific logic.
 prompt_andromeda_git_template() {
   if [ "${LOCALHOST:-0}" -ne 1 ] && [ "${ROLE:-}" != devel ]; then
     return 0
@@ -9,7 +9,7 @@ prompt_andromeda_git_template() {
   # If already configured, skip prompting
   for f in "${HOME:-}/.andromeda.conf" /etc/andromeda.conf; do
     [ -f "$f" ] || continue
-    val=$(sed -n 's/^STARDUST_GIT_TEMPLATE=//p' "$f" | tail -n 1)
+    val=$(sed -n 's/^ANDROMEDA_GIT_TEMPLATE=//p' "$f" | tail -n 1)
     case $val in
       ''|*YOURORG*|*git.example*) ;;
       *)
@@ -20,10 +20,10 @@ prompt_andromeda_git_template() {
   done
 
   echo "Note: The Andromeda Git template helps 'andromeda platform-add' clone projects."
-  echo "You can set STARDUST_GIT_TEMPLATE in /etc/andromeda.conf manually later."
+  echo "You can set ANDROMEDA_GIT_TEMPLATE in /etc/andromeda.conf manually later."
 
   if [ "${DRYRUN:-0}" -eq 1 ]; then
-    echo "+ prompt STARDUST_GIT_TEMPLATE"
+    echo "+ prompt ANDROMEDA_GIT_TEMPLATE"
     return 0
   fi
 
@@ -41,7 +41,7 @@ prompt_andromeda_git_template() {
     "Needed: the host for your bare Git repos (e.g., localhost).")
 
   if [ -z "$host" ]; then
-    echo "No host provided — leaving STARDUST_GIT_TEMPLATE empty."
+    echo "No host provided — leaving ANDROMEDA_GIT_TEMPLATE empty."
     return 0
   fi
 
@@ -57,13 +57,13 @@ prompt_andromeda_git_template() {
   fi
 
   dest=/etc/andromeda.conf
-  if [ -f "$dest" ] && grep -q '^STARDUST_GIT_TEMPLATE=' "$dest"; then
-    run_root sed -i "s|^STARDUST_GIT_TEMPLATE=.*|STARDUST_GIT_TEMPLATE=$tpl|" "$dest"
+  if [ -f "$dest" ] && grep -q '^ANDROMEDA_GIT_TEMPLATE=' "$dest"; then
+    run_root sed -i "s|^ANDROMEDA_GIT_TEMPLATE=.*|ANDROMEDA_GIT_TEMPLATE=$tpl|" "$dest"
   elif [ -f "$dest" ]; then
-    run_root sh -c "printf 'STARDUST_GIT_TEMPLATE=%s\n' '$tpl' >> '$dest'"
+    run_root sh -c "printf 'ANDROMEDA_GIT_TEMPLATE=%s\n' '$tpl' >> '$dest'"
   else
-    echo "Warning: $dest missing — please manually set STARDUST_GIT_TEMPLATE=$tpl"
+    echo "Warning: $dest missing — please manually set ANDROMEDA_GIT_TEMPLATE=$tpl"
     return 0
   fi
-  echo "Wrote STARDUST_GIT_TEMPLATE=$tpl to $dest"
+  echo "Wrote ANDROMEDA_GIT_TEMPLATE=$tpl to $dest"
 }

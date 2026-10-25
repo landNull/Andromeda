@@ -63,11 +63,11 @@ rm -f /var/mail/git /var/spool/mail/git
 
 echo "==> [7/7] Cleaning Andromeda Git template settings..."
 if [ -f /etc/andromeda.conf ]; then
-    sed -i '/STARDUST_GIT_TEMPLATE/d' /etc/andromeda.conf
+    sed -i '/ANDROMEDA_GIT_TEMPLATE/d' /etc/andromeda.conf
 fi
 for user_conf in /home/*/.andromeda.conf /root/.andromeda.conf /srv/andromeda/home/.andromeda.conf; do
     if [ -f "$user_conf" ]; then
-        sed -i '/STARDUST_GIT_TEMPLATE/d' "$user_conf"
+        sed -i '/ANDROMEDA_GIT_TEMPLATE/d' "$user_conf"
     fi
 done
 
@@ -99,4 +99,4 @@ echo "=========================================================="
    ```bash
    andromeda doctor
    ```[span_6](start_span)[span_6](end_span)
-   * It will report `note gitea not on this host (forge may be elsewhere — optional STEP 60)` and `note STARDUST_GIT_TEMPLATE empty — platform-add falls back to bee dl-core`, which is the intended default state when no forge is present[span_7](start_span)[span_7](end_span).
+   * It will report `note gitea not on this host (forge may be elsewhere — optional STEP 60)` and `note ANDROMEDA_GIT_TEMPLATE empty — platform-add falls back to bee dl-core`, which is the intended default state when no forge is present[span_7](start_span)[span_7](end_span).

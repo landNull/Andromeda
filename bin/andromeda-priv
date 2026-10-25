@@ -17,7 +17,7 @@ GROUP=${GROUP:-www-admin}
 DAEMON=${DAEMON:-www-data}
 OPGRP=${OPGRP:-andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
+ANDROMEDA_ROOT=${ANDROMEDA_ROOT:-/srv/andromeda}
 
 if [ -f /etc/andromeda.conf ]; then
   # shellcheck disable=SC1091
@@ -27,7 +27,7 @@ fi
 path_ok() {
   p=$1
   case $p in
-    "$PLATFORMS"|"$PLATFORMS"/*|"$STARDUST_ROOT"|"$STARDUST_ROOT"/*) return 0 ;;
+    "$PLATFORMS"|"$PLATFORMS"/*|"$ANDROMEDA_ROOT"|"$ANDROMEDA_ROOT"/*) return 0 ;;
     *)
       echo "$PROG: refuse path $p" >&2
       return 1

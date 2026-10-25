@@ -3,7 +3,7 @@
 
 dump_apache_log() {
   for f in \
-    /var/log/apache2/${platform}-${STARDUST_ROLE}-error.log \
+    /var/log/apache2/${platform}-${ANDROMEDA_ROLE}-error.log \
     /var/log/apache2/error.log \
     /var/log/httpd/error_log
   do
@@ -27,7 +27,7 @@ guess_host() {
       return 0
     fi
   fi
-  printf '%s.%s' "$product" "$STARDUST_ROLE"
+  printf '%s.%s' "$product" "$ANDROMEDA_ROLE"
 }
 
 http_check() {
@@ -134,7 +134,7 @@ cmd_site_check() {
   http_check "http://$host/user/login" || fail=1
 
   if [ "$fail" -ne 0 ]; then
-    snap=$(latest_backup "$platform" "$product" "$STARDUST_ROLE" 2>/dev/null || true)
+    snap=$(latest_backup "$platform" "$product" "$ANDROMEDA_ROLE" 2>/dev/null || true)
     echo "check: FAIL $platform/$product"
     notify_fail "site-check FAIL $platform/$product host=$host"
     if [ -n "$snap" ]; then

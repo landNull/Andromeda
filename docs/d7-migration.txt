@@ -1,16 +1,16 @@
-# Stardust — Drupal 7 / BOA -> Backdrop on knarr
+# Andromeda — Drupal 7 / BOA -> Backdrop on knarr
 # Step-by-step for a new sysadmin
 
 system:
   os: Devuan (sysvinit) hostname: starhq.knarr
   cpu: 8-core AMD FX-8320E ram: 32GB storage: 2x1TB SSD RAID 1
   stack: Apache + PHP + MariaDB + Bee + crdir
-  control: /srv/stardust
+  control: /srv/andromeda
   sites:   /srv/platforms
   no PHP panel
 
 Read this once. Then run the commands in order. Do not skip
-"dry-run first" lines. Do not type sudo in front of stardust.
+"dry-run first" lines. Do not type sudo in front of andromeda.
 
 The conversion is NOT a Drupal 8/10 migrate pipeline.
 Backdrop is a Drupal 7 fork. You import the D7 database into
@@ -26,12 +26,12 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 --------------------------------------------------------------------
 
   BOA box     the live Drupal 7 VPS (Aegir / BOA layout)
-  knarr       this host — Stardust devel (or the VPS after promote)
+  knarr       this host — Andromeda devel (or the VPS after promote)
   platform    one Backdrop codebase   /srv/platforms/ecom
   product     one website in it       ecom/example
   bundle      output of "d7 prep"     dump.sql.gz + files + inventory
   plan        output of "d7 test"     plan.json + playbook.txt + steps
-  auto step   stardust d7 apply can run it
+  auto step   andromeda d7 apply can run it
   manual step you do it; apply only records done/blocked
 
   Operator login (not root). After installer group changes:
@@ -47,15 +47,15 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
     - drush and/or mysql + mysqldump
     - the portable wrapper only:
         d7-migrate   (copy bin/d7-migrate + lib/d7.sh + lib/d7-catalog.txt)
-    - you do NOT install Stardust on the live BOA box
+    - you do NOT install Andromeda on the live BOA box
 
   knarr
-    - Stardust already installed (see docs/tutorial.txt sections 1-8)
-    - stardust doctor says READY
+    - Andromeda already installed (see docs/tutorial.txt sections 1-8)
+    - andromeda doctor says READY
     - a platform exists, or convert will platform-add one
-        stardust list
-        stardust -n platform-add ecom --git URL
-        stardust    platform-add ecom --git URL
+        andromeda list
+        andromeda -n platform-add ecom --git URL
+        andromeda    platform-add ecom --git URL
 
 --------------------------------------------------------------------
 2. Scan first (always)
@@ -63,7 +63,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 
   On knarr, if you already copied the site tree:
 
-    stardust d7 test /path/to/sites/example.com --out /tmp/d7-example
+    andromeda d7 test /path/to/sites/example.com --out /tmp/d7-example
 
   On the BOA box:
 
@@ -74,7 +74,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 
   Shorthand (directory as the first argument):
 
-    stardust d7 /path/to/sites/example.com
+    andromeda d7 /path/to/sites/example.com
 
   That writes:
     playbook.txt   human list
@@ -153,18 +153,18 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 
   As the operator (not root):
 
-    stardust -n d7 apply --plan /tmp/d7-example \
+    andromeda -n d7 apply --plan /tmp/d7-example \
       --platform ecom --product example --host example.devel
 
   Read the printed commands. Then:
 
-    stardust d7 apply --plan /tmp/d7-example \
+    andromeda d7 apply --plan /tmp/d7-example \
       --platform ecom --product example --host example.devel --yes
 
   One step at a time if something fails:
 
-    stardust d7 apply --plan /tmp/d7-example --step convert
-    stardust d7 apply --plan /tmp/d7-example --step config-export
+    andromeda d7 apply --plan /tmp/d7-example --step convert
+    andromeda d7 apply --plan /tmp/d7-example --step config-export
 
   What apply runs when auto=true:
 
@@ -177,7 +177,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
                    bee cache-rebuild
     theme-patch    backdrop = 1.x, base theme = d7compatible
     config-export  active JSON -> staging (this is CMI)
-    attach         Apache alias + stardust site-check
+    attach         Apache alias + andromeda site-check
 
   update-db is Backdrop writing the JSON config
   (system.core.json, views.view.*.json, field.*.json, …).
@@ -185,7 +185,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 
   If update-db fails it leaves $update_free_access = TRUE.
   Open http://example.devel/core/update.php and read the error.
-  Apache error log: stardust site-check ecom example
+  Apache error log: andromeda site-check ecom example
 
 --------------------------------------------------------------------
 5. After the automated steps — you are here
@@ -232,7 +232,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
 
   5.7  Custom / uncatalogued modules
        Listed in playbook as action=review.
-         stardust d7 port --from MODULE_DIR --platform ecom
+         andromeda d7 port --from MODULE_DIR --platform ecom
        That wraps coder_upgrade. A developer still has to
        read the output. Enable the ported module, then
        bee -y update-db again if it shipped hook_update_N.
@@ -251,8 +251,8 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
          git push origin devel
 
   5.10 Site check and backup
-         stardust site-check ecom example --host example.devel
-         stardust site-backup ecom example
+         andromeda site-check ecom example --host example.devel
+         andromeda site-backup ecom example
 
 --------------------------------------------------------------------
 6. Promote off devel
@@ -261,14 +261,14 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
   Never promote from a dirty tree. Never promote on the devel
   host to test/live — push, then promote on the VPS.
 
-    stardust site-backup ecom example
+    andromeda site-backup ecom example
     # on the test VPS:
-    stardust promote ecom --to test
-    stardust site-check ecom example --host example.test
+    andromeda promote ecom --to test
+    andromeda site-check ecom example --host example.test
 
     # on the live VPS, after test is good:
-    stardust promote ecom --to live
-    stardust site-check ecom example --host example.com
+    andromeda promote ecom --to live
+    andromeda site-check ecom example --host example.com
 
   Point DNS when live site-check is OK.
   Take the D7 site out of maintenance, or park it, only then.
@@ -280,7 +280,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
   update-db failed
     $update_free_access is still TRUE
     http://HOST/core/update.php
-    stardust site-check PLATFORM PRODUCT
+    andromeda site-check PLATFORM PRODUCT
     Apache error log is in that report
 
   WSOD / white screen
@@ -299,7 +299,7 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
     copy again from the bundle files/ and private/
 
   Wrong theme
-    stardust d7 theme-patch --platform PLATFORM --product PRODUCT
+    andromeda d7 theme-patch --platform PLATFORM --product PRODUCT
     bee --root=WEB download d7compatible
     set base theme = d7compatible in the .info
 
@@ -309,36 +309,36 @@ Never run "bee install" on an imported D7 dump. It would wipe it.
     (that is why we keep dump.sql.gz)
 
   Need to start over
-    stardust site-delete PLATFORM PRODUCT --force
-    stardust d7 convert --from BUNDLE --platform P --product N --host H
+    andromeda site-delete PLATFORM PRODUCT --force
+    andromeda d7 convert --from BUNDLE --platform P --product N --host H
 
 --------------------------------------------------------------------
 8. Commands cheat sheet
 --------------------------------------------------------------------
 
-  stardust d7 help
-  stardust d7 tools
-  stardust d7 test SITE [--out DIR] [--yes]
-  stardust d7 apply --plan DIR [--step ID] [--yes] [-n]
-  stardust d7 tutorial --plan DIR          # reprint TUTORIAL.txt
-  stardust d7 prep --from SITE --out DIR
-  stardust d7 convert --from BUNDLE --platform P --product N --host H
-  stardust d7 attach --platform P --product N --host H
-  stardust d7 toolkit PLATFORM
-  stardust d7 stubs --from BUNDLE --out DIR
-  stardust d7 theme-patch --platform P --product N
-  stardust d7 cex --platform P --product N
-  stardust d7 port --from MODULE_DIR --platform P
+  andromeda d7 help
+  andromeda d7 tools
+  andromeda d7 test SITE [--out DIR] [--yes]
+  andromeda d7 apply --plan DIR [--step ID] [--yes] [-n]
+  andromeda d7 tutorial --plan DIR          # reprint TUTORIAL.txt
+  andromeda d7 prep --from SITE --out DIR
+  andromeda d7 convert --from BUNDLE --platform P --product N --host H
+  andromeda d7 attach --platform P --product N --host H
+  andromeda d7 toolkit PLATFORM
+  andromeda d7 stubs --from BUNDLE --out DIR
+  andromeda d7 theme-patch --platform P --product N
+  andromeda d7 cex --platform P --product N
+  andromeda d7 port --from MODULE_DIR --platform P
 
-  Portable on BOA (no Stardust installed):
+  Portable on BOA (no Andromeda installed):
     d7-migrate test|prep|stubs|assess …   same flags
 
 --------------------------------------------------------------------
 9. See also
 --------------------------------------------------------------------
 
-  man stardust
-  stardust d7 help
+  man andromeda
+  andromeda d7 help
   docs/tutorial.txt                  host install + day-to-day
   lib/d7-catalog.txt                 COREIN / DROP / REPLACE map
   https://docs.backdropcms.org/documentation/upgrading-from-drupal-7-overview

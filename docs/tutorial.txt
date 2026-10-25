@@ -1,13 +1,13 @@
-# Stardust — install the host, then run the CLI
+# Andromeda — install the host, then run the CLI
 
 system:
   os: Devuan (sysvinit) on the devel host; any Debian-family or similar on a laptop / VPS
-  hostname: Stardust
+  hostname: Andromeda
   cpu: (your host)
   ram: 32GB
   storage: 2x1TB SSD RAID 1
   stack: Apache + PHP + MariaDB + Bee + crdir
-  control: /srv/stardust
+  control: /srv/andromeda
   sites:   /srv/platforms
   no PHP panel  (this is the Aegir / BOA replacement)
 
@@ -30,34 +30,34 @@ system:
              Never run all three out of one working copy.
 
   deploy     system account. Owns Git trees and runs Bee.
-             HOME /srv/stardust/home, shell nologin, locked password.
+             HOME /srv/andromeda/home, shell nologin, locked password.
              sudo -u deploy bee|git|crdir. Not a human login.
   git        system account that *runs* the forge (STEP 60), same method
              as deploy: nologin, locked, HOME /var/lib/gitea. Not /home/git.
              git@ in clone URLs is SSH_USER; sshd never gives this user a shell.
   www-admin  file group on every tree. Not a login.
-             Grant: usermod -aG www-admin,stardust,deploy NAME
+             Grant: usermod -aG www-admin,andromeda,deploy NAME
              The installer adds the invoking login to those three
              groups only. It never adds group sudo.
   operator   whoever ran the installer (or -H NAME). Must already exist.
              After usermod: exec su - $USER
              (exec bash / exec zsh do NOT refresh groups)
   www-data   Apache / PHP daemon user; also in group www-admin
-  stardust   group for secrets + operator (NOT www-data)
+  andromeda   group for secrets + operator (NOT www-data)
 
   ownership
              files/, files_private/, config/*/active
                www-data:www-admin + setgid + default ACL
-             code, staging, /srv/stardust
+             code, staging, /srv/andromeda
                deploy:www-admin + default ACL
              secrets
-               deploy:stardust 0640 + .cnf
+               deploy:andromeda 0640 + .cnf
                Apache cannot read this directory
 
-  stardust-priv
-             /usr/local/sbin/stardust-priv
+  andromeda-priv
+             /usr/local/sbin/andromeda-priv
              the only NOPASSWD root helper
-             paths only under /srv/platforms and /srv/stardust
+             paths only under /srv/platforms and /srv/andromeda
              DB names must start with bd_
 
   Bee        Backdrop CLI (not Drush)
@@ -71,8 +71,8 @@ system:
   crdir      mkdir + chown + 0770
              site-add uses -s -o www-data -g www-admin on PHP trees
 
-Do not type "sudo stardust", "sudo stardust-menu", or "sudo stardust-tui"
-(exit 2). The wrapper calls sudo -n /usr/local/sbin/stardust-priv only.
+Do not type "sudo andromeda", "sudo andromeda-menu", or "sudo andromeda-tui"
+(exit 2). The wrapper calls sudo -n /usr/local/sbin/andromeda-priv only.
 
 Always run a mutating command once with -n first.
 -n prints each action with a leading + and changes nothing.
@@ -83,51 +83,51 @@ Always run a mutating command once with -n first.
 
 Clone the tools repo (not a Backdrop platform). Layout:
 
-  stardust-install.sh     run from the repo root
-  bin/                    stardust, stardust-priv, stardust-menu, crdir, newfeature
-  lib/                    modules sourced by bin/stardust
-  man/                    stardust.1 crdir.1
+  andromeda-install.sh     run from the repo root
+  bin/                    andromeda, andromeda-priv, andromeda-menu, crdir, newfeature
+  lib/                    modules sourced by bin/andromeda
+  man/                    andromeda.1 crdir.1
   docs/tutorial.txt
-  conf/stardust-settings.json
+  conf/andromeda-settings.json
   tui/                    Bubble Tea source (optional; no binary in git)
 
 On the box:
 
-  chmod +x stardust-install.sh bin/*
-  ./stardust-install.sh -n -m devel
+  chmod +x andromeda-install.sh bin/*
+  ./andromeda-install.sh -n -m devel
 
 Help after install:
 
-  stardust -h
-  stardust --help
-  man stardust          # after the installer has run
-  man ./stardust.1      # from this folder, before install
+  andromeda -h
+  andromeda --help
+  man andromeda          # after the installer has run
+  man ./andromeda.1      # from this folder, before install
   man crdir
 
 --------------------------------------------------------------------
-1b. Put Stardust itself in Gitea (localhost first)
+1b. Put Andromeda itself in Gitea (localhost first)
 --------------------------------------------------------------------
 
-Stardust is a repo of TOOLS, not a Backdrop platform.
-Do not run "stardust platform-add stardust".
-Do not put /srv/platforms or /srv/stardust/state/secrets in this repo.
+Andromeda is a repo of TOOLS, not a Backdrop platform.
+Do not run "andromeda platform-add andromeda".
+Do not put /srv/platforms or /srv/andromeda/state/secrets in this repo.
 
-What belongs in git@git.example:org/stardust.git
+What belongs in git@git.example:org/andromeda.git
 
-  stardust-install.sh
-  stardust
-  stardust.1
-  stardust-lib/*.sh
-  stardust-settings.json
-  stardust-tutorial.txt
+  andromeda-install.sh
+  andromeda
+  andromeda.1
+  andromeda-lib/*.sh
+  andromeda-settings.json
+  andromeda-tutorial.txt
   crdir  crdir.1
   newfeature
 
 What does NOT belong
 
-  /srv/stardust/state/secrets/
-  /srv/stardust/state/tasks.log
-  /srv/stardust/backups/
+  /srv/andromeda/state/secrets/
+  /srv/andromeda/state/tasks.log
+  /srv/andromeda/backups/
   /srv/platforms/
   settings.local.php from any site
 
@@ -135,14 +135,14 @@ On the Gitea web UI (same instance as ecom):
 
   New repository
     Owner:     ORG          (same org as ecom / torg)
-    Name:      stardust
+    Name:      andromeda
     Visibility: private
     Init:      empty (no README from the UI if you already have files)
 
 On the laptop, after a --localhost install (or from this artifacts folder
 before install):
 
-  cd /path/to/the/folder/that/holds/stardust-install.sh
+  cd /path/to/the/folder/that/holds/andromeda-install.sh
   printf '%s\n' \
     '/srv/' \
     'state/secrets/' \
@@ -153,21 +153,21 @@ before install):
 
   git init
   git checkout -B devel
-  git add stardust-install.sh stardust stardust.1 stardust-lib \
-    stardust-settings.json stardust-tutorial.txt \
+  git add andromeda-install.sh andromeda andromeda.1 andromeda-lib \
+    andromeda-settings.json andromeda-tutorial.txt \
     crdir crdir.1 newfeature .gitignore
   git status
-  git commit -m "stardust CLI + installer + lib"
+  git commit -m "andromeda CLI + installer + lib"
 
   # first time only — name the remote
-  git remote add origin git@git.example:org/stardust.git
+  git remote add origin git@git.example:org/andromeda.git
 
   # if you already added origin and need to point it again:
-  # git remote set-url origin git@git.example:org/stardust.git
+  # git remote set-url origin git@git.example:org/andromeda.git
 
   git remote -v
-  # origin  git@git.example:org/stardust.git (fetch)
-  # origin  git@git.example:org/stardust.git (push)
+  # origin  git@git.example:org/andromeda.git (fetch)
+  # origin  git@git.example:org/andromeda.git (push)
 
   ssh -T git@git.example
   # must succeed as YOUR Gitea user (not deploy)
@@ -194,46 +194,46 @@ nothing else has commits you need.
 If SSH works but push asks for a password, you are hitting
 HTTPS by mistake. The remote MUST start with git@ not https://
 
-  git remote set-url origin git@git.example:org/stardust.git
+  git remote set-url origin git@git.example:org/andromeda.git
   git push -u origin devel
 
 On the devel host or the VPS you clone the tools, then run the installer
-from that clone so ship_tools sees stardust-lib next to the script:
+from that clone so ship_tools sees andromeda-lib next to the script:
 
   sudo -u deploy -H git clone \
     -b devel \
-    git@git.example:org/stardust.git \
-    /home/deploy/stardust
-  cd /home/deploy/stardust
-  ./stardust-install.sh -n -m devel     # devel host
-  ./stardust-install.sh -n --localhost  # another laptop
+    git@git.example:org/andromeda.git \
+    /home/deploy/andromeda
+  cd /home/deploy/andromeda
+  ./andromeda-install.sh -n -m devel     # devel host
+  ./andromeda-install.sh -n --localhost  # another laptop
 
 Updates later:
 
-  cd /home/deploy/stardust
+  cd /home/deploy/andromeda
   git pull --ff-only
-  ./stardust-install.sh -n -m devel
-  ./stardust-install.sh -m devel
+  ./andromeda-install.sh -n -m devel
+  ./andromeda-install.sh -m devel
 
-That re-ships /usr/local/bin/stardust and /usr/local/lib/stardust.
+That re-ships /usr/local/bin/andromeda and /usr/local/lib/andromeda.
 It does not touch /srv/platforms.
 
 --------------------------------------------------------------------
-2. Install the host  (stardust-install.sh)
+2. Install the host  (andromeda-install.sh)
 --------------------------------------------------------------------
 
 Pick ONE profile. Preview, then run for real.
 
 2a. Laptop / local dev only  (127.0.0.1)
 
-  ./stardust-install.sh -n --localhost
-  ./stardust-install.sh --localhost
+  ./andromeda-install.sh -n --localhost
+  ./andromeda-install.sh --localhost
 
   Same flag: -lh
 
   Does:
     deploy + www-admin, Apache, PHP, MariaDB on 127.0.0.1
-    Bee, crdir, newfeature, stardust
+    Bee, crdir, newfeature, andromeda
     dnsmasq  address=/devel/127.0.0.1
     Listen 127.0.0.1:80
 
@@ -242,13 +242,13 @@ Pick ONE profile. Preview, then run for real.
 
 2b. devel host  (devel, LAN 192.168.1.120 + WireGuard 10.8.0.1)
 
-  ./stardust-install.sh -n -m devel
-  ./stardust-install.sh -m devel
+  ./andromeda-install.sh -n -m devel
+  ./andromeda-install.sh -m devel
 
   Optional firewall (SSH only via WG 10.8.0.0/24 and LAN 192.168.1.0/24):
 
-  ./stardust-install.sh -n -F -m devel
-  ./stardust-install.sh -F -m devel
+  ./andromeda-install.sh -n -F -m devel
+  ./andromeda-install.sh -F -m devel
 
   First CSF pass sets TESTING=1 so a lockout undoes itself.
   After WG SSH still works:
@@ -260,35 +260,35 @@ Pick ONE profile. Preview, then run for real.
 
 2c. VPS test
 
-  ./stardust-install.sh -n -m test
-  ./stardust-install.sh -m test
+  ./andromeda-install.sh -n -m test
+  ./andromeda-install.sh -m test
 
   No dnsmasq (public DNS / Cloudflare).
   certbot is offered.
   Optional: add -F for CSF. Public inbound is 80+443 and UDP 51820.
   SSH is still not world-open.
-  test/live also write /etc/sysctl.d/60-stardust.conf (BBR if the
+  test/live also write /etc/sysctl.d/60-andromeda.conf (BBR if the
   kernel has it; ip_forward=1 for WireGuard), Apache ServerTokens Prod,
   and nofile 65535 for www-data. Rose weekly snapshots are not a CMS
   backup — keep backup-all. Do not open MariaDB 3306 on the public NIC.
 
 2d. VPS live
 
-  ./stardust-install.sh -n -m live
-  ./stardust-install.sh -F -m live
+  ./andromeda-install.sh -n -m live
+  ./andromeda-install.sh -F -m live
 
 What every profile does
-  creates system account deploy (HOME /srv/stardust/home, nologin) and group www-admin
+  creates system account deploy (HOME /srv/andromeda/home, nologin) and group www-admin
   no user named www-admin unless you pass -a NAME (NAME != www-admin)
-  puts invoking login in www-admin,stardust,deploy,adm — never group sudo
+  puts invoking login in www-admin,andromeda,deploy,adm — never group sudo
   www-data in www-admin
-  /srv/stardust + /srv/platforms 2770 deploy:www-admin + default ACL
-  secrets dir 0750 deploy:stardust; deploy HOME 0700 deploy:deploy (no ACL inherit)
-  /etc/stardust.conf; ~/.stardust.conf for deploy and the invoking login
+  /srv/andromeda + /srv/platforms 2770 deploy:www-admin + default ACL
+  secrets dir 0750 deploy:andromeda; deploy HOME 0700 deploy:deploy (no ACL inherit)
+  /etc/andromeda.conf; ~/.andromeda.conf for deploy and the invoking login
   PHP drop-in + optional one php-fpm pool as www-data + mpm_event
-  PHP split: 30-stardust.ini all SAPIs; 35-stardust-harden.ini FPM/apache2
+  PHP split: 30-andromeda.ini all SAPIs; 35-andromeda-harden.ini FPM/apache2
     (disable_functions; live/test opcache.validate_timestamps=0)
-    35-stardust-cli.ini — no disable_functions so Bee can exec
+    35-andromeda-cli.ini — no disable_functions so Bee can exec
   PHP extras: intl bcmath imagick apcu
   apache2-utils (ab), mariadb-backup, jq, pv, moreutils, age
   logwatch, goaccess, etckeeper (/etc git), smartmontools, irqbalance, haveged
@@ -297,15 +297,15 @@ What every profile does
   MariaDB bind 127.0.0.1; root stays unix_socket (do not SET PASSWORD)
     STEP 40 also: load auth_socket, drop anonymous + remote root + test DB
   git safe.directory /srv/platforms for deploy
-  sudoers: deploy + %www-admin get NOPASSWD stardust-priv / bee+git+crdir as deploy
+  sudoers: deploy + %www-admin get NOPASSWD andromeda-priv / bee+git+crdir as deploy
              (no usermod -aG sudo; no per-user sudoers line)
-  ships stardust, stardust-priv, stardust-menu, stardust-tui if built
+  ships andromeda, andromeda-priv, andromeda-menu, andromeda-tui if built
 
 After any profile
 
   exec su - "$USER"
-  id    # must list www-admin and stardust
-  # deploy forge key: /srv/stardust/home/.ssh  (not /home/deploy)
+  id    # must list www-admin and andromeda
+  # deploy forge key: /srv/andromeda/home/.ssh  (not /home/deploy)
 
 The installer does not set passwords and does not invent keys.
 
@@ -328,7 +328,7 @@ It will NOT:
   download HTML from https://gitea.com (binary comes from dl.gitea.com,
   sha256 checked, GitHub releases as fallback)
   rewrite an existing /etc/gitea/app.ini
-  fail the rest of Stardust if you skip it
+  fail the rest of Andromeda if you skip it
 
 It WILL, if you say Y and app.ini is absent:
   create system user git (nologin, locked, HOME /var/lib/gitea — like deploy)
@@ -337,9 +337,9 @@ It WILL, if you say Y and app.ini is absent:
   write app.ini (INSTALL_LOCK=true, default branch devel,
     registration closed, Gitea SSH on 2222)
   sysvinit script (systemd/openrc when that is init)
-  optional Apache vhost stardust-gitea (http://HOSTNAME/ → :3000)
+  optional Apache vhost andromeda-gitea (http://HOSTNAME/ → :3000)
   a Gitea admin user
-  STARDUST_GIT_TEMPLATE=git@HOST:OWNER/%s.git in /etc/stardust.conf
+  ANDROMEDA_GIT_TEMPLATE=git@HOST:OWNER/%s.git in /etc/andromeda.conf
   SSH config Host alias (gitforge, Port 2222) so deploy can git ls-remote
 
 Non-interactive (cron / no /dev/tty): skipped unless GITEA_INSTALL=Y.
@@ -356,16 +356,16 @@ After a yes:
   add deploy's printed public key as a deploy key on that org
   sudo -u deploy git ls-remote git@gitforge:acme/myapp.git
 
-Re-run of install-stardust.sh is safe: existing Gitea + app.ini
-are left alone; only a missing STARDUST_GIT_TEMPLATE is prompted.
+Re-run of install-andromeda.sh is safe: existing Gitea + app.ini
+are left alone; only a missing ANDROMEDA_GIT_TEMPLATE is prompted.
 
 --------------------------------------------------------------------
 3. Prove the box is ready
 --------------------------------------------------------------------
 
-  stardust doctor
-  stardust env
-  stardust list
+  andromeda doctor
+  andromeda env
+  andromeda list
 
 doctor must print READY before you add platforms.
 env shows the role (devel/test/live) loaded from conf.
@@ -377,65 +377,65 @@ If doctor fails:
   user www-admin missing   → expected; www-admin is a group, not a login
   user deploy missing      → installer did not finish; run it again
   /srv/platforms missing   → same
-  missing group www-admin  → sudo usermod -aG www-admin,stardust "$USER"
+  missing group www-admin  → sudo usermod -aG www-admin,andromeda "$USER"
                              then: exec su - "$USER"
-  ACL mask effective r--   → sudo -n /usr/local/sbin/stardust-priv setacl /srv/platforms
+  ACL mask effective r--   → sudo -n /usr/local/sbin/andromeda-priv setacl /srv/platforms
 
 Front-ends (same verbs, no extra privileges):
 
-  stardust-menu     # gum, else whiptail, else dialog
-  stardust-tui      # Bubble Tea; STARDUST_BIN overrides the CLI path
+  andromeda-menu     # gum, else whiptail, else dialog
+  andromeda-tui      # Bubble Tea; ANDROMEDA_BIN overrides the CLI path
 
   sudo apt-get install -y gum     # nicer menu; optional
 
 --------------------------------------------------------------------
-4. stardust commands
+4. andromeda commands
 --------------------------------------------------------------------
 
 Global flag (before the command name):
 
   -n     dry run
-  -h     help  (also: --help   or   stardust help)
+  -h     help  (also: --help   or   andromeda help)
 
-4.1  stardust doctor
+4.1  andromeda doctor
      Check users, dirs, bee, crdir, Apache, PHP, MariaDB.
      CSF and WireGuard are notes, not failures.
 
-       stardust doctor
+       andromeda doctor
 
-4.2  stardust env
-     Print STARDUST_ROLE, paths, Bee binary, Apache reload command.
+4.2  andromeda env
+     Print ANDROMEDA_ROLE, paths, Bee binary, Apache reload command.
 
-       stardust env
+       andromeda env
 
-4.3  stardust list
+4.3  andromeda list
      Walk /srv/platforms. Print branch + product folders
      that already have settings.php.
 
-       stardust list
+       andromeda list
 
-4.4  stardust platform-add NAME [--git URL] [--branch BRANCH]
+4.4  andromeda platform-add NAME [--git URL] [--branch BRANCH]
 
      Creates /srv/platforms/NAME.
      Existing directory is left alone.
 
      Fresh Backdrop (no Git yet):
 
-       stardust -n platform-add scratch
-       stardust platform-add scratch
+       andromeda -n platform-add scratch
+       andromeda platform-add scratch
 
      Clone ecom from Gitea onto the devel host:
 
-       stardust -n platform-add mysite \
+       andromeda -n platform-add mysite \
          --git git@git.example:org/mysite.git \
          --branch devel
-       stardust platform-add mysite \
+       andromeda platform-add mysite \
          --git git@git.example:org/mysite.git \
          --branch devel
 
-     Default --branch is STARDUST_ROLE from conf (devel on the devel host).
+     Default --branch is ANDROMEDA_ROLE from conf (devel on the devel host).
 
-4.5  stardust site-add PLATFORM PRODUCT [--host HOST] [--name TITLE] [--pass PASS]
+4.5  andromeda site-add PLATFORM PRODUCT [--host HOST] [--name TITLE] [--pass PASS]
 
      Adds one product inside an existing platform.
 
@@ -454,9 +454,9 @@ Global flag (before the command name):
 
      devel host, two products on ecom:
 
-       stardust -n site-add mysite www --host www.devel --name "WWW devel"
-       stardust site-add mysite www --host www.devel --name "WWW devel"
-       stardust site-add mysite shop  --host shop.devel  --name "Shop devel"
+       andromeda -n site-add mysite www --host www.devel --name "WWW devel"
+       andromeda site-add mysite www --host www.devel --name "WWW devel"
+       andromeda site-add mysite shop  --host shop.devel  --name "Shop devel"
 
      Browse http://www.devel and http://shop.devel
      (dnsmasq on the devel host and --localhost maps *.devel).
@@ -466,23 +466,23 @@ Global flag (before the command name):
 --------------------------------------------------------------------
 
   # 1 host
-  ./stardust-install.sh -n -m devel
-  ./stardust-install.sh -m devel
+  ./andromeda-install.sh -n -m devel
+  ./andromeda-install.sh -m devel
   sudo passwd deploy
-  stardust doctor
+  andromeda doctor
 
   # 2 platform
-  stardust -n platform-add mysite \
+  andromeda -n platform-add mysite \
     --git git@git.example:org/mysite.git --branch devel
-  stardust platform-add mysite \
+  andromeda platform-add mysite \
     --git git@git.example:org/mysite.git --branch devel
 
   # 3 products
-  stardust site-add mysite www --host www.devel --name "WWW devel"
-  stardust site-add mysite shop  --host shop.devel  --name "Shop devel"
+  andromeda site-add mysite www --host www.devel --name "WWW devel"
+  andromeda site-add mysite shop  --host shop.devel  --name "Shop devel"
 
   # 4 confirm
-  stardust list
+  andromeda list
   bee --root=/srv/platforms/mysite/web --site=www status
   bee --root=/srv/platforms/mysite/web --site=shop  status
 
@@ -493,26 +493,26 @@ and only run site-add for a product that is not there yet.
 6. Worked example — VPS test
 --------------------------------------------------------------------
 
-  ./stardust-install.sh -n -m test
-  ./stardust-install.sh -m test
-  stardust doctor
+  ./andromeda-install.sh -n -m test
+  ./andromeda-install.sh -m test
+  andromeda doctor
 
   # second checkout — not the devel host path
-  stardust platform-add mysite-test \
+  andromeda platform-add mysite-test \
     --git git@git.example:org/mysite.git --branch test
 
-  stardust site-add mysite-test thq --host www.test.example
-  stardust site-add mysite-test kl  --host shop.test.example
+  andromeda site-add mysite-test thq --host www.test.example
+  andromeda site-add mysite-test kl  --host shop.test.example
 
 No dnsmasq. Point Cloudflare / public DNS at the VPS.
 
 Live is the same with -m live, path mysite-live, branch live,
 hosts www.example.com and shop.example.com.
 
-  stardust platform-add mysite-live \
+  andromeda platform-add mysite-live \
     --git git@git.example:org/mysite.git --branch live
-  stardust site-add mysite-live thq --host www.example.com
-  stardust site-add mysite-live kl  --host shop.example.com
+  andromeda site-add mysite-live thq --host www.example.com
+  andromeda site-add mysite-live kl  --host shop.example.com
 
 Cloudflare Flexible = HTTP origin, no certbot required for Apache.
 Full (strict) = origin cert; that is outside site-add.
@@ -522,31 +522,31 @@ Full (strict) = origin cert; that is outside site-add.
 --------------------------------------------------------------------
 
   # 0 tools from Gitea (section 1b) or from a copy of artifacts
-  git clone -b devel git@git.example:org/stardust.git ~/stardust
-  cd ~/stardust
+  git clone -b devel git@git.example:org/andromeda.git ~/andromeda
+  cd ~/andromeda
 
-  ./stardust-install.sh -n --localhost
-  ./stardust-install.sh --localhost
+  ./andromeda-install.sh -n --localhost
+  ./andromeda-install.sh --localhost
   sudo passwd "$USER"
   exec su - "$USER"
-  stardust doctor
+  andromeda doctor
 
   # 1 site code is a DIFFERENT repo
-  stardust platform-add mysite \
+  andromeda platform-add mysite \
     --git git@git.example:org/mysite.git --branch devel
-  stardust site-add mysite www --host www.devel
+  andromeda site-add mysite www --host www.devel
 
   # http://www.devel should hit 127.0.0.1:80
 
 If the distro Apache still has a stock "Listen 80" on all
-addresses, disable that so only stardust-localhost.conf
+addresses, disable that so only andromeda-localhost.conf
 (Listen 127.0.0.1:80) remains.
 
 --------------------------------------------------------------------
-8. After the site exists — Bee, not Stardust
+8. After the site exists — Bee, not Andromeda
 --------------------------------------------------------------------
 
-Stardust builds the box and the first install.
+Andromeda builds the box and the first install.
 Everything else is Bee with --site.
 
   bee --root=/srv/platforms/mysite/web --site=www status
@@ -598,41 +598,41 @@ man crdir
 --------------------------------------------------------------------
 
   # smoke test after an upgrade
-  stardust -n site-check mysite www --host www.devel
-  stardust site-check mysite www --host www.devel
+  andromeda -n site-check mysite www --host www.devel
+  andromeda site-check mysite www --host www.devel
 
   # one product
-  stardust -n site-backup mysite www
-  stardust site-backup mysite www
-  stardust site-restore mysite www
-  stardust site-restore --from /srv/stardust/backups/mysite/www/devel/20260916-210000 mysite www
+  andromeda -n site-backup mysite www
+  andromeda site-backup mysite www
+  andromeda site-restore mysite www
+  andromeda site-restore --from /srv/andromeda/backups/mysite/www/devel/20260916-210000 mysite www
 
   # copy a product (new hostname)
-  stardust site-clone mysite www mysite www-copy --host www-copy.devel
+  andromeda site-clone mysite www mysite www-copy --host www-copy.devel
 
-  # every product on this box (also nightly via /etc/cron.d/stardust)
-  stardust backup-all
+  # every product on this box (also nightly via /etc/cron.d/andromeda)
+  andromeda backup-all
 
   # VPS only — devel host role=devel will refuse
-  stardust -n promote mysite --to test
-  stardust promote mysite --to test
-  stardust promote mysite --to live
+  andromeda -n promote mysite --to test
+  andromeda promote mysite --to test
+  andromeda promote mysite --to live
 
   # same as promote's second half, if git is already current
-  stardust platform-upgrade mysite-test
+  andromeda platform-upgrade mysite-test
 
   # task journal
-  stardust log 20
-  stardust last
+  andromeda log 20
+  andromeda last
 
   # maintenance
-  stardust site-disable mysite www
-  stardust site-enable mysite www
+  andromeda site-disable mysite www
+  andromeda site-enable mysite www
 
   # Bee cron by hand (installer already schedules cron-all)
-  stardust -n cron-all
+  andromeda -n cron-all
 
-DB passwords live in /srv/stardust/state/secrets/<platform>/<product>
+DB passwords live in /srv/andromeda/state/secrets/<platform>/<product>
 mode 0640 deploy:www-data — site-add does not print them.
 
 site-delete is not built. A failed site-check does not auto-restore.
@@ -648,13 +648,13 @@ Exit status:
      or promote on a host whose role is devel
 
   echo $?
-  stardust last          # mutating commands also log rc=
+  andromeda last          # mutating commands also log rc=
 
 --------------------------------------------------------------------
 12. Common mistakes
 --------------------------------------------------------------------
 
-  sudo stardust
+  sudo andromeda
     Don't. The wrapper sudoes the few root steps.
 
   One working copy for devel + test + live
@@ -676,7 +676,7 @@ Exit status:
     The installer will not install it for -m test or -m live.
     Use public DNS.
 
-  stardust promote on the devel host
+  andromeda promote on the devel host
     Role devel refuses. Push from the devel host, promote on the VPS.
 
 --------------------------------------------------------------------
@@ -686,18 +686,18 @@ Exit status:
   Full new-sysadmin walkthrough:
 
     docs/d7-migration.txt
-    stardust d7 tutorial --plan DIR     # leftover steps for one site
+    andromeda d7 tutorial --plan DIR     # leftover steps for one site
 
-  Several live D7 sites on a BOA VPS become products on a Stardust
+  Several live D7 sites on a BOA VPS become products on a Andromeda
   platform. Module: lib/d7.sh + lib/d7-catalog.txt.
-  On knarr: "stardust d7 …". On BOA: d7-migrate (same module).
+  On knarr: "andromeda d7 …". On BOA: d7-migrate (same module).
 
-    stardust d7 test SITE --out /tmp/d7-example
+    andromeda d7 test SITE --out /tmp/d7-example
     # do the D7-side uninstalls/stubs in the playbook
     d7-migrate prep --from SITE --out /tmp/d7-example
-    stardust -n d7 apply --plan /tmp/d7-example \
+    andromeda -n d7 apply --plan /tmp/d7-example \
       --platform ecom --product example --host example.devel
-    stardust    d7 apply --plan /tmp/d7-example \
+    andromeda    d7 apply --plan /tmp/d7-example \
       --platform ecom --product example --host example.devel --yes
 
   convert never runs bee install. update-db IS the conversion.
@@ -708,11 +708,11 @@ Exit status:
 14. See also
 --------------------------------------------------------------------
 
-  man stardust
+  man andromeda
   man crdir
-  stardust d7 help
+  andromeda d7 help
   d7-migrate help
   docs/d7-migration.txt
-  artifacts/stardust-settings.json
+  artifacts/andromeda-settings.json
   artifacts/ecom-multisite-tutorial.txt
   artifacts/mysite-test-live-filesystem-tutorial.docx

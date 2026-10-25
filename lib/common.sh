@@ -3,7 +3,7 @@
 
 load_conf() {
   for f in \
-    "${STARDUST_CONF:-}" \
+    "${ANDROMEDA_CONF:-}" \
     "$HOME/.andromeda.conf" \
     /etc/andromeda.conf
   do
@@ -18,7 +18,7 @@ load_conf() {
 
 load_conf
 
-STARDUST_ROOT=${STARDUST_ROOT:-/srv/andromeda}
+ANDROMEDA_ROOT=${ANDROMEDA_ROOT:-/srv/andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
 OWNER=${OWNER:-deploy}
 HUMAN=${HUMAN:-}
@@ -90,14 +90,14 @@ apache_reload() {
   # shellcheck disable=SC2086
   sudo -n $APACHE_RELOAD 2>/dev/null || true
 }
-STARDUST_ROLE=${STARDUST_ROLE:-devel}
+ANDROMEDA_ROLE=${ANDROMEDA_ROLE:-devel}
 # Git branch for this role. Override per role in /etc/andromeda.conf
 #   BRANCH_DEVEL=main BRANCH_TEST=staging BRANCH_LIVE=production
-# Or pin one name on this host: STARDUST_BRANCH=main
+# Or pin one name on this host: ANDROMEDA_BRANCH=main
 branch_for_role() {
-  role=${1:-$STARDUST_ROLE}
-  if [ -n "${STARDUST_BRANCH:-}" ]; then
-    printf '%s\n' "$STARDUST_BRANCH"
+  role=${1:-$ANDROMEDA_ROLE}
+  if [ -n "${ANDROMEDA_BRANCH:-}" ]; then
+    printf '%s\n' "$ANDROMEDA_BRANCH"
     return 0
   fi
   case $role in
@@ -204,7 +204,7 @@ next_for() {
 # Local summary first. Footer commands open the longer page or the next related page.
 show_doc() {
   topic=${1:-}
-  root=${STARDUST_DOCS:-$HERE/../docs}
+  root=${ANDROMEDA_DOCS:-$HERE/../docs}
   page=""
   if [ -n "$topic" ]; then
     for cand in \
@@ -294,19 +294,19 @@ prompt_line() {
 
 save_git_template() {
   tpl=$1
-  dest=${STARDUST_USER_CONF:-$HOME/.andromeda.conf}
+  dest=${ANDROMEDA_USER_CONF:-$HOME/.andromeda.conf}
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ append STARDUST_GIT_TEMPLATE=$tpl -> $dest" >&2
+    echo "+ append ANDROMEDA_GIT_TEMPLATE=$tpl -> $dest" >&2
     return 0
   fi
-  if [ -f "$dest" ] && grep -q '^STARDUST_GIT_TEMPLATE=' "$dest" 2>/dev/null; then
+  if [ -f "$dest" ] && grep -q '^ANDROMEDA_GIT_TEMPLATE=' "$dest" 2>/dev/null; then
     tmp=$dest.tmp
-    sed "s|^STARDUST_GIT_TEMPLATE=.*|STARDUST_GIT_TEMPLATE=$tpl|" "$dest" > "$tmp" && mv "$tmp" "$dest"
+    sed "s|^ANDROMEDA_GIT_TEMPLATE=.*|ANDROMEDA_GIT_TEMPLATE=$tpl|" "$dest" > "$tmp" && mv "$tmp" "$dest"
   else
-    printf '\nSTARDUST_GIT_TEMPLATE=%s\n' "$tpl" >> "$dest"
+    printf '\nANDROMEDA_GIT_TEMPLATE=%s\n' "$tpl" >> "$dest"
   fi
-  STARDUST_GIT_TEMPLATE=$tpl
-  echo "saved STARDUST_GIT_TEMPLATE in $dest" >&2
+  ANDROMEDA_GIT_TEMPLATE=$tpl
+  echo "saved ANDROMEDA_GIT_TEMPLATE in $dest" >&2
 }
 
 # Scan this login for a likely git SSH host / owner. Best-effort, never fatal.
@@ -443,7 +443,7 @@ DB_HOST=${DB_HOST:-127.0.0.1}
 DB_PREFIX=${DB_PREFIX:-bd_}
 KEEP_BACKUPS=${KEEP_BACKUPS:-7}
 NOTIFY=${NOTIFY:-}
-HOOKS=${HOOKS:-$STARDUST_ROOT/hooks}
+HOOKS=${HOOKS:-$ANDROMEDA_ROOT/hooks}
 
 run_hooks() {
   hook_name=$1
@@ -541,11 +541,11 @@ bad() { printf '  FAIL  %s\n' "$1"; }
 note() { printf '  note  %s\n' "$1"; }
 
 # Root only when needed. Prefer sudo -n (NOPASSWD).
-# Capcom mode (STARDUST_SPEAK or STARDUST_JSON) never prompts.
+# Capcom mode (ANDROMEDA_SPEAK or ANDROMEDA_JSON) never prompts.
 # deploy is a system account: never authenticate as deploy.
 as_root() {
   capcom=0
-  if [ -n "${STARDUST_SPEAK:-}" ] || [ -n "${STARDUST_JSON:-}" ]; then
+  if [ -n "${ANDROMEDA_SPEAK:-}" ] || [ -n "${ANDROMEDA_JSON:-}" ]; then
     capcom=1
   fi
   refuse() {
@@ -572,9 +572,9 @@ as_root() {
       refuse
       return 1
     fi
-    if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+    if [ -n "${ANDROMEDA_SUDO_ASKPASS:-}" ] && [ -x "$ANDROMEDA_SUDO_ASKPASS" ]; then
       echo "sudo -A -u $tgt $*" >&2
-      SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A -u "$tgt" "$@"
+      SUDO_ASKPASS=$ANDROMEDA_SUDO_ASKPASS sudo -A -u "$tgt" "$@"
       return $?
     fi
     sudo -u "$tgt" "$@"
@@ -621,9 +621,9 @@ as_root() {
     refuse
     return 1
   fi
-  if [ -n "${STARDUST_SUDO_ASKPASS:-}" ] && [ -x "$STARDUST_SUDO_ASKPASS" ]; then
+  if [ -n "${ANDROMEDA_SUDO_ASKPASS:-}" ] && [ -x "$ANDROMEDA_SUDO_ASKPASS" ]; then
     echo "sudo -A (askpass) $*" >&2
-    SUDO_ASKPASS=$STARDUST_SUDO_ASKPASS sudo -A "$@"
+    SUDO_ASKPASS=$ANDROMEDA_SUDO_ASKPASS sudo -A "$@"
     return $?
   fi
   sudo "$@"
@@ -679,7 +679,7 @@ slug() {
 
 db_name() {
   product=$1
-  role=${2:-$STARDUST_ROLE}
+  role=${2:-$ANDROMEDA_ROLE}
   n="${DB_PREFIX}${product}_${role}"
   printf '%s' "$n" | tr -c 'a-z0-9_' '_' | cut -c1-64
 }
@@ -711,6 +711,6 @@ stamp() {
 backup_dir() {
   platform=$1
   product=$2
-  role=${3:-$STARDUST_ROLE}
-  echo "$STARDUST_ROOT/backups/$platform/$product/$role"
+  role=${3:-$ANDROMEDA_ROLE}
+  echo "$ANDROMEDA_ROOT/backups/$platform/$product/$role"
 }

@@ -2,8 +2,8 @@
 
 cmd_env() {
   cat <<EOF
-STARDUST_ROLE=$STARDUST_ROLE
-STARDUST_ROOT=$STARDUST_ROOT
+ANDROMEDA_ROLE=$ANDROMEDA_ROLE
+ANDROMEDA_ROOT=$ANDROMEDA_ROOT
 PLATFORMS=$PLATFORMS
 OWNER=$OWNER
 ADMIN=$ADMIN
@@ -142,11 +142,11 @@ cmd_site_list() {
       if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
         found=1
         if [ "$fmt" = json ]; then
-          printf '{"platform":"%s","site":"%s","role":"%s"}\n' "$name" "$base" "${role:-$STARDUST_ROLE}"
+          printf '{"platform":"%s","site":"%s","role":"%s"}\n' "$name" "$base" "${role:-$ANDROMEDA_ROLE}"
         elif [ "$quiet" -eq 1 ] || [ "$tty" -eq 0 ]; then
           printf '%s/%s\n' "$name" "$base"
         else
-          printf '%-20s %-16s %s\n' "$name" "$base" "${role:-$STARDUST_ROLE}"
+          printf '%-20s %-16s %s\n' "$name" "$base" "${role:-$ANDROMEDA_ROLE}"
         fi
       fi
     done
@@ -157,7 +157,7 @@ cmd_site_list() {
 cmd_doctor() {
   fail=0
   echo "Andromeda doctor"
-  echo "role=${STARDUST_ROLE:-unset} host=$(hostname 2>/dev/null || echo unknown)"
+  echo "role=${ANDROMEDA_ROLE:-unset} host=$(hostname 2>/dev/null || echo unknown)"
 
   if id "$OWNER" >/dev/null 2>&1; then ok "user $OWNER"; else bad "user $OWNER missing"; fail=1; fi
   if [ -n "$ADMIN" ]; then
@@ -188,10 +188,10 @@ cmd_doctor() {
   if [ -n "$owner_home" ] && [ -d "$owner_home" ]; then
     ok "owner home $owner_home"
   else
-    note "owner home missing (expect $STARDUST_ROOT/home)"
+    note "owner home missing (expect $ANDROMEDA_ROOT/home)"
   fi
 
-  for d in "$STARDUST_ROOT" "$STARDUST_ROOT/backups" "$STARDUST_ROOT/bin" "$STARDUST_ROOT/state" "$PLATFORMS"; do
+  for d in "$ANDROMEDA_ROOT" "$ANDROMEDA_ROOT/backups" "$ANDROMEDA_ROOT/bin" "$ANDROMEDA_ROOT/state" "$PLATFORMS"; do
     if [ -d "$d" ]; then ok "dir $d"; else bad "dir $d missing"; fail=1; fi
   done
 
@@ -203,10 +203,10 @@ cmd_doctor() {
   if have crdir; then ok "crdir $(command -v crdir)"; else bad "crdir not on PATH"; fail=1; fi
   if have newfeature; then ok "newfeature $(command -v newfeature)"; else note "newfeature not on PATH"; fi
   if have git; then ok "git"; else bad "git missing"; fail=1; fi
-  if git_template_ok "${STARDUST_GIT_TEMPLATE:-}"; then
-    ok "git template $STARDUST_GIT_TEMPLATE"
+  if git_template_ok "${ANDROMEDA_GIT_TEMPLATE:-}"; then
+    ok "git template $ANDROMEDA_GIT_TEMPLATE"
   else
-    note "STARDUST_GIT_TEMPLATE empty — platform-add falls back to bee dl-core"
+    note "ANDROMEDA_GIT_TEMPLATE empty — platform-add falls back to bee dl-core"
   fi
   if [ -x /usr/local/sbin/andromeda-priv ]; then ok "andromeda-priv"; else note "andromeda-priv missing"; fi
   if have setfacl; then ok "setfacl"; else note "acl package missing"; fi

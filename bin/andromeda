@@ -17,7 +17,7 @@ fi
 
 find_lib() {
   for d in \
-    "${STARDUST_LIB:-}" \
+    "${ANDROMEDA_LIB:-}" \
     "$HERE/lib" \
     "$HERE/../lib" \
     "$HERE/andromeda-lib" \
@@ -124,14 +124,14 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   andromeda-menu          # gum / whiptail / dialog
   $PROG ui               # Textual full-screen (Aegir layout)
 
-  log / last        task journal ($STARDUST_ROOT/state/tasks.log)
-                    per-run logs in $STARDUST_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log
+  log / last        task journal ($ANDROMEDA_ROOT/state/tasks.log)
+                    per-run logs in $ANDROMEDA_ROOT/state/logs/YYYY-MM-DDTHH-MM-SSZ-cmd.log
                     latest.log points at the most recent; errors.log lists failures
   promote           ff-only origin/test|live on the VPS checkout, then upgrade
   backup-all        every product; prune to KEEP_BACKUPS (default 7)
   cron-all          bee --site=PRODUCT cron, staggered (installer cron.d)
   site-disable      bee maintenance-mode 1
-  secrets           $STARDUST_ROOT/state/secrets/<plat>/<prod> 0640 deploy:andromeda
+  secrets           $ANDROMEDA_ROOT/state/secrets/<plat>/<prod> 0640 deploy:andromeda
                     (+ .cnf for mysql --defaults-extra-file; Apache cannot read)
   groups            required: www-admin andromeda
                     recommended: adm deploy
@@ -163,7 +163,7 @@ EXAMPLES
   $PROG add site mysite www --host www.devel
   $PROG backup site mysite www
   $PROG check site mysite www --host www.devel
-  $PROG restore site --from $STARDUST_ROOT/backups/mysite/www/devel/STAMP mysite www
+  $PROG restore site --from $ANDROMEDA_ROOT/backups/mysite/www/devel/STAMP mysite www
   $PROG clone site mysite www mysite www-copy --host www-copy.devel
   $PROG pull site @vps:mysite/www to @local:mysite/www
   $PROG -n promote platform mysite to test
@@ -356,9 +356,9 @@ dispatch() {
         return 1
       fi
       if command -v uv >/dev/null 2>&1; then
-        STARDUST_BIN=$HERE/andromeda exec uv run --with textual "$TUI" "$@"
+        ANDROMEDA_BIN=$HERE/andromeda exec uv run --with textual "$TUI" "$@"
       else
-        STARDUST_BIN=$HERE/andromeda exec python3 "$TUI" "$@"
+        ANDROMEDA_BIN=$HERE/andromeda exec python3 "$TUI" "$@"
       fi
       ;;
     backup-all) cmd_backup_all ;;

@@ -6,7 +6,7 @@
 set -eu
 
 PROG=${0##*/}
-SD=${STARDUST_BIN:-andromeda}
+SD=${ANDROMEDA_BIN:-andromeda}
 TITLE="Andromeda"
 
 if [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" -eq 0 ]; then

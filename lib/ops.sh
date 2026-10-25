@@ -1,11 +1,11 @@
 # shellcheck shell=sh
 # Journal, locks, secrets, backup-all, cron-all, log/last.
 
-TASKS=${STARDUST_ROOT}/state/tasks.log
-LOGDIR=${STARDUST_ROOT}/state/logs
-ERRORS=${STARDUST_ROOT}/state/errors.log
-LOCKDIR=${STARDUST_ROOT}/state/locks
-SECRETDIR=${STARDUST_ROOT}/state/secrets
+TASKS=${ANDROMEDA_ROOT}/state/tasks.log
+LOGDIR=${ANDROMEDA_ROOT}/state/logs
+ERRORS=${ANDROMEDA_ROOT}/state/errors.log
+LOCKDIR=${ANDROMEDA_ROOT}/state/locks
+SECRETDIR=${ANDROMEDA_ROOT}/state/secrets
 KEEP_BACKUPS=${KEEP_BACKUPS:-7}
 
 # Current run's log file. Set by open_run_log.
@@ -52,14 +52,14 @@ task_log() {
   line=$(printf '%s host=%s role=%s user=%s cmd=%s rc=%s log=%s %s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
     "$(hostname 2>/dev/null || echo unknown)" \
-    "${STARDUST_ROLE}" \
+    "${ANDROMEDA_ROLE}" \
     "$(id -un 2>/dev/null || echo ?)" \
     "${1:-?}" \
     "${2:-0}" \
     "${RUN_LOG:-}" \
     "${3:-}")
-  run_root mkdir -p "$STARDUST_ROOT/state"
-  if [ -w "$TASKS" ] || [ -w "$STARDUST_ROOT/state" ]; then
+  run_root mkdir -p "$ANDROMEDA_ROOT/state"
+  if [ -w "$TASKS" ] || [ -w "$ANDROMEDA_ROOT/state" ]; then
     printf '%s\n' "$line" >> "$TASKS" 2>/dev/null || \
       as_root sh -c "printf '%s\n' '$line' >> '$TASKS'"
   else
@@ -202,7 +202,7 @@ each_site() {
 prune_backups() {
   platform=$1
   product=$2
-  base=$(backup_dir "$platform" "$product" "$STARDUST_ROLE")
+  base=$(backup_dir "$platform" "$product" "$ANDROMEDA_ROLE")
   [ -d "$base" ] || return 0
   # keep newest KEEP_BACKUPS stamp dirs
   count=$(ls -1d "$base"/20* 2>/dev/null | wc -l)
@@ -218,7 +218,7 @@ prune_backups() {
 }
 
 cmd_backup_all() {
-  echo "backup-all role=$STARDUST_ROLE keep=$KEEP_BACKUPS"
+  echo "backup-all role=$ANDROMEDA_ROLE keep=$KEEP_BACKUPS"
   fail=0
   each_site | while read -r plat prod; do
     [ -n "$plat" ] || continue
@@ -229,7 +229,7 @@ cmd_backup_all() {
 }
 
 cmd_inventory() {
-  echo "inventory role=$STARDUST_ROLE platforms=$PLATFORMS"
+  echo "inventory role=$ANDROMEDA_ROLE platforms=$PLATFORMS"
   each_site | while read -r plat prod; do
     [ -n "$plat" ] || continue
     root=$PLATFORMS/$plat
@@ -237,7 +237,7 @@ cmd_inventory() {
     if [ -e "$root/.git" ] && have git; then
       gitb=$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
     fi
-    snap=$(latest_backup "$plat" "$prod" "$STARDUST_ROLE" 2>/dev/null || true)
+    snap=$(latest_backup "$plat" "$prod" "$ANDROMEDA_ROLE" 2>/dev/null || true)
     printf 'platform=%s product=%s branch=%s backup=%s\n' \
       "$plat" "$prod" "${gitb:-none}" "${snap:-none}"
   done
