@@ -19,10 +19,13 @@ pull_code() {
   else
     echo "code  rsync web tree"
   fi
-  rsync -a --delete \
+  # Run as OWNER so we can write and set times. Exclude the site
+  # directory that site-add just created so --delete does not remove it.
+  as_root -u "$OWNER" rsync -a --delete \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
     --exclude='sites/*/files' \
+    --exclude='sites/*/' \
     "$vps:/srv/platforms/$src_p/web/" "$web/" || {
     echo "$PROG: rsync web tree failed" >&2
     return 1
@@ -38,12 +41,12 @@ pull_content() {
   src_s=$5
   run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
   echo "files rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
-    rsync -a --delete "$vps:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
+  as_root -u "$OWNER" rsync -a --delete "$vps:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
+    as_root -u "$OWNER" rsync -a --delete "$vps:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
   echo "private rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
+  as_root -u "$OWNER" rsync -a --delete "$vps:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
   echo "config rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
+  as_root -u "$OWNER" rsync -a --delete "$vps:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 }
 
