@@ -1,5 +1,7 @@
 # Stardust documentation
 
+  outline.md         Full map of this folder.
+
   tutorial.txt       Install the host, then day-to-day CLI
                      (platform-add, site-add, backup, promote).
 
