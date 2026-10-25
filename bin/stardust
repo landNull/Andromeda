@@ -223,10 +223,14 @@ case $cmd in
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
     esac
-    # drop a leading "to" so "pull site A to B" works
-    if [ "${1:-}" = "to" ]; then
-      shift
-    fi
+    # drop "to" anywhere so "pull site A to B" works
+    _clean=
+    for _a in "$@"; do
+      [ "$_a" = "to" ] && continue
+      _clean="$_clean $_a"
+    done
+    # shellcheck disable=SC2086
+    set -- $_clean
     ;;
 esac
 # object-first aliases: site list / platform list -> the hyphen form

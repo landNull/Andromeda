@@ -12,16 +12,30 @@ cmd_site_pull() {
       *) break ;;
     esac
   done
-  # @host:plat/site + @host:plat/site
-  if [ "${2:-}" = "+" ] && printf '%s' "${1:-}" | grep -q '^@'; then
+  # @host:plat/site [+ | to] @host:plat/site
+  # verb-first already stripped "to", so two consecutive @refs is the common case
+  if printf '%s' "${1:-}" | grep -q '^@'; then
     left=${1#@}
-    right=${3#@}
-    vps=${left%%:*}
-    src_p=${left#*:}; src_p=${src_p%%/*}
-    src_s=${left##*/}
-    dst_h=${right%%:*}
-    dst_p=${right#*:}; dst_p=${dst_p%%/*}
-    dst_s=${right##*/}
+    if [ "${2:-}" = "+" ]; then
+      right=${3#@}
+    else
+      right=${2#@}
+    fi
+    if printf '%s' "$right" | grep -q ':'; then
+      vps=${left%%:*}
+      src_p=${left#*:}; src_p=${src_p%%/*}
+      src_s=${left##*/}
+      dst_h=${right%%:*}
+      dst_p=${right#*:}; dst_p=${dst_p%%/*}
+      dst_s=${right##*/}
+    else
+      vps=${1:-}
+      src_p=${2:-}
+      src_s=${3:-}
+      dst_h=local
+      dst_p=${4:-$src_p}
+      dst_s=${5:-$src_s}
+    fi
   else
     vps=${1:-}
     src_p=${2:-}
