@@ -46,27 +46,33 @@ cmd_site_backup() {
     return 1
   fi
 
-  # Multi-site layout, then the single-site web/files this migrate left behind.
+  # Content: rsync the current tree into the snapshot. No tar transform.
   if [ -d "$root/files/$product" ]; then
     echo "files $root/files/$product"
-    tar -C "$root/files" -czf "$dest/files.tar.gz" "$product" 2>/dev/null || as_root tar -C "$root/files" -czf "$dest/files.tar.gz" "$product"
+    run_root mkdir -p "$dest/files"
+    rsync -a "$root/files/$product/" "$dest/files/" 2>/dev/null || as_root rsync -a "$root/files/$product/" "$dest/files/"
   elif [ -d "$web/files" ]; then
     echo "files $web/files"
-    tar -C "$web/files" -czf "$dest/files.tar.gz" --transform "s|^|$product/|" . 2>/dev/null || as_root tar -C "$web/files" -czf "$dest/files.tar.gz" --transform "s|^|$product/|" .
+    run_root mkdir -p "$dest/files"
+    rsync -a "$web/files/" "$dest/files/" 2>/dev/null || as_root rsync -a "$web/files/" "$dest/files/"
   else
     echo "files none"
   fi
   if [ -d "$root/files_private/$product" ]; then
     echo "private $root/files_private/$product"
-    tar -C "$root/files_private" -czf "$dest/files_private.tar.gz" "$product" 2>/dev/null || as_root tar -C "$root/files_private" -czf "$dest/files_private.tar.gz" "$product"
+    run_root mkdir -p "$dest/private"
+    rsync -a "$root/files_private/$product/" "$dest/private/" 2>/dev/null || as_root rsync -a "$root/files_private/$product/" "$dest/private/"
   elif [ -d "$web/files/private" ]; then
     echo "private $web/files/private"
-    tar -C "$web/files" -czf "$dest/files_private.tar.gz" private 2>/dev/null || as_root tar -C "$web/files" -czf "$dest/files_private.tar.gz" private
+    run_root mkdir -p "$dest/private"
+    rsync -a "$web/files/private/" "$dest/private/" 2>/dev/null || as_root rsync -a "$web/files/private/" "$dest/private/"
   else
     echo "private none"
   fi
   if [ -d "$root/config/$product/active" ]; then
-    as_root tar -C "$root/config/$product" -czf "$dest/config-active.tar.gz" active
+    echo "config $root/config/$product/active"
+    run_root mkdir -p "$dest/config-active"
+    rsync -a "$root/config/$product/active/" "$dest/config-active/" 2>/dev/null || as_root rsync -a "$root/config/$product/active/" "$dest/config-active/"
   fi
 
   as_root sh -c "cat > '$dest/MANIFEST'" <<EOF
@@ -135,15 +141,27 @@ cmd_site_restore() {
     "$root/files_private/$product" \
     "$root/config/$product/active"
 
-  if [ -f "$from/files.tar.gz" ]; then
+  if [ -d "$from/files" ]; then
+    echo "rsync files -> $root/files/$product"
+    run_root mkdir -p "$root/files/$product"
+    rsync -a "$from/files/" "$root/files/$product/" 2>/dev/null || as_root rsync -a "$from/files/" "$root/files/$product/"
+  elif [ -f "$from/files.tar.gz" ]; then
     echo "unpack files -> $root/files/$product"
     mkdir -p "$root/files"
     tar -C "$root/files" -xzf "$from/files.tar.gz" 2>/dev/null || as_root tar -C "$root/files" -xzf "$from/files.tar.gz"
   fi
-  if [ -f "$from/files_private.tar.gz" ]; then
+  if [ -d "$from/private" ]; then
+    echo "rsync private -> $root/files_private/$product"
+    run_root mkdir -p "$root/files_private/$product"
+    rsync -a "$from/private/" "$root/files_private/$product/" 2>/dev/null || as_root rsync -a "$from/private/" "$root/files_private/$product/"
+  elif [ -f "$from/files_private.tar.gz" ]; then
     as_root tar -C "$root/files_private" -xzf "$from/files_private.tar.gz"
   fi
-  if [ -f "$from/config-active.tar.gz" ]; then
+  if [ -d "$from/config-active" ]; then
+    echo "rsync config -> $root/config/$product/active"
+    run_root mkdir -p "$root/config/$product/active"
+    rsync -a "$from/config-active/" "$root/config/$product/active/" 2>/dev/null || as_root rsync -a "$from/config-active/" "$root/config/$product/active/"
+  elif [ -f "$from/config-active.tar.gz" ]; then
     as_root tar -C "$root/config/$product" -xzf "$from/config-active.tar.gz"
   fi
   chown_files \

@@ -64,7 +64,11 @@ cmd_site_clone() {
     dump="$snap/db.sql.gz"
   fi
   as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
-  if [ -f "$snap/files.tar.gz" ]; then
+  if [ -d "$snap/files" ]; then
+    echo "rsync files -> $root/files/$product"
+    run_root mkdir -p "$root/files/$product"
+    rsync -a "$snap/files/" "$root/files/$product/" 2>/dev/null || as_root rsync -a "$snap/files/" "$root/files/$product/"
+  elif [ -f "$snap/files.tar.gz" ]; then
     run_root mkdir -p "$root/files/$product"
     as_root tar -C "$root/files" -xzf "$snap/files.tar.gz"
     if [ "$src_product" != "$product" ] && [ -d "$root/files/$src_product" ]; then
@@ -73,7 +77,11 @@ cmd_site_clone() {
       as_root mv "$root/files/$product.tmp" "$root/files/$product"
     fi
   fi
-  if [ -f "$snap/files_private.tar.gz" ]; then
+  if [ -d "$snap/private" ]; then
+    echo "rsync private -> $root/files_private/$product"
+    run_root mkdir -p "$root/files_private/$product"
+    rsync -a "$snap/private/" "$root/files_private/$product/" 2>/dev/null || as_root rsync -a "$snap/private/" "$root/files_private/$product/"
+  elif [ -f "$snap/files_private.tar.gz" ]; then
     run_root mkdir -p "$root/files_private/$product"
     as_root tar -C "$root/files_private" -xzf "$snap/files_private.tar.gz"
     if [ "$src_product" != "$product" ] && [ -d "$root/files_private/$src_product" ]; then
@@ -82,9 +90,11 @@ cmd_site_clone() {
       as_root mv "$root/files_private/$product.tmp" "$root/files_private/$product"
     fi
   fi
-  # Backdrop boots from the active config directory, not only the DB.
-  # Without this the preview has a fresh empty config and returns 500.
-  if [ -f "$snap/config-active.tar.gz" ]; then
+  if [ -d "$snap/config-active" ]; then
+    echo "rsync config -> $root/config/$product/active"
+    run_root mkdir -p "$root/config/$product/active"
+    rsync -a "$snap/config-active/" "$root/config/$product/active/" 2>/dev/null || as_root rsync -a "$snap/config-active/" "$root/config/$product/active/"
+  elif [ -f "$snap/config-active.tar.gz" ]; then
     run_root mkdir -p "$root/config/$product"
     as_root tar -C "$root/config/$product" -xzf "$snap/config-active.tar.gz"
     run_root chown -R "$OWNER:$GROUP" "$root/config/$product" 2>/dev/null || true
@@ -92,9 +102,10 @@ cmd_site_clone() {
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 
   localphp=$web/sites/$product/settings.local.php
-  hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
-  if [ -f "$localphp" ]; then
-    as_root sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" || true
+  hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
+  # Do not sed an existing line. Append only when the line is missing.
+  if [ -f "$localphp" ] && ! grep -q "trusted_host_patterns" "$localphp" 2>/dev/null; then
+    printf '%s\n' "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');" | as_root tee -a "$localphp" >/dev/null || true
   fi
   echo "clone done  http://$host"
 }
