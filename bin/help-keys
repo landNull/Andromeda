@@ -1,0 +1,99 @@
+#!/bin/sh
+# help-keys — show shortcut keys grouped by category.
+# Prefers gum; falls back to whiptail, then dialog.
+# Selecting a key opens the matching page from the docs satellite.
+# Called by the application. The user does not run this by hand unless debugging.
+
+set -eu
+
+PROG=${0##*/}
+HERE=$(dirname "$0")
+# shellcheck disable=SC1091
+. "$HERE/../lib/common.sh" 2>/dev/null || true
+
+have() { command -v "$1" >/dev/null 2>&1; }
+
+UI=""
+if have gum; then UI=gum
+elif have whiptail; then UI=whiptail
+elif have dialog; then UI=dialog
+else
+  echo "$PROG: install gum or whiptail" >&2
+  exit 1
+fi
+
+pick() {
+  prompt=$1
+  shift
+  case $UI in
+    gum) gum choose --header "$prompt" "$@" ;;
+    whiptail)
+      args=""
+      for a in "$@"; do args="$args $a $a"; done
+      # shellcheck disable=SC2086
+      whiptail --title "Keys" --menu "$prompt" 20 72 12 $args 3>&1 1>&2 2>&3
+      ;;
+    dialog)
+      args=""
+      for a in "$@"; do args="$args $a $a"; done
+      # shellcheck disable=SC2086
+      dialog --title "Keys" --menu "$prompt" 20 72 12 $args 3>&1 1>&2 2>&3
+      ;;
+  esac
+}
+
+# Category map. Format: category|key|what it does|doc topic
+MAP="
+navigate|q|leave the page|open-help
+navigate|?|open help for this prompt|open-help
+navigate|Enter|accept the default|open-help
+site|heal site|repair one site|heal
+site|heal all|repair every broken site|heal
+site|check site|run the site checks|check
+site|pull site|bring a site from the VPS|pull
+site|promote platform to test|move a platform to test|promote
+site|promote platform to live|move a platform to live|promote
+backup|backup site|save one site|backup
+backup|backup all|save every site|backup
+backup|restore site|bring a site back|restore
+"
+
+categories() {
+  printf '%s\n' "$MAP" | awk -F'|' 'NF>1 {print $1}' | sort -u
+}
+
+keys_for() {
+  cat=$1
+  printf '%s\n' "$MAP" | awk -F'|' -v c="$cat" '$1==c {print $2}'
+}
+
+what_for() {
+  cat=$1
+  key=$2
+  printf '%s\n' "$MAP" | awk -F'|' -v c="$cat" -v k="$key" '$1==c && $2==k {print $3}'
+}
+
+topic_for() {
+  cat=$1
+  key=$2
+  printf '%s\n' "$MAP" | awk -F'|' -v c="$cat" -v k="$key" '$1==c && $2==k {print $4}'
+}
+
+while :; do
+  cats=$(categories)
+  # shellcheck disable=SC2086
+  cat=$(pick "Keys" $cats quit) || exit 0
+  [ "$cat" = quit ] && exit 0
+  keys=$(keys_for "$cat")
+  # shellcheck disable=SC2086
+  key=$(pick "$cat" $keys back) || continue
+  [ "$key" = back ] && continue
+  what=$(what_for "$cat" "$key")
+  topic=$(topic_for "$cat" "$key")
+  echo "$key — $what"
+  if command -v show_doc >/dev/null 2>&1; then
+    show_doc "$topic"
+  else
+    echo "(no doc page for $topic)"
+  fi
+done
