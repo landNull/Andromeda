@@ -163,6 +163,19 @@ _restore_snap() {
     printf "%s\n" "<?php" "\$settings['file_public_path'] = 'sites/$product/files';" | as_root tee -a "$localphp" >/dev/null || true
   fi
   echo "files path sites/$product/files"
+  # Backdrop config lives outside the site dir. Point settings at the store.
+  cfgactive="$root/config/$product/active"
+  cfgstaging="$root/config/$product/staging"
+  if [ -d "$cfgactive" ]; then
+    run_root mkdir -p "$cfgstaging"
+    if [ -f "$localphp" ] && grep -q "config_directories" "$localphp"; then
+      as_root sed -i "s|config_directories\['active'\].*|config_directories['active']  = '$cfgactive';|" "$localphp" || true
+      as_root sed -i "s|config_directories\['staging'\].*|config_directories['staging'] = '$cfgstaging';|" "$localphp" || true
+    else
+      printf "%s\n" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee -a "$localphp" >/dev/null || true
+    fi
+    echo "config $cfgactive"
+  fi
   hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
   if [ -f "$localphp" ]; then
     as_root sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" || true
