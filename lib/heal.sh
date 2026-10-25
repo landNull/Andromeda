@@ -92,10 +92,11 @@ cmd_site_heal() {
   # Group-writable. Do not sudo these. www-admin already owns the write.
   mkdir -p "$web/sites/$product" 2>/dev/null || true
   [ -f "$web/settings.php" ] && [ ! -f "$web/sites/$product/settings.php" ] && cp "$web/settings.php" "$web/sites/$product/settings.php" 2>/dev/null || true
-  hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
+  hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
   localphp=$web/sites/$product/settings.local.php
-  if [ -f "$localphp" ]; then
-    sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" 2>/dev/null || true
+  # Do not sed an existing line. Append only when the line is missing.
+  if [ -f "$localphp" ] && ! grep -q "trusted_host_patterns" "$localphp" 2>/dev/null; then
+    printf '%s\n' "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');" >> "$localphp" || true
   fi
   priv=${PRIV:-/usr/local/sbin/stardust-priv}
   sudo -n "$priv" mkdir "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active" 2>/dev/null || true
