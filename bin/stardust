@@ -77,6 +77,26 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
 
   Do not type "sudo $PROG" — refused (exit 2). Use -n before mutating commands.
 
+  Preferred (verb first):
+  $PROG pull site @host:plat/site to @host:plat/site
+  $PROG add platform NAME
+  $PROG add site PLATFORM PRODUCT
+  $PROG heal site PLATFORM PRODUCT
+  $PROG heal all
+  $PROG list sites | platforms
+  $PROG promote platform NAME to test|live
+  $PROG backup site PLATFORM PRODUCT
+  $PROG restore site PLATFORM PRODUCT
+  $PROG clone site SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD
+  $PROG debug site PLATFORM PRODUCT
+  $PROG check site PLATFORM PRODUCT
+  $PROG disable site PLATFORM PRODUCT
+  $PROG enable site PLATFORM PRODUCT
+  $PROG delete site PLATFORM PRODUCT
+  $PROG remove platform NAME
+  $PROG upgrade platform NAME
+
+  Also accepted (object first):
   $PROG doctor | list | env | help | log [N] | last | ui
   $PROG [-n] platform-add NAME [--git URL] [--branch BRANCH]
   $PROG [-n] platform-upgrade PLATFORM [--no-pull]
@@ -131,15 +151,15 @@ EXAMPLES
   cd ~/stardust && ./stardust-install.sh -n --localhost
 
   $PROG doctor
-  $PROG -n platform-add mysite --git git@git.example:org/mysite.git
-  $PROG site-add mysite www --host www.devel
-  $PROG site-backup mysite www
-  $PROG site-check mysite www --host www.devel
-  $PROG site-restore --from $STARDUST_ROOT/backups/mysite/www/devel/STAMP mysite www
-  $PROG site-clone mysite www mysite www-copy --host www-copy.devel
-  $PROG site-pull --role test vps mysite www mysite www
-  $PROG -n promote mysite --to test
-  $PROG promote mysite --to live
+  $PROG -n add platform mysite --git git@git.example:org/mysite.git
+  $PROG add site mysite www --host www.devel
+  $PROG backup site mysite www
+  $PROG check site mysite www --host www.devel
+  $PROG restore site --from $STARDUST_ROOT/backups/mysite/www/devel/STAMP mysite www
+  $PROG clone site mysite www mysite www-copy --host www-copy.devel
+  $PROG pull site @vps:mysite/www to @local:mysite/www
+  $PROG -n promote platform mysite to test
+  $PROG promote platform mysite to live
   $PROG log 20
   $PROG last
   $PROG backup-all
@@ -179,7 +199,35 @@ for _a in "$@"; do
 done
 # shellcheck disable=SC2086
 set -- $_rest
-# site list / platform list -> the hyphen form
+# verb-first: pull site, add platform, heal site, list sites, promote platform
+# object-first forms (site pull, platform add) remain as aliases
+case $cmd in
+  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade)
+    obj=${1:-}
+    case $cmd in
+      pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
+      add)     case $obj in platform) cmd=platform-add; shift ;; site) cmd=site-add; shift ;; esac ;;
+      heal)    case $obj in site) cmd=site-heal; shift ;; all) cmd=heal-all; shift ;; esac ;;
+      list)    case $obj in site|sites) cmd=site-list; shift ;; platform|platforms) cmd=platform-list; shift ;; esac ;;
+      promote) case $obj in platform) cmd=promote; shift ;; esac ;;
+      backup)  case $obj in site) cmd=site-backup; shift ;; all) cmd=backup-all; shift ;; esac ;;
+      restore) case $obj in site) cmd=site-restore; shift ;; esac ;;
+      clone)   case $obj in site) cmd=site-clone; shift ;; esac ;;
+      debug)   case $obj in site) cmd=site-debug; shift ;; esac ;;
+      check)   case $obj in site) cmd=site-check; shift ;; esac ;;
+      disable) case $obj in site) cmd=site-disable; shift ;; esac ;;
+      enable)  case $obj in site) cmd=site-enable; shift ;; esac ;;
+      delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
+      remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
+      upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
+    esac
+    # drop a leading "to" so "pull site A to B" works
+    if [ "${1:-}" = "to" ]; then
+      shift
+    fi
+    ;;
+esac
+# object-first aliases: site list / platform list -> the hyphen form
 case $cmd in
   heal)
     if [ "${1:-}" = "all" ]; then
