@@ -56,6 +56,7 @@ export LIBDIR
 . "$LIBDIR/clone.sh"
 . "$LIBDIR/pull.sh"
 . "$LIBDIR/heal.sh"
+. "$LIBDIR/test.sh"
 . "$LIBDIR/wg.sh"
 # shellcheck disable=SC1091
 . "$LIBDIR/promote.sh"
@@ -97,7 +98,7 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG upgrade platform NAME
 
   Also accepted (object first):
-  $PROG doctor | list | env | help | log [N] | last | ui
+  $PROG test COMMAND [args…]   # preflight, heal if safe, then run
   $PROG [-n] platform-add NAME [--git URL] [--branch BRANCH]
   $PROG [-n] platform-upgrade PLATFORM [--no-pull]
   $PROG inventory
@@ -204,7 +205,7 @@ set -- $_rest
 # verb-first: pull site, add platform, heal site, list sites, promote platform
 # object-first forms (site pull, platform add) remain as aliases
 case $cmd in
-  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade)
+  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test)
     obj=${1:-}
     case $cmd in
       pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
@@ -297,6 +298,7 @@ dispatch() {
     site-heal) cmd_site_heal "$@" ;;
     heal-all) cmd_heal_all ;;
     site-check) cmd_site_check "$@" ;;
+    test) cmd_test "$@" ;;
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
     site-delete) cmd_site_delete "$@" ;;
@@ -360,7 +362,7 @@ case $cmd in
     task_log "$cmd $*" "$rc"
     [ "$rc" -eq 0 ] || exit "$rc"
     ;;
-  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port)
+  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port|test)
     open_run_log "$cmd"
     rcfile=$(mktemp)
     {

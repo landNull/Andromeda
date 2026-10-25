@@ -35,6 +35,19 @@ stardust upgrade platform ecom
 
 Captain Rocket emits natural language. Verb-first matches how a human says the action, so Capcom has less to rewrite before the call.
 
+## test
+
+`stardust test <command> [args…]` runs a preflight before the real command.
+
+If the command names a platform and product, `test` runs `site-debug`. Healable failures (missing dirs, settings, trusted host, ownership) are passed to `site-heal`. The check is repeated. If it still fails, the real command is refused. If it passes, the command runs.
+
+If no site target is present, `test` runs `doctor` and refuses on failure.
+
+```
+stardust test pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
+stardust test site-check ecom kl_devel
+```
+
 ## Logging
 
 Every mutating command writes two records:
