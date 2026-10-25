@@ -119,7 +119,13 @@ _restore_snap() {
       echo "$PROG: files archive unpacked empty" >&2
       return 1
     fi
-    chown_files "$root/files/$product" 2>/dev/null || true
+    # source product name nested inside the store: lift its contents up
+  if [ -n "$src_product" ] && [ "$src_product" != "$product" ] && [ -d "$root/files/$product/$src_product" ]; then
+    echo "flatten $src_product into $product"
+    cp -a "$root/files/$product/$src_product/." "$root/files/$product/" 2>/dev/null || as_root cp -a "$root/files/$product/$src_product/." "$root/files/$product/"
+    as_root rm -rf "$root/files/$product/$src_product"
+  fi
+  chown_files "$root/files/$product" 2>/dev/null || true
   else
     echo "files  none in snapshot"
   fi
