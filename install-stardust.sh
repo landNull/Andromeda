@@ -74,7 +74,7 @@ WHAT THIS IS FOR
   sysvinit vs systemd vs OpenRC. Creates system account deploy
   (HOME $STARDUST/home, shell nologin, locked password) and group
   www-admin, the $STARDUST control plane, missing packages, PHP/MariaDB snippets,
-  companion CLIs (crdir, newfeature, stardust, bee), and conf files.
+  companion CLIs (crdir, newfeature, stardust, bee, glow, gum), and conf files.
   PHP: 30-stardust.ini every SAPI; 35-stardust-harden.ini FPM/apache2
   only; 35-stardust-cli.ini leaves Bee able to exec.
   Also: php-intl/bcmath/imagick/apcu, apache2-utils, mariadb-backup,
@@ -270,7 +270,30 @@ pkg_ok() {
   esac
 }
 
-pkg_install() {
+# Charm tools: glow renders markdown help; gum drives the menu and key picker.
+# Static binaries from GitHub releases. No extra apt repo.
+install_charm() {
+  for tool in glow gum; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      echo "$tool ok"
+      continue
+    fi
+    url=$(curl -fsSL "https://api.github.com/repos/charmbracelet/${tool}/releases/latest" \
+      | awk -F'"' '/browser_download_url/ && /Linux_x86_64\.tar\.gz/ {print $4; exit}')
+    if [ -z "$url" ]; then
+      echo "$PROG: could not find a $tool release" >&2
+      continue
+    fi
+    tmp=$(mktemp -d)
+    curl -fsSL "$url" | tar -xz -C "$tmp"
+    bin=$(find "$tmp" -type f -name "$tool" | head -1)
+    if [ -n "$bin" ]; then
+      run_root install -m 0755 "$bin" "/usr/local/bin/$tool"
+      echo "$tool installed"
+    fi
+    rm -rf "$tmp"
+  done
+}
   case $PKG in
     apt)
       run_root apt-get update
@@ -1493,6 +1516,8 @@ if [ "$ran" -eq 0 ]; then
   echo "$PROG: no app install phases found (apps/*/install.sh)" >&2
   exit 1
 fi
+
+install_charm
 
 write_wg_sudoers
 echo "done."
