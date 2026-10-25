@@ -18,10 +18,10 @@
 
 ## Standard
 
-d-LitFunc is the documentation and build standard. The SM pattern is the standard for attaching Captain Rocket.
+The d-LitFunc standard lives in the d-LitFunc repository. The files below are pointers. They are not copies.
 
-- `d-litfunc.md` — the standard
-- `d-litfunc-stardust.md` — how the SM works inside Stardust
-- `d-litfunc-captain-rocket.md` — Captain Rocket as the SM
+- `d-litfunc.md` — pointer to the standard
+- `d-litfunc-stardust.md` — pointer to the Stardust SM page
+- `d-litfunc-captain-rocket.md` — pointer to the Captain Rocket SM page
 
-The application is the Command Module. Captain Rocket is the Service Module when `.captainrocket/` is present. The contract is `contrib/captainrocket/`.
+The source of truth is the d-LitFunc git repository. Links inside it are relative. The remote can be any forge. Stardust runs from the clone with no required proprietary service.
