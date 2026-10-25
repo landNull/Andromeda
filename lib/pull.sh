@@ -107,8 +107,8 @@ _restore_snap() {
     elif [ "$top" = "$src_product" ] || [ "$top" = "$product" ]; then
       tar -C "$root/files" -xzf "$snap/files.tar.gz"
       if [ "$top" != "$product" ] && [ -d "$root/files/$top" ]; then
-        rm -rf "$root/files/$product"
-        mv "$root/files/$top" "$root/files/$product"
+        as_root rm -rf "$root/files/$product"
+        as_root mv "$root/files/$top" "$root/files/$product"
       fi
     else
       tar -C "$root/files/$product" -xzf "$snap/files.tar.gz"
