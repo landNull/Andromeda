@@ -11,7 +11,18 @@ Open a page from the docs satellite with `-h` or `help`.
 
 ## Result
 
-The page opens in the same pager the installer uses. The page comes from the local `docs/` tree.
+The short page from the application folder opens. A command row sits at the bottom:
+
+```
+q leave   ? more   n next   b back
+```
+
+- `q` leaves
+- `?` opens the full page
+- `n` opens the next related page
+- `b` returns
+
+The full page and the related pages come from the docs satellite. The short page stays local.
 
 ## See also
 

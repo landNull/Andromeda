@@ -131,7 +131,7 @@ show_help_pager() {
     pager=sensible-pager
   fi
   if [ -z "$pager" ] && command -v less >/dev/null 2>&1; then
-    pager="less -F -X -E"
+    pager="less -F -X -E -P q\\ leave\\ \\ \\?\\ more\\ \\ n\\ next\\ \\ b\\ back"
   fi
   if [ -z "$pager" ] && command -v more >/dev/null 2>&1; then
     pager=more
@@ -145,8 +145,24 @@ show_help_pager() {
   fi
 }
 
-# The docs satellite is the local docs/ tree, kept in sync with the d-LitFunc repo.
-# show_doc TOPIC opens the matching page. Falls back to the outline.
+# Related pages. topic|next
+RELATED="
+open-help|open-keys
+open-keys|open-help
+heal|check
+check|heal
+pull|promote
+promote|pull
+backup|restore
+restore|backup
+"
+
+next_for() {
+  t=$1
+  printf '%s\n' "$RELATED" | awk -F'|' -v t="$t" '$1==t {print $2; exit}'
+}
+
+# Local summary first. Footer commands open the longer page or the next related page.
 show_doc() {
   topic=${1:-}
   root=${STARDUST_DOCS:-$HERE/../docs}
@@ -167,11 +183,34 @@ show_doc() {
   if [ -z "$page" ] && [ -f "$root/outline.md" ]; then
     page=$root/outline.md
   fi
-  if [ -n "$page" ]; then
-    show_help_pager "$(cat "$page")"
-  else
+  if [ -z "$page" ]; then
     echo "(no doc page for ${topic:-help})" >&2
+    return 0
   fi
+  # Summary: lines until the first See also, or the first 30 lines.
+  summary=$(awk 'BEGIN{n=0} /^## See also/{exit} {print; n++; if(n>=30) exit}' "$page")
+  footer="q leave   ? more   n next   b back"
+  show_help_pager "$summary
+
+$footer"
+  # One key after the pager. Empty or q leaves.
+  printf '%s  ' "$footer" >&2
+  IFS= read -r key || key=
+  case $key in
+    \?|more)
+      show_help_pager "$(cat "$page")"
+      ;;
+    n|next)
+      nxt=$(next_for "$topic")
+      [ -n "$nxt" ] && show_doc "$nxt"
+      ;;
+    b|back)
+      return 0
+      ;;
+    *)
+      return 0
+      ;;
+  esac
 }
 
 prompt_line() {
