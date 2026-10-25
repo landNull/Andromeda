@@ -60,56 +60,11 @@ cmd_site_pull() {
   STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
   resolve_site "$dst_p" "$dst_s"
 
-  # Code: prefer git. Fall back to rsync of the web tree, excluding runtime.
-  if [ -e "$root/.git" ]; then
-    echo "code  git pull"
-    if ! as_root -u "$OWNER" git -C "$root" pull --ff-only 2>/dev/null; then
-      echo "code  git pull skipped — rsync web tree"
-      rsync -a --delete \
-        --exclude='files/' --exclude='files_private/' \
-        --exclude='sites/*/settings.local.php' \
-        --exclude='sites/*/files' \
-        "$vps:/srv/platforms/$src_p/web/" "$web/" || {
-        echo "$PROG: rsync web tree failed" >&2
-        exit 1
-      }
-    fi
-  else
-    echo "code  rsync web tree"
-    rsync -a --delete \
-      --exclude='files/' --exclude='files_private/' \
-      --exclude='sites/*/settings.local.php' \
-      --exclude='sites/*/files' \
-      "$vps:/srv/platforms/$src_p/web/" "$web/" || {
-      echo "$PROG: rsync web tree failed" >&2
-      exit 1
-    }
-  fi
-
-  # Content: rsync the current tree. No tar roundtrip.
-  run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
-  echo "files rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
-    rsync -a --delete "$vps:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
-  echo "private rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
-  echo "config rsync"
-  rsync -a --delete "$vps:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
-
-  # Database: Bee on the remote, rsync the dump, Bee import locally.
-  bee=$(bee_bin)
-  dump=$(mktemp)
-  echo "db    export on $vps"
-  ssh "$vps" "stardust bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
-    ssh "$vps" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
-  if [ -s "$dump" ]; then
-    echo "db    import"
-    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
-  else
-    echo "db    none"
-  fi
-  rm -f "$dump"
+  # shellcheck disable=SC1091
+  . "$LIBDIR/pull-rsync.sh"
+  pull_code "$root" "$web" "$vps" "$src_p" || exit 1
+  pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
+  pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
 
   _write_local "$root" "$web" "$product" "$host" "$role"
   echo "pull done  http://$host"
