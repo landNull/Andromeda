@@ -54,6 +54,9 @@ if [ -z "$flags" ]; then
     security) flags="--json --speak -n security" ;;
     lint) flags="--json --speak --lint" ;;
     heal) flags="--json --speak --heal" ;;
+    preflight|test) flags="--preflight" ;;
+    heal-all|healall) flags="--heal-all" ;;
+    last-log|lastlog|log) flags="--last-log" ;;
     complete*|starcoder*|finish*) flags="--starcoder" ;;
     *)
       printf 'SPEAK: No Stardust tool matches that phrase.\n'
@@ -68,6 +71,33 @@ if [ "$flags" = "--starcoder" ]; then
   shift
   exec "$HERE/starcoder-complete.sh" "$@"
 fi
+
+# Capcom mode: as_root must not prompt.
+export STARDUST_SPEAK=1
+export STARDUST_JSON=1
+
+case $flags in
+  --preflight)
+    shift
+    rest=${*:-}
+    if [ -z "$rest" ]; then
+      printf 'SPEAK: Say the command to preflight. For example, test site-check ecom kl_devel.\n'
+      printf '%s\n' '{"module":"test","status":"fail","what":"missing command"}'
+      exit 2
+    fi
+    # shellcheck disable=SC2086
+    stardust test $rest
+    exit $?
+    ;;
+  --heal-all)
+    stardust heal all
+    exit $?
+    ;;
+  --last-log)
+    stardust last
+    exit $?
+    ;;
+esac
 
 if [ ! -x "$RUNNER" ]; then
   printf 'SPEAK: The Stardust test runner is missing.\n'

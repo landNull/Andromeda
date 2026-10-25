@@ -57,6 +57,44 @@
       ]
     },
     {
+      "name": "stardust-preflight",
+      "summary": "Preflight a Stardust command. Heal if safe, then run only if the check passes.",
+      "argv": [
+        "./contrib/captainrocket/run-tool.sh",
+        "preflight"
+      ],
+      "intents": [
+        "preflight a command",
+        "test a command"
+      ],
+      "speak_prefix": "SPEAK:",
+      "json_line": true
+    },
+    {
+      "name": "stardust-heal-all",
+      "summary": "Heal every site that site-debug reports as failing.",
+      "argv": [
+        "./contrib/captainrocket/run-tool.sh",
+        "heal-all"
+      ],
+      "intents": [
+        "heal all sites"
+      ],
+      "speak_prefix": "SPEAK:",
+      "json_line": true
+    },
+    {
+      "name": "stardust-last-log",
+      "summary": "Print the path of the most recent timestamped run log.",
+      "argv": [
+        "./contrib/captainrocket/run-tool.sh",
+        "last-log"
+      ],
+      "intents": [
+        "show the last log"
+      ]
+    },
+    {
       "name": "starcoder-complete",
       "summary": "Complete a code prefix with starcoder2. Supports temperature, stop sequences, optional FIM suffix, and post-filter.",
       "argv": [

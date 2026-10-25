@@ -28,6 +28,9 @@ cmd_test() {
   done
 
   echo "test: preflight $*"
+  if [ -n "${STARDUST_SPEAK:-}" ]; then
+    printf 'SPEAK: Preflighting %s\n' "$*"
+  fi
   if [ -n "$plat" ] && [ -n "$prod" ] && [ -d "$PLATFORMS/$plat" ]; then
     echo "test: site $plat/$prod"
     out=$(cmd_site_debug "$plat" "$prod" 2>&1) || true
@@ -39,10 +42,17 @@ cmd_test() {
       echo "$out"
       if printf '%s\n' "$out" | grep -q "FAIL"; then
         echo "test: still failing after heal — refusing to run" >&2
+        if [ -n "${STARDUST_SPEAK:-}" ]; then
+          printf 'SPEAK: Still failing after heal. Refusing to run.\n'
+          printf '%s\n' '{"module":"test","status":"fail","what":"still failing after heal"}'
+        fi
         return 1
       fi
     fi
     echo "test: site OK"
+    if [ -n "${STARDUST_SPEAK:-}" ]; then
+      printf 'SPEAK: Site OK. Running the command.\n'
+    fi
   else
     echo "test: no site target, running doctor"
     cmd_doctor || return 1

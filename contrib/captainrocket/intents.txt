@@ -10,6 +10,10 @@ check the site: --json --speak -n site
 check security: --json --speak -n security
 lint the scripts: --json --speak --lint
 heal the scripts: --json --speak --heal
+preflight a command: --preflight
+test a command: --preflight
+heal all sites: --heal-all
+show the last log: --last-log
 complete this code: --starcoder
 finish this function: --starcoder
 starcoder complete: --starcoder
