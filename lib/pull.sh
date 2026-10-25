@@ -12,39 +12,19 @@ cmd_site_pull() {
       *) break ;;
     esac
   done
-  # @host:plat/site + @host:plat/site   (also ->)
-  if { [ "${2:-}" = "+" ] || [ "${2:-}" = "->" ]; } && printf '%s' "${1:-}" | grep -q '^@'; then
-    left=${1#@}
-    right=${3#@}
-    vps=${left%%:*}
-    src_p=${left#*:}; src_p=${src_p%%/*}
-    src_s=${left##*/}
-    dst_h=${right%%:*}
-    dst_p=${right#*:}; dst_p=${dst_p%%/*}
-    dst_s=${right##*/}
-  else
-    vps=${1:-}
-    src_p=${2:-}
-    src_s=${3:-}
-    dst_h=local
-    dst_p=${4:-$src_p}
-    dst_s=${5:-$src_s}
-  fi
+  vps=${1:-}
+  src_p=${2:-}
+  src_s=${3:-}
+  dst_p=${4:-$src_p}
+  dst_s=${5:-$src_s}
   if [ -z "$vps" ] || [ -z "$src_p" ] || [ -z "$src_s" ]; then
-    echo "usage: $PROG site pull @host:plat/site + @host:plat/site" >&2
-    echo "   or: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
+    echo "usage: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
     exit 2
   fi
 
-  src_path="/srv/platforms/$src_p/web/sites/$src_s"
-  dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
-  echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
-  echo "from $src_path  on $vps"
-  echo "to   $dst_path"
-  echo "tunnel  up"
+  echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
   wg_up || return 1
   trap wg_down EXIT
-  echo "tunnel  $vps"
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ ssh $vps stardust site-backup $src_p $src_s"
     echo "+ rsync snapshot"
@@ -54,21 +34,20 @@ cmd_site_pull() {
     return 0
   fi
 
-  echo "remote  backup $src_p/$src_s"
   ssh "$vps" "stardust site-backup $src_p $src_s" || {
     echo "$PROG: remote backup failed" >&2
     exit 1
   }
+  echo "remote  latest"
   remote=$(ssh "$vps" "stardust site-backup $src_p $src_s --latest" 2>/dev/null || true)
+  remote=$(printf '%s\n' "$remote" | sed 's/\x1b\[[0-9;]*m//g' | grep '^/srv/stardust/backups/' | tail -n 1)
   if [ -z "$remote" ]; then
     echo "$PROG: remote snapshot path missing" >&2
     exit 1
   fi
   local_snap="$HOME/.stardust/pull/$src_p/$src_s"
   mkdir -p "$local_snap"
-  echo "rsync   $remote"
-  echo "local   $local_snap"
-  rsync -a --info=stats2 "$vps:$remote/" "$local_snap/" || {
+  rsync -a "$vps:$remote/" "$local_snap/" || {
     echo "$PROG: rsync failed" >&2
     exit 1
   }
@@ -78,14 +57,11 @@ cmd_site_pull() {
     cmd_platform_add "$dst_p" --no-prompt
   fi
   host="${dst_s}.${role}"
-  echo "site    $dst_p/$dst_s host=$host"
   STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
-  echo "restore files, private, config, db"
 
   # Fill the devel site from the snapshot so Backdrop boots the pulled content.
   resolve_site "$dst_p" "$dst_s"
   _restore_snap "$local_snap" "$root" "$web" "$product" "$src_s" "$host"
-  echo "tunnel  down"
   echo "pull done  http://$host"
 }
 
@@ -106,13 +82,29 @@ _restore_snap() {
     as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
   fi
   if [ -f "$snap/files.tar.gz" ]; then
-    run_root mkdir -p "$root/files/$product"
-    as_root tar -C "$root/files" -xzf "$snap/files.tar.gz"
-    if [ "$src_product" != "$product" ] && [ -d "$root/files/$src_product" ]; then
-      as_root mv "$root/files/$src_product" "$root/files/$product.tmp" 2>/dev/null || true
-      as_root rm -rf "$root/files/$product"
-      as_root mv "$root/files/$product.tmp" "$root/files/$product"
+    echo "unpack files -> $root/files/$product"
+    mkdir -p "$root/files/$product"
+    top=$(tar -tzf "$snap/files.tar.gz" | head -n 1 | cut -d/ -f1)
+    if [ "$top" = "files" ]; then
+      tar -C "$root/files/$product" -xzf "$snap/files.tar.gz" --strip-components=1
+    elif [ "$top" = "$src_product" ] || [ "$top" = "$product" ]; then
+      tar -C "$root/files" -xzf "$snap/files.tar.gz"
+      if [ "$top" != "$product" ] && [ -d "$root/files/$top" ]; then
+        rm -rf "$root/files/$product"
+        mv "$root/files/$top" "$root/files/$product"
+      fi
+    else
+      tar -C "$root/files/$product" -xzf "$snap/files.tar.gz"
     fi
+    n=$(find "$root/files/$product" -type f | wc -l)
+    echo "files  $n"
+    if [ "$n" -eq 0 ]; then
+      echo "$PROG: files archive unpacked empty" >&2
+      return 1
+    fi
+    chown_files "$root/files/$product" 2>/dev/null || true
+  else
+    echo "files  none in snapshot"
   fi
   if [ -f "$snap/files_private.tar.gz" ]; then
     run_root mkdir -p "$root/files_private/$product"
