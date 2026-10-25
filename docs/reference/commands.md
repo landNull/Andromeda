@@ -39,6 +39,8 @@ Captain Rocket emits natural language. Verb-first matches how a human says the a
 
 Code and versioned config move by Git (`platform-add`, `platform-upgrade`, `promote`, `pull site`). User content (`files/`, `files_private/`, database) moves by Bee and rsync. `settings.local.php` is written once, by a single template pass, never appended. `sites.php` mappings belong in the platform repo.
 
+`lib/pull-rsync.sh` is an internal helper. `cmd_site_pull` calls `pull_code`, `pull_content`, and `pull_db`. It is not a standalone command.
+
 ## Apache reload
 
 Every reload runs `apache2ctl configtest` first. A failed configtest refuses the reload. heal, migrate, and platform-remove use this path. The gate also lives inside `stardust-priv apache-reload`, so no caller can skip it.
