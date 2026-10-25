@@ -100,6 +100,18 @@ case $cmd in
     fi
     ;;
   apache-reload)
+    # Configtest first. Refuse the reload on failure.
+    if command -v apache2ctl >/dev/null 2>&1; then
+      if ! apache2ctl configtest >/dev/null 2>&1; then
+        echo "$PROG: configtest failed — not reloading" >&2
+        exit 1
+      fi
+    elif command -v apachectl >/dev/null 2>&1; then
+      if ! apachectl configtest >/dev/null 2>&1; then
+        echo "$PROG: configtest failed — not reloading" >&2
+        exit 1
+      fi
+    fi
     if [ -x /etc/init.d/apache2 ]; then
       /etc/init.d/apache2 reload
     elif [ -x /etc/init.d/httpd ]; then
@@ -147,8 +159,63 @@ case $cmd in
     esac
     tail -n 20 "$f"
     ;;
+  vhost-write)
+    # vhost-write PLATFORM HOST WEB ROOT ROLE
+    plat=${1:-} host=${2:-} web=${3:-} root=${4:-} role=${5:-devel}
+    printf '%s' "$plat" | grep -Eq '^[A-Za-z0-9_-]+$' || exit 2
+    printf '%s' "$role" | grep -Eq '^[A-Za-z0-9_-]+$' || exit 2
+    printf '%s' "$host" | grep -Eq '^[A-Za-z0-9._-]+$' || exit 2
+    path_ok "$web" || exit 1
+    path_ok "$root" || exit 1
+    conf=/etc/apache2/sites-available/${plat}-${role}.conf
+    tmp=$(mktemp)
+    cat > "$tmp" <<EOF
+<VirtualHost *:80>
+  ServerName $host
+  DocumentRoot $web
+  <Directory $web>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  <Directory $root/config>
+    Require all denied
+  </Directory>
+  <Directory $root/files_private>
+    Require all denied
+  </Directory>
+</VirtualHost>
+EOF
+    mv -f "$tmp" "$conf"
+    if command -v apache2ctl >/dev/null 2>&1; then
+      if ! apache2ctl configtest >/dev/null 2>&1; then
+        echo "$PROG: configtest failed after vhost-write — not enabling" >&2
+        exit 1
+      fi
+    fi
+    a2ensite "${plat}-${role}" >/dev/null 2>&1 || true
+    ;;
+  settings-write)
+    # settings-write DEST DSN HOSTPAT ROLE
+    dest=${1:-} dsn=${2:-} hostpat=${3:-} role=${4:-devel}
+    path_ok "$dest" || exit 1
+    case $role in live) pre=TRUE ;; *) pre=FALSE ;; esac
+    tmp=$(mktemp)
+    cat > "$tmp" <<EOF
+<?php
+\$database = '$dsn';
+\$settings['trusted_host_patterns'] = array('$hostpat');
+\$settings['cache'] = $pre;
+\$config['system.core']['preprocess_css'] = $pre;
+\$config['system.core']['preprocess_js']  = $pre;
+EOF
+    mkdir -p "$(dirname "$dest")"
+    mv -f "$tmp" "$dest"
+    chown "$OWNER:$GROUP" "$dest" 2>/dev/null || true
+    chmod 0640 "$dest" 2>/dev/null || true
+    ;;
   *)
-    echo "usage: $PROG chown-files|chown-code|chown-secret|chmod|mkdir|setacl|setacl-secret|apache-reload|a2ensite|mysql-create|mysql-drop|tail-log" >&2
+    echo "usage: $PROG chown-files|chown-code|chown-secret|chmod|mkdir|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
     exit 2
     ;;
 esac
