@@ -43,31 +43,14 @@ cmd_site_pull() {
   wg_up || return 1
   trap wg_down EXIT
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ ssh $vps stardust site-backup $src_p $src_s"
-    echo "+ rsync snapshot"
+    echo "+ git pull code (or rsync web tree)"
+    echo "+ rsync files, private, config"
+    echo "+ bee db-export + rsync + db-import"
     echo "+ platform-add $dst_p   (if missing)"
     echo "+ site-add $dst_p $dst_s"
-    echo "+ restore files, private, config, db"
+    echo "+ write settings.local.php once"
     return 0
   fi
-
-  ssh "$vps" "stardust site-backup $src_p $src_s" || {
-    echo "$PROG: remote backup failed" >&2
-    exit 1
-  }
-  echo "remote  latest"
-  remote=$(ssh "$vps" "stardust site-backup $src_p $src_s --latest" 2>/dev/null || true)
-  remote=$(printf '%s\n' "$remote" | sed 's/\x1b\[[0-9;]*m//g' | grep '^/srv/stardust/backups/' | tail -n 1)
-  if [ -z "$remote" ]; then
-    echo "$PROG: remote snapshot path missing" >&2
-    exit 1
-  fi
-  local_snap="$HOME/.stardust/pull/$src_p/$src_s"
-  mkdir -p "$local_snap"
-  rsync -a "$vps:$remote/" "$local_snap/" || {
-    echo "$PROG: rsync failed" >&2
-    exit 1
-  }
 
   if [ ! -d "$PLATFORMS/$dst_p" ]; then
     echo "create platform $dst_p"
@@ -75,78 +58,71 @@ cmd_site_pull() {
   fi
   host="${dst_s}.${role}"
   STARDUST_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
-
-  # Fill the devel site from the snapshot so Backdrop boots the pulled content.
   resolve_site "$dst_p" "$dst_s"
-  _restore_snap "$local_snap" "$root" "$web" "$product" "$src_s" "$host"
+
+  # Code: prefer git. Fall back to rsync of the web tree, excluding runtime.
+  if [ -e "$root/.git" ]; then
+    echo "code  git pull"
+    if ! as_root -u "$OWNER" git -C "$root" pull --ff-only 2>/dev/null; then
+      echo "code  git pull skipped — rsync web tree"
+      rsync -a --delete \
+        --exclude='files/' --exclude='files_private/' \
+        --exclude='sites/*/settings.local.php' \
+        --exclude='sites/*/files' \
+        "$vps:/srv/platforms/$src_p/web/" "$web/" || {
+        echo "$PROG: rsync web tree failed" >&2
+        exit 1
+      }
+    fi
+  else
+    echo "code  rsync web tree"
+    rsync -a --delete \
+      --exclude='files/' --exclude='files_private/' \
+      --exclude='sites/*/settings.local.php' \
+      --exclude='sites/*/files' \
+      "$vps:/srv/platforms/$src_p/web/" "$web/" || {
+      echo "$PROG: rsync web tree failed" >&2
+      exit 1
+    }
+  fi
+
+  # Content: rsync the current tree. No tar roundtrip.
+  run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
+  echo "files rsync"
+  rsync -a --delete "$vps:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
+    rsync -a --delete "$vps:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
+  echo "private rsync"
+  rsync -a --delete "$vps:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
+  echo "config rsync"
+  rsync -a --delete "$vps:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
+  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+
+  # Database: Bee on the remote, rsync the dump, Bee import locally.
+  bee=$(bee_bin)
+  dump=$(mktemp)
+  echo "db    export on $vps"
+  ssh "$vps" "stardust bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
+    ssh "$vps" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
+  if [ -s "$dump" ]; then
+    echo "db    import"
+    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
+  else
+    echo "db    none"
+  fi
+  rm -f "$dump"
+
+  _write_local "$root" "$web" "$product" "$host" "$role"
   echo "pull done  http://$host"
 }
 
-_restore_snap() {
-  snap=$1
-  root=$2
-  web=$3
-  product=$4
-  src_product=$5
-  host=$6
-
-  bee=$(bee_bin)
-  dump="$snap/db.sql"
-  if [ ! -s "$dump" ] && [ -s "$snap/db.sql.gz" ]; then
-    dump="$snap/db.sql.gz"
-  fi
-  if [ -s "$dump" ]; then
-    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
-  fi
-  if [ -f "$snap/files.tar.gz" ]; then
-    echo "unpack files -> $root/files/$product"
-    mkdir -p "$root/files/$product"
-    top=$(tar -tzf "$snap/files.tar.gz" | head -n 1 | cut -d/ -f1)
-    if [ "$top" = "files" ]; then
-      tar -C "$root/files/$product" -xzf "$snap/files.tar.gz" --strip-components=1
-    elif [ "$top" = "$src_product" ] || [ "$top" = "$product" ]; then
-      tar -C "$root/files" -xzf "$snap/files.tar.gz"
-      if [ "$top" != "$product" ] && [ -d "$root/files/$top" ]; then
-        as_root rm -rf "$root/files/$product"
-        as_root mv "$root/files/$top" "$root/files/$product"
-      fi
-    else
-      tar -C "$root/files/$product" -xzf "$snap/files.tar.gz"
-    fi
-    n=$(find "$root/files/$product" -type f | wc -l)
-    echo "files  $n"
-    if [ "$n" -eq 0 ]; then
-      echo "$PROG: files archive unpacked empty" >&2
-      return 1
-    fi
-    # source product name nested inside the store: lift its contents up
-  if [ -n "$src_product" ] && [ "$src_product" != "$product" ] && [ -d "$root/files/$product/$src_product" ]; then
-    echo "flatten $src_product into $product"
-    cp -a "$root/files/$product/$src_product/." "$root/files/$product/" 2>/dev/null || as_root cp -a "$root/files/$product/$src_product/." "$root/files/$product/"
-    as_root rm -rf "$root/files/$product/$src_product"
-  fi
-  chown_files "$root/files/$product" 2>/dev/null || true
-  else
-    echo "files  none in snapshot"
-  fi
-  if [ -f "$snap/files_private.tar.gz" ]; then
-    run_root mkdir -p "$root/files_private/$product"
-    as_root tar -C "$root/files_private" -xzf "$snap/files_private.tar.gz"
-    if [ "$src_product" != "$product" ] && [ -d "$root/files_private/$src_product" ]; then
-      as_root mv "$root/files_private/$src_product" "$root/files_private/$product.tmp" 2>/dev/null || true
-      as_root rm -rf "$root/files_private/$product"
-      as_root mv "$root/files_private/$product.tmp" "$root/files_private/$product"
-    fi
-  fi
-  if [ -f "$snap/config-active.tar.gz" ]; then
-    run_root mkdir -p "$root/config/$product/active"
-    as_root tar -C "$root/config/$product" -xzf "$snap/config-active.tar.gz"
-    run_root chown -R "$OWNER:$GROUP" "$root/config/$product" 2>/dev/null || true
-  fi
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
-
+# One clean settings.local.php. Never append.
+_write_local() {
+  root=$1
+  web=$2
+  product=$3
+  host=$4
+  role=$5
   localphp=$web/sites/$product/settings.local.php
-  # Backdrop multi-site serves sites/$product/files. Link that to the store.
   sitefiles="$web/sites/$product/files"
   if [ -d "$sitefiles" ] && [ ! -L "$sitefiles" ]; then
     as_root rm -rf "$sitefiles"
@@ -157,31 +133,32 @@ _restore_snap() {
   if [ -f "$settingsphp" ] && ! grep -q "settings.local.php" "$settingsphp"; then
     printf '\n%s\n' "if (file_exists(__DIR__ . '/settings.local.php')) { include __DIR__ . '/settings.local.php'; }" | as_root tee -a "$settingsphp" >/dev/null
   fi
-  if [ -f "$localphp" ] && grep -q file_public_path "$localphp"; then
-    as_root sed -i "s|file_public_path'] = .*|file_public_path'] = 'sites/$product/files';|" "$localphp" || true
-  else
-    printf "%s\n" "<?php" "\$settings['file_public_path'] = 'sites/$product/files';" | as_root tee -a "$localphp" >/dev/null || true
-  fi
-  echo "files path sites/$product/files"
-  # Backdrop config lives outside the site dir. Point settings at the store.
   cfgactive="$root/config/$product/active"
   cfgstaging="$root/config/$product/staging"
-  if [ -d "$cfgactive" ]; then
-    run_root mkdir -p "$cfgstaging"
-    if [ -f "$localphp" ] && grep -q "config_directories" "$localphp"; then
-      as_root sed -i "s|config_directories\['active'\].*|config_directories['active']  = '$cfgactive';|" "$localphp" || true
-      as_root sed -i "s|config_directories\['staging'\].*|config_directories['staging'] = '$cfgstaging';|" "$localphp" || true
-    else
-      if [ ! -f "$localphp" ]; then
-        printf "%s\n" "<?php" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee "$localphp" >/dev/null || true
-      else
-        printf "%s\n" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee -a "$localphp" >/dev/null || true
-      fi
+  run_root mkdir -p "$cfgstaging" 2>/dev/null || true
+  dsnline=$(grep -E '^\$database' "$localphp" 2>/dev/null | head -n 1 || true)
+  hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
+  tmp=$(mktemp) || return 1
+  {
+    echo "<?php"
+    echo "// Written by stardust pull. Overwritten on each run."
+    if [ -n "$dsnline" ]; then
+      echo "$dsnline"
     fi
-    echo "config $cfgactive"
-  fi
-  hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
-  if [ -f "$localphp" ]; then
-    as_root sed -i "s/trusted_host_patterns.*/trusted_host_patterns'] = array('^${hostpat}$');/" "$localphp" || true
+    echo "\$config_directories['active']  = '$cfgactive';"
+    echo "\$config_directories['staging'] = '$cfgstaging';"
+    echo "\$settings['file_public_path'] = 'sites/$product/files';"
+    echo "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');"
+    if [ "$role" != "live" ]; then
+      echo "\$settings['cache'] = FALSE;"
+    fi
+  } > "$tmp"
+  as_root chmod 0640 "$tmp"
+  if as_root mv -f "$tmp" "$localphp"; then
+    echo "write $localphp (role $role)"
+  else
+    rm -f "$tmp"
+    return 1
   fi
 }
+
