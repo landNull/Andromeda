@@ -4,10 +4,14 @@ The standard lives in the d-LitFunc repository. This file is a pointer. It is no
 
 Source of truth: the d-LitFunc git repository.
 
+- Standards: `standards.md`
+- Standards pointer for application docs: `standards-standalone.md`
 - Standard: `d-LitFunc.md`
 - Stardust SM: `stardust.md`
 - Captain Rocket SM: `captain-rocket.md`
 - Documentation rule: `docs-source.md`
+
+Application documentation links to `standards-standalone.md`. Do not restate a standard here.
 
 The remote can be any forge. The links inside that repository are relative. They do not depend on a host.
 
