@@ -12,17 +12,34 @@ cmd_site_pull() {
       *) break ;;
     esac
   done
-  vps=${1:-}
-  src_p=${2:-}
-  src_s=${3:-}
-  dst_p=${4:-$src_p}
-  dst_s=${5:-$src_s}
+  # @host:plat/site + @host:plat/site
+  if [ "${2:-}" = "+" ] && printf '%s' "${1:-}" | grep -q '^@'; then
+    left=${1#@}
+    right=${3#@}
+    vps=${left%%:*}
+    src_p=${left#*:}; src_p=${src_p%%/*}
+    src_s=${left##*/}
+    dst_h=${right%%:*}
+    dst_p=${right#*:}; dst_p=${dst_p%%/*}
+    dst_s=${right##*/}
+  else
+    vps=${1:-}
+    src_p=${2:-}
+    src_s=${3:-}
+    dst_h=local
+    dst_p=${4:-$src_p}
+    dst_s=${5:-$src_s}
+  fi
   if [ -z "$vps" ] || [ -z "$src_p" ] || [ -z "$src_s" ]; then
-    echo "usage: $PROG site-pull [--role ROLE] VPS SRC_PLATFORM SRC_SITE [DEST_PLATFORM] [DEST_SITE]" >&2
+    echo "usage: $PROG site pull @host:plat/site + @host:plat/site" >&2
     exit 2
   fi
 
-  echo "pull $vps:$src_p/$src_s -> $dst_p/$dst_s ($role)"
+  src_path="/srv/platforms/$src_p/web/sites/$src_s"
+  dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
+  echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
+  echo "from $src_path  on $vps"
+  echo "to   $dst_path"
   wg_up || return 1
   trap wg_down EXIT
   if [ "$DRYRUN" -eq 1 ]; then
