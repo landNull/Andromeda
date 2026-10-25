@@ -1,9 +1,23 @@
 # shellcheck shell=sh
 
 cmd_site_backup() {
+  latest=0
+  if [ "${3:-}" = "--latest" ]; then
+    latest=1
+  fi
   raw_plat=${1:-}
   raw_prod=${2:-}
   resolve_site "$raw_plat" "$raw_prod"
+  if [ "$latest" -eq 1 ]; then
+    platform=$(printf '%s' "$raw_plat" | tr '[:upper:]' '[:lower:]')
+    product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
+    found=$(latest_backup "$platform" "$product" "${STARDUST_ROLE:-devel}" || true)
+    if [ -z "$found" ]; then
+      found=$(ls -1d /srv/stardust/backups/$platform/$product/*/20* 2>/dev/null | sort | tail -n 1)
+    fi
+    [ -n "$found" ] && echo "$found"
+    return 0
+  fi
   # Keep underscores. slug used to turn kl_test into kl-test, and Bee
   # then missed the sites.php line.
   platform=$(printf '%s' "$raw_plat" | tr '[:upper:]' '[:lower:]')
@@ -32,11 +46,24 @@ cmd_site_backup() {
     return 1
   fi
 
+  # Multi-site layout, then the single-site web/files this migrate left behind.
   if [ -d "$root/files/$product" ]; then
-    as_root tar -C "$root/files" -czf "$dest/files.tar.gz" "$product"
+    echo "files $root/files/$product"
+    tar -C "$root/files" -czf "$dest/files.tar.gz" "$product" 2>/dev/null || as_root tar -C "$root/files" -czf "$dest/files.tar.gz" "$product"
+  elif [ -d "$web/files" ]; then
+    echo "files $web/files"
+    tar -C "$web/files" -czf "$dest/files.tar.gz" --transform "s|^|$product/|" . 2>/dev/null || as_root tar -C "$web/files" -czf "$dest/files.tar.gz" --transform "s|^|$product/|" .
+  else
+    echo "files none"
   fi
   if [ -d "$root/files_private/$product" ]; then
-    as_root tar -C "$root/files_private" -czf "$dest/files_private.tar.gz" "$product"
+    echo "private $root/files_private/$product"
+    tar -C "$root/files_private" -czf "$dest/files_private.tar.gz" "$product" 2>/dev/null || as_root tar -C "$root/files_private" -czf "$dest/files_private.tar.gz" "$product"
+  elif [ -d "$web/files/private" ]; then
+    echo "private $web/files/private"
+    tar -C "$web/files" -czf "$dest/files_private.tar.gz" private 2>/dev/null || as_root tar -C "$web/files" -czf "$dest/files_private.tar.gz" private
+  else
+    echo "private none"
   fi
   if [ -d "$root/config/$product/active" ]; then
     as_root tar -C "$root/config/$product" -czf "$dest/config-active.tar.gz" active
@@ -109,7 +136,9 @@ cmd_site_restore() {
     "$root/config/$product/active"
 
   if [ -f "$from/files.tar.gz" ]; then
-    as_root tar -C "$root/files" -xzf "$from/files.tar.gz"
+    echo "unpack files -> $root/files/$product"
+    mkdir -p "$root/files"
+    tar -C "$root/files" -xzf "$from/files.tar.gz" 2>/dev/null || as_root tar -C "$root/files" -xzf "$from/files.tar.gz"
   fi
   if [ -f "$from/files_private.tar.gz" ]; then
     as_root tar -C "$root/files_private" -xzf "$from/files_private.tar.gz"
