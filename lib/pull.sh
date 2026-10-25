@@ -172,7 +172,11 @@ _restore_snap() {
       as_root sed -i "s|config_directories\['active'\].*|config_directories['active']  = '$cfgactive';|" "$localphp" || true
       as_root sed -i "s|config_directories\['staging'\].*|config_directories['staging'] = '$cfgstaging';|" "$localphp" || true
     else
-      printf "%s\n" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee -a "$localphp" >/dev/null || true
+      if [ ! -f "$localphp" ]; then
+        printf "%s\n" "<?php" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee "$localphp" >/dev/null || true
+      else
+        printf "%s\n" "\$config_directories['active']  = '$cfgactive';" "\$config_directories['staging'] = '$cfgstaging';" | as_root tee -a "$localphp" >/dev/null || true
+      fi
     fi
     echo "config $cfgactive"
   fi

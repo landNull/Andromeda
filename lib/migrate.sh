@@ -176,7 +176,11 @@ _convert_standalone() {
     sudo sed -i "s|config_directories\['active'\].*|config_directories['active']  = '$dest/config/$product/active';|" "$localphp" || true
     sudo sed -i "s|config_directories\['staging'\].*|config_directories['staging'] = '$dest/config/$product/staging';|" "$localphp" || true
   else
-    printf "%s\n" "\$config_directories['active']  = '$dest/config/$product/active';" "\$config_directories['staging'] = '$dest/config/$product/staging';" | sudo tee -a "$localphp" >/dev/null
+    if [ ! -f "$localphp" ]; then
+      printf "%s\n" "<?php" "\$config_directories['active']  = '$dest/config/$product/active';" "\$config_directories['staging'] = '$dest/config/$product/staging';" | sudo tee "$localphp" >/dev/null
+    else
+      printf "%s\n" "\$config_directories['active']  = '$dest/config/$product/active';" "\$config_directories['staging'] = '$dest/config/$product/staging';" | sudo tee -a "$localphp" >/dev/null
+    fi
   fi
   echo "config $dest/config/$product/active"
 }
