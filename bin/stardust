@@ -191,7 +191,15 @@ EOF
 while [ $# -gt 0 ]; do
   case $1 in
     -n) DRYRUN=1; shift ;;
-    -h|--help) usage; exit 0 ;;
+    -h|--help)
+      topic=${2:-}
+      if [ -n "$topic" ]; then
+        show_doc "$topic"
+      else
+        usage
+      fi
+      exit 0
+      ;;
     --) shift; break ;;
     -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
     *) break ;;

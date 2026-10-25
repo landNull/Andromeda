@@ -3,6 +3,7 @@
 ## Install and day-to-day
 
 - `tutorial.txt` — install the host, then day-to-day CLI
+- `how-to/open-help.md` — open help from the docs satellite
 - `d7-migration.txt` — Drupal 7 / BOA → Backdrop
 - `README.txt` — map of this folder
 

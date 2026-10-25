@@ -145,6 +145,35 @@ show_help_pager() {
   fi
 }
 
+# The docs satellite is the local docs/ tree, kept in sync with the d-LitFunc repo.
+# show_doc TOPIC opens the matching page. Falls back to the outline.
+show_doc() {
+  topic=${1:-}
+  root=${STARDUST_DOCS:-$HERE/../docs}
+  page=""
+  if [ -n "$topic" ]; then
+    for cand in \
+      "$root/reference/commands/$topic.md" \
+      "$root/how-to/$topic.md" \
+      "$root/explanation/$topic.md" \
+      "$root/reference/$topic.md"
+    do
+      if [ -f "$cand" ]; then
+        page=$cand
+        break
+      fi
+    done
+  fi
+  if [ -z "$page" ] && [ -f "$root/outline.md" ]; then
+    page=$root/outline.md
+  fi
+  if [ -n "$page" ]; then
+    show_help_pager "$(cat "$page")"
+  else
+    echo "(no doc page for ${topic:-help})" >&2
+  fi
+}
+
 prompt_line() {
   # prompt_line "Question" "default" [help_text] [needed]
   # Type ? or help to open the pager. Empty keeps the default.
