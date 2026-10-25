@@ -141,6 +141,9 @@ _restore_snap() {
 
   localphp=$web/sites/$product/settings.local.php
   echo "files path ../files/$product"
+  mkdir -p "$web/files"
+  ln -sfn "../../files/$product" "$web/files/$product" 2>/dev/null || as_root ln -sfn "../../files/$product" "$web/files/$product"
+  echo "link  $web/files/$product"
   if [ -f "$localphp" ] && grep -q file_public_path "$localphp"; then
     as_root sed -i "s|file_public_path'] = .*|file_public_path'] = '../files/$product';|" "$localphp" || true
   else
