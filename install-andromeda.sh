@@ -309,6 +309,8 @@ install_charm() {
     rm -rf "$tmp"
   done
 }
+
+pkg_install() {
   case $PKG in
     apt)
       run_root apt-get update
