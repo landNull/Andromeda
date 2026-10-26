@@ -174,11 +174,14 @@ normalize_role() {
 }
 
 detect_os() {
+  # sudo secure_path can hide apt-get. Restore a sane PATH first.
+  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+  export PATH
   if [ -f /etc/os-release ]; then
     # shellcheck disable=SC1091
     OS_ID=$(. /etc/os-release; echo "${ID:-unknown}")
   fi
-  if have apt-get && have dpkg; then
+  if [ -x /usr/bin/apt-get ] || have apt-get; then
     PKG=apt
   elif have apk; then
     PKG=apk
