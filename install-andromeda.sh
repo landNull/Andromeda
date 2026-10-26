@@ -1479,9 +1479,21 @@ detect_os
 rename_stardust
 
 ensure_gh() {
-  # Use an already-installed gh. Install only when missing.
-  if command -v gh >/dev/null 2>&1; then
-    echo "gh: $(command -v gh)"
+  # Prefer an already-installed gh. Install only when missing.
+  # Auth is global per user, not per repo. Skip interactive login
+  # when there is no TTY (SSH from Termux, sudo, cron).
+  gh_bin=""
+  for d in /usr/bin /usr/local/bin /bin; do
+    if [ -x "$d/gh" ]; then
+      gh_bin="$d/gh"
+      break
+    fi
+  done
+  if [ -z "$gh_bin" ] && command -v gh >/dev/null 2>&1; then
+    gh_bin=$(command -v gh)
+  fi
+  if [ -n "$gh_bin" ]; then
+    echo "gh: $gh_bin"
   else
     echo "install gh"
     if [ "$DRYRUN" -eq 1 ]; then
@@ -1524,9 +1536,21 @@ ensure_gh() {
           ;;
       esac
     fi
+    gh_bin=$(command -v gh || true)
   fi
-  if gh auth status >/dev/null 2>&1; then
+  # Already authenticated (global token or GH_TOKEN).
+  if [ -n "$gh_bin" ] && "$gh_bin" auth status >/dev/null 2>&1; then
     echo "gh: authenticated"
+    return 0
+  fi
+  if [ -n "${GH_TOKEN:-}" ] || [ -n "${GITHUB_TOKEN:-}" ]; then
+    echo "gh: token present (GH_TOKEN or GITHUB_TOKEN)"
+    return 0
+  fi
+  # No TTY: do not block. Install continues; auth is a later step.
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo "gh: not logged in (no TTY). Install continues."
+    echo "    later: gh auth login"
     return 0
   fi
   if [ "$DRYRUN" -eq 1 ]; then
@@ -1534,12 +1558,14 @@ ensure_gh() {
     return 0
   fi
   echo "gh is not logged in. Complete the login. The install waits."
-  gh auth login
-  gh auth status >/dev/null 2>&1 || {
-    echo "$PROG: gh auth did not complete" >&2
-    return 1
-  }
-  echo "gh: authenticated"
+  "$gh_bin" auth login || true
+  if "$gh_bin" auth status >/dev/null 2>&1; then
+    echo "gh: authenticated"
+  else
+    echo "gh: auth skipped. Install continues."
+    echo "    later: gh auth login"
+  fi
+  return 0
 }
 
 ensure_git_config() {
