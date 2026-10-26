@@ -1422,7 +1422,56 @@ if [ -z "$ROLE" ]; then
   exit 2
 fi
 
+
+rename_stardust() {
+  # Rename leftover Stardust artifacts to Andromeda when present.
+  # Guarded. Does nothing if the old name is already gone.
+  # Does not touch /srv/platforms.
+
+  if [ -x /usr/local/bin/stardust ] && [ ! -x /usr/local/bin/andromeda ]; then
+    echo "rename: /usr/local/bin/stardust -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root mv /usr/local/bin/stardust /usr/local/bin/andromeda
+    fi
+  fi
+  if [ -x /usr/local/bin/andromeda ] && [ ! -e /usr/local/bin/andro ]; then
+    echo "link: andro -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root ln -sfn andromeda /usr/local/bin/andro
+    fi
+  fi
+
+  if [ -d /srv/stardust ] && [ ! -d /srv/andromeda ]; then
+    echo "rename: /srv/stardust -> /srv/andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root mv /srv/stardust /srv/andromeda
+    fi
+  fi
+
+  if [ -f /etc/sudoers.d/stardust ] && [ ! -f /etc/sudoers.d/andromeda ]; then
+    echo "rename: sudoers stardust -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root mv /etc/sudoers.d/stardust /etc/sudoers.d/andromeda
+    fi
+  fi
+
+  if getent group stardust >/dev/null 2>&1 && ! getent group andromeda >/dev/null 2>&1; then
+    echo "rename: group stardust -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root groupmod -n andromeda stardust || true
+    fi
+  fi
+
+  if [ -x /usr/local/sbin/stardust-priv ] && [ ! -x /usr/local/sbin/andromeda-priv ]; then
+    echo "rename: stardust-priv -> andromeda-priv"
+    if [ "$DRYRUN" -eq 0 ]; then
+      as_root mv /usr/local/sbin/stardust-priv /usr/local/sbin/andromeda-priv
+    fi
+  fi
+}
+
 detect_os
+rename_stardust
 
 ensure_gh() {
   if ! command -v gh >/dev/null 2>&1; then
