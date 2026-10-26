@@ -1479,15 +1479,50 @@ detect_os
 rename_stardust
 
 ensure_gh() {
-  if ! command -v gh >/dev/null 2>&1; then
+  # Use an already-installed gh. Install only when missing.
+  if command -v gh >/dev/null 2>&1; then
+    echo "gh: $(command -v gh)"
+  else
     echo "install gh"
     if [ "$DRYRUN" -eq 1 ]; then
-      echo "+ apt-get install -y gh"
+      case $PKG in
+        apt) echo "+ apt-get install -y gh" ;;
+        apk) echo "+ apk add --no-cache github-cli" ;;
+        dnf|yum) echo "+ dnf install -y gh" ;;
+        pacman) echo "+ pacman -Sy --noconfirm github-cli" ;;
+        *) echo "+ install gh by hand" ;;
+      esac
     else
-      run_root apt-get install -y gh || {
-        echo "$PROG: cannot install gh" >&2
-        return 1
-      }
+      case $PKG in
+        apt)
+          run_root apt-get install -y gh || {
+            echo "$PROG: cannot install gh" >&2
+            return 1
+          }
+          ;;
+        apk)
+          run_root apk add --no-cache github-cli || {
+            echo "$PROG: cannot install gh" >&2
+            return 1
+          }
+          ;;
+        dnf|yum)
+          run_root dnf install -y gh || {
+            echo "$PROG: cannot install gh" >&2
+            return 1
+          }
+          ;;
+        pacman)
+          run_root pacman -Sy --noconfirm github-cli || {
+            echo "$PROG: cannot install gh" >&2
+            return 1
+          }
+          ;;
+        *)
+          echo "$PROG: no package manager for gh; install github-cli by hand" >&2
+          return 1
+          ;;
+      esac
     fi
   fi
   if gh auth status >/dev/null 2>&1; then
