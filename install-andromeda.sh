@@ -1440,14 +1440,32 @@ fi
 
 
 rename_stardust() {
-  # Rename leftover Stardust artifacts to Andromeda when present.
-  # Guarded. Does nothing if the old name is already gone.
+  # Keep renaming leftover Stardust artifacts until none remain.
+  # If both old and new exist, merge the old into the new, then remove the old.
   # Does not touch /srv/platforms.
 
-  if [ -x /usr/local/bin/stardust ] && [ ! -x /usr/local/bin/andromeda ]; then
+  # Control plane directory.
+  if [ -d /srv/stardust ]; then
+    echo "rename: /srv/stardust -> /srv/andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      if [ -d /srv/andromeda ]; then
+        # Both exist. Move contents across, then drop the old tree.
+        as_root sh -c 'cp -a /srv/stardust/. /srv/andromeda/ && rm -rf /srv/stardust'
+      else
+        as_root mv /srv/stardust /srv/andromeda
+      fi
+    fi
+  fi
+
+  # Binary.
+  if [ -x /usr/local/bin/stardust ]; then
     echo "rename: /usr/local/bin/stardust -> andromeda"
     if [ "$DRYRUN" -eq 0 ]; then
-      as_root mv /usr/local/bin/stardust /usr/local/bin/andromeda
+      if [ -x /usr/local/bin/andromeda ]; then
+        as_root rm -f /usr/local/bin/stardust
+      else
+        as_root mv /usr/local/bin/stardust /usr/local/bin/andromeda
+      fi
     fi
   fi
   if [ -x /usr/local/bin/andromeda ] && [ ! -e /usr/local/bin/andro ]; then
@@ -1457,32 +1475,77 @@ rename_stardust() {
     fi
   fi
 
-  if [ -d /srv/stardust ] && [ ! -d /srv/andromeda ]; then
-    echo "rename: /srv/stardust -> /srv/andromeda"
-    if [ "$DRYRUN" -eq 0 ]; then
-      as_root mv /srv/stardust /srv/andromeda
-    fi
-  fi
-
-  if [ -f /etc/sudoers.d/stardust ] && [ ! -f /etc/sudoers.d/andromeda ]; then
-    echo "rename: sudoers stardust -> andromeda"
-    if [ "$DRYRUN" -eq 0 ]; then
-      as_root mv /etc/sudoers.d/stardust /etc/sudoers.d/andromeda
-    fi
-  fi
-
-  if getent group stardust >/dev/null 2>&1 && ! getent group andromeda >/dev/null 2>&1; then
-    echo "rename: group stardust -> andromeda"
-    if [ "$DRYRUN" -eq 0 ]; then
-      as_root groupmod -n andromeda stardust || true
-    fi
-  fi
-
-  if [ -x /usr/local/sbin/stardust-priv ] && [ ! -x /usr/local/sbin/andromeda-priv ]; then
+  # Privileged helper.
+  if [ -x /usr/local/sbin/stardust-priv ]; then
     echo "rename: stardust-priv -> andromeda-priv"
     if [ "$DRYRUN" -eq 0 ]; then
-      as_root mv /usr/local/sbin/stardust-priv /usr/local/sbin/andromeda-priv
+      if [ -x /usr/local/sbin/andromeda-priv ]; then
+        as_root rm -f /usr/local/sbin/stardust-priv
+      else
+        as_root mv /usr/local/sbin/stardust-priv /usr/local/sbin/andromeda-priv
+      fi
     fi
+  fi
+
+  # Sudoers.
+  if [ -f /etc/sudoers.d/stardust ]; then
+    echo "rename: sudoers stardust -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      if [ -f /etc/sudoers.d/andromeda ]; then
+        as_root rm -f /etc/sudoers.d/stardust
+      else
+        as_root mv /etc/sudoers.d/stardust /etc/sudoers.d/andromeda
+      fi
+    fi
+  fi
+
+  # Group.
+  if getent group stardust >/dev/null 2>&1; then
+    echo "rename: group stardust -> andromeda"
+    if [ "$DRYRUN" -eq 0 ]; then
+      if getent group andromeda >/dev/null 2>&1; then
+        # Both exist. Move members, then drop the old group.
+        as_root sh -c 'for u in $(getent group stardust | cut -d: -f4 | tr "," " "); do
+          [ -n "$u" ] && usermod -aG andromeda "$u" 2>/dev/null || true
+        done
+        groupdel stardust 2>/dev/null || true'
+      else
+        as_root groupmod -n andromeda stardust || true
+      fi
+    fi
+  fi
+
+  # Other common drop-ins.
+  for pair in \
+    /etc/logrotate.d/stardust:/etc/logrotate.d/andromeda \
+    /etc/cron.d/stardust:/etc/cron.d/andromeda \
+    /etc/stardust.conf:/etc/andromeda.conf
+  do
+    old=${pair%%:*}
+    new=${pair##*:}
+    if [ -e "$old" ]; then
+      echo "rename: $old -> $new"
+      if [ "$DRYRUN" -eq 0 ]; then
+        if [ -e "$new" ]; then
+          as_root rm -f "$old"
+        else
+          as_root mv "$old" "$new"
+        fi
+      fi
+    fi
+  done
+
+  # Rinse. If anything is still named stardust, say so.
+  left=""
+  [ -d /srv/stardust ] && left="$left /srv/stardust"
+  [ -x /usr/local/bin/stardust ] && left="$left /usr/local/bin/stardust"
+  [ -x /usr/local/sbin/stardust-priv ] && left="$left /usr/local/sbin/stardust-priv"
+  [ -f /etc/sudoers.d/stardust ] && left="$left /etc/sudoers.d/stardust"
+  getent group stardust >/dev/null 2>&1 && left="$left group:stardust"
+  if [ -n "$left" ]; then
+    echo "rename: still present:$left"
+  else
+    echo "rename: no stardust artifacts left"
   fi
 }
 
