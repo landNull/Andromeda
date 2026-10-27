@@ -300,7 +300,9 @@ install_charm() {
       continue
     fi
     tmp=$(mktemp -d)
-    curl -fsSL "$url" | tar -xz -C "$tmp"
+    tarball="$tmp/$tool.tar.gz"
+    curl -fsSL -o "$tarball" "$url" || { echo "$PROG: $tool download failed" >&2; rm -rf "$tmp"; continue; }
+    tar -xz -C "$tmp" -f "$tarball" || { echo "$PROG: $tool extract failed" >&2; rm -rf "$tmp"; continue; }
     bin=$(find "$tmp" -type f -name "$tool" | head -1)
     if [ -n "$bin" ]; then
       run_root install -m 0755 "$bin" "/usr/local/bin/$tool"
@@ -1824,11 +1826,10 @@ if [ "$shell_name" = "zsh" ]; then
   echo "shell: zsh"
   echo "file:  $wrap"
   echo "then:  source $wrap"
-  else
-    echo "shell: bash"
-    echo "@ is not special in bash. No wrapper needed."
-    echo "cmd:   andromeda site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
-  fi
+else
+  echo "shell: bash"
+  echo "@ is not special in bash. No wrapper needed."
+  echo "cmd:   andromeda site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
 fi
 
 echo "$OWNER is a system account (nologin, locked). No passwd."
