@@ -690,16 +690,14 @@ user_conf() {
   if [ -z "$home" ]; then
     home=/home/$name
   fi
-  # Old Stardust home path. Rewrite if the directory is gone.
+  # Always rewrite an old Stardust home path.
   case $home in
-    /srv/stardust/*)
-      if [ ! -d "$home" ]; then
-        home=${home/\/srv\/stardust/\/srv\/andromeda}
-      fi
+    /srv/stardust*)
+      home=${home/\/srv\/stardust/\/srv\/andromeda}
       ;;
   esac
   if [ ! -d "$home" ]; then
-    as_root mkdir -p "$home" || true
+    as_root mkdir -p "$home" 2>/dev/null || mkdir -p "$home" 2>/dev/null || true
   fi
   dest=$home/.andromeda.conf
   if [ -f "$dest" ]; then
@@ -1533,6 +1531,21 @@ rename_stardust() {
         fi
       fi
     fi
+  done
+
+  # Fix system account home if it still points at the old tree.
+  for acct in deploy; do
+    oldhome=$(getent passwd "$acct" 2>/dev/null | cut -d: -f6)
+    case $oldhome in
+      /srv/stardust*)
+        newhome=${oldhome/\/srv\/stardust/\/srv\/andromeda}
+        echo "rename: $acct home $oldhome -> $newhome"
+        if [ "$DRYRUN" -eq 0 ]; then
+          as_root usermod -d "$newhome" -m "$acct" 2>/dev/null ||             as_root usermod -d "$newhome" "$acct" || true
+          as_root mkdir -p "$newhome" || true
+        fi
+        ;;
+    esac
   done
 
   # Rinse. If anything is still named stardust, say so.
