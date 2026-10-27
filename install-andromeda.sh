@@ -300,7 +300,9 @@ install_charm() {
       continue
     fi
     tmp=$(mktemp -d)
-    curl -fsSL "$url" | tar -xz -C "$tmp"
+    tarball="$tmp/$tool.tar.gz"
+    curl -fsSL -o "$tarball" "$url" || { echo "$PROG: $tool download failed" >&2; rm -rf "$tmp"; continue; }
+    tar -xz -C "$tmp" -f "$tarball" || { echo "$PROG: $tool extract failed" >&2; rm -rf "$tmp"; continue; }
     bin=$(find "$tmp" -type f -name "$tool" | head -1)
     if [ -n "$bin" ]; then
       run_root install -m 0755 "$bin" "/usr/local/bin/$tool"
