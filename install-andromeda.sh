@@ -706,36 +706,28 @@ user_conf() {
   if [ -z "$home" ]; then
     home=/home/$name
   fi
-  # Prefer /srv/andromeda/home. If the passwd home is the old
-  # /srv/stardust/home, look for the conf there first, then fall
-  # back to the andromeda path and create only that.
-  dest=""
+  # Never create under /srv/stardust. The old file was .stardust.conf.
+  # Remove it if present. Write only under /srv/andromeda or a normal home.
   case $home in
     /srv/stardust*)
-      old_dest=$home/.andromeda.conf
-      new_home=${home/\/srv\/stardust/\/srv\/andromeda}
-      new_dest=$new_home/.andromeda.conf
-      if [ -f "$old_dest" ]; then
-        dest=$old_dest
-        echo "conf exists: $dest (not overwritten)"
-        return 0
+      old_conf=$home/.stardust.conf
+      if [ -f "$old_conf" ]; then
+        echo "remove old: $old_conf"
+        as_root rm -f "$old_conf" || true
       fi
-      if [ -f "$new_dest" ]; then
-        dest=$new_dest
-        echo "conf exists: $dest (not overwritten)"
-        return 0
+      old_conf2=$home/.andromeda.conf
+      if [ -f "$old_conf2" ]; then
+        echo "remove old: $old_conf2"
+        as_root rm -f "$old_conf2" || true
       fi
-      home=$new_home
-      dest=$new_dest
-      ;;
-    *)
-      dest=$home/.andromeda.conf
-      if [ -f "$dest" ]; then
-        echo "conf exists: $dest (not overwritten)"
-        return 0
-      fi
+      home=${home/\/srv\/stardust/\/srv\/andromeda}
       ;;
   esac
+  dest=$home/.andromeda.conf
+  if [ -f "$dest" ]; then
+    echo "conf exists: $dest (not overwritten)"
+    return 0
+  fi
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ write $dest"
     return 0
