@@ -690,6 +690,17 @@ user_conf() {
   if [ -z "$home" ]; then
     home=/home/$name
   fi
+  # Old Stardust home path. Rewrite if the directory is gone.
+  case $home in
+    /srv/stardust/*)
+      if [ ! -d "$home" ]; then
+        home=${home/\/srv\/stardust/\/srv\/andromeda}
+      fi
+      ;;
+  esac
+  if [ ! -d "$home" ]; then
+    as_root mkdir -p "$home" || true
+  fi
   dest=$home/.andromeda.conf
   if [ -f "$dest" ]; then
     echo "conf exists: $dest (not overwritten)"
@@ -1547,10 +1558,11 @@ ensure_gh() {
     echo "gh: token present (GH_TOKEN or GITHUB_TOKEN)"
     return 0
   fi
-  # No TTY: do not block. Install continues; auth is a later step.
-  if [ ! -t 0 ] || [ ! -t 1 ]; then
-    echo "gh: not logged in (no TTY). Install continues."
-    echo "    later: gh auth login"
+  # No TTY, or running as root via sudo: do not block.
+  # Auth is global for the human user, not root.
+  if [ ! -t 0 ] || [ ! -t 1 ] || [ "$(id -u)" -eq 0 ]; then
+    echo "gh: not logged in (no TTY or sudo). Install continues."
+    echo "    later (as landy): gh auth login"
     return 0
   fi
   if [ "$DRYRUN" -eq 1 ]; then
