@@ -1519,7 +1519,7 @@ rename_stardust() {
   for pair in \
     /etc/logrotate.d/stardust:/etc/logrotate.d/andromeda \
     /etc/cron.d/stardust:/etc/cron.d/andromeda \
-    /etc/andromeda.conf:/etc/stardust.conf
+    /etc/stardust.conf:/etc/andromeda.conf
   do
     old=${pair%%:*}
     new=${pair##*:}
