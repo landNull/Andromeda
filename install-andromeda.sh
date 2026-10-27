@@ -1824,11 +1824,10 @@ if [ "$shell_name" = "zsh" ]; then
   echo "shell: zsh"
   echo "file:  $wrap"
   echo "then:  source $wrap"
-  else
-    echo "shell: bash"
-    echo "@ is not special in bash. No wrapper needed."
-    echo "cmd:   andromeda site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
-  fi
+else
+  echo "shell: bash"
+  echo "@ is not special in bash. No wrapper needed."
+  echo "cmd:   andromeda site pull @bjorn:ecom/kl_test -> @knarr:ecom/kl_devel"
 fi
 
 echo "$OWNER is a system account (nologin, locked). No passwd."
