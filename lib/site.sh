@@ -183,11 +183,13 @@ cmd_site_add() {
   host=""
   title=""
   pass=""
+  no_install=0
   while [ $# -gt 0 ]; do
     case $1 in
       --host) host=$2; shift 2 ;;
       --name) title=$2; shift 2 ;;
       --pass) pass=$2; shift 2 ;;
+      --no-install) no_install=1; shift ;;
       *) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
     esac
   done
@@ -247,7 +249,9 @@ cmd_site_add() {
   ensure_db "$db" "$user" "$pass"
 
   bee=$(bee_bin)
-  if [ "$DRYRUN" -eq 1 ]; then
+  if [ "$no_install" -eq 1 ]; then
+    echo "skip install for $product — pull will supply code, content, and db"
+  elif [ "$DRYRUN" -eq 1 ]; then
     echo "+ $bee --root=$web --site=$product install --db-name=$db --db-user=$user --auto"
   else
     if [ -f "$web/sites/$product/.andromeda-installed" ]; then

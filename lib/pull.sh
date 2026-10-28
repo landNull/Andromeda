@@ -120,7 +120,12 @@ cmd_site_pull() {
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
+  # Skeleton only. A fresh Backdrop install is not required; the pull
+  # overwrites code, content, and the database. Do not abort the pull
+  # if the skeleton step fails.
+  if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install; then
+    echo "$PROG: site skeleton failed — continuing with pull" >&2
+  fi
   resolve_site "$dst_p" "$dst_s"
   # Local dest: ensure the platform repo exists and is on the stage branch.
   if is_local_host "$dst_h"; then
@@ -128,6 +133,7 @@ cmd_site_pull() {
     ensure_platform_git "$dst_p" "$stage" || true
   fi
 
+  echo "pulling code, content, and database"
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
   if is_local_host "$vps"; then
