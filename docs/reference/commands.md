@@ -221,3 +221,7 @@ Override in `/etc/andromeda.conf` with `TUNNEL_BJORN` and `TUNNEL_KNARR`.
 SSH on the tunnel listens on port 7022. Override with `SSH_PORT`.
 
 Remote rsync and ssh run as the operator, using the operator's key. They do not run as `deploy`. Deploy is nologin and has no password. `BatchMode` is on, so a missing key fails instead of prompting.
+
+## What moves how
+
+Code moves by git over the tunnel (`ssh://10.8.0.1:7022/srv/platforms/<platform>`). Image files (jpg, jpeg, png, gif, webp, svg, ico, bmp) move by rsync. Everything else is git. The database moves by Bee.
