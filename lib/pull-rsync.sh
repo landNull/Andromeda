@@ -118,12 +118,15 @@ pull_db() {
     ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
     echo "db    import"
-    # Bee runs as deploy. The site dir must be traversable and
-    # settings.local.php group-readable after the operator chown.
-    run_root chmod 0750 "$web/sites/$product" 2>/dev/null || true
-    run_root chmod 0640 "$web/sites/$product/settings.local.php" 2>/dev/null || true
-    run_root chown "$OWNER:$GROUP" "$web/sites/$product/settings.local.php" 2>/dev/null || true
-    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
+    # The tree was handed to the operator. Bee as deploy cannot read
+    # settings.local.php through landy-owned directories. Import as
+    # the operator, who can.
+    op=$(id -un)
+    chmod 0755 "$web/sites" "$web/sites/$product" 2>/dev/null || true
+    chmod 0644 "$web/sites/$product/settings.local.php" 2>/dev/null || true
+    if ! "$bee" --root="$web" --site="$product" db-import "$dump"; then
+      echo "$PROG: db import failed for $product" >&2
+    fi
   else
     echo "db    none"
   fi
