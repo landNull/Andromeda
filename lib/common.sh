@@ -786,6 +786,21 @@ tunnel_host() {
   esac
 }
 
+# ssh_port
+# WireGuard SSH listens on 7022. Override with SSH_PORT in
+# /etc/andromeda.conf.
+ssh_port() {
+  printf '%s\n' "${SSH_PORT:-7022}"
+}
+
+# ssh_cmd HOST CMD...
+# Opens SSH on the tunnel port.
+ssh_cmd() {
+  host=$1
+  shift
+  ssh -p "$(ssh_port)" "$host" "$@"
+}
+
 slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//'
 }

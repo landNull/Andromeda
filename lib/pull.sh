@@ -103,7 +103,7 @@ cmd_site_pull() {
   dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
   echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
   echo "hostname $host"
-  echo "tunnel $(tunnel_host "$vps")"
+  echo "tunnel $(tunnel_host "$vps") port $(ssh_port)"
   echo "from $src_path  on $vps"
   echo "to   $dst_path"
   wg_up || return 1

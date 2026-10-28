@@ -22,8 +22,9 @@ pull_code() {
   # Run as OWNER so we can write and set times. Exclude the site
   # directory that site-add just created so --delete does not remove it.
   remote=$(tunnel_host "$vps")
-  echo "code  rsync from $remote"
-  as_root -u "$OWNER" rsync -a --delete \
+  port=$(ssh_port)
+  echo "code  rsync from $remote port $port"
+  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
     --exclude='sites/sites.php' \
@@ -43,14 +44,15 @@ pull_content() {
   src_p=$4
   src_s=$5
   remote=$(tunnel_host "$vps")
+  port=$(ssh_port)
   run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
-  echo "files rsync from $remote"
-  as_root -u "$OWNER" rsync -a --delete "$remote:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
-    as_root -u "$OWNER" rsync -a --delete "$remote:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
+  echo "files rsync from $remote port $port"
+  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
+    as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
   echo "private rsync"
-  as_root -u "$OWNER" rsync -a --delete "$remote:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
+  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
   echo "config rsync"
-  as_root -u "$OWNER" rsync -a --delete "$remote:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
+  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 }
 
@@ -64,9 +66,9 @@ pull_db() {
   bee=$(bee_bin)
   dump=$(mktemp)
   remote=$(tunnel_host "$vps")
-  echo "db    export on $remote"
-  ssh "$remote" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
-    ssh "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
+  echo "db    export on $remote port $(ssh_port)"
+  ssh_cmd "$remote" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
+    ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
     echo "db    import"
     as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
@@ -182,12 +184,12 @@ push_code_via_git() {
       as_root -u "$OWNER" git -C "$dest" commit -m "push $src_s -> $dst_s" || true
     fi
     echo "git   push $src_stage to $dst_h:$dst_p"
-    if ! as_root -u "$OWNER" git -C "$dest" push "ssh://$(tunnel_host "$dst_h")/srv/platforms/$dst_p" "$src_stage:$src_stage"; then
+    if ! as_root -u "$OWNER" git -C "$dest" push "ssh://$(tunnel_host "$dst_h"):$(ssh_port)/srv/platforms/$dst_p" "$src_stage:$src_stage"; then
       echo "git   push failed — will rsync"
       return 1
     fi
     echo "git   merge $src_stage into $dst_stage on $dst_h"
-    ssh "$(tunnel_host "$dst_h")" "cd /srv/platforms/$dst_p && git checkout -B $dst_stage && git merge --no-edit $src_stage" || return 1
+    ssh_cmd "$(tunnel_host "$dst_h")" "cd /srv/platforms/$dst_p && git checkout -B $dst_stage && git merge --no-edit $src_stage" || return 1
     return 0
   fi
 
@@ -229,12 +231,12 @@ push_site() {
     dst_web="$dst_root/web"
   else
     echo "ensure dest site on $dst_h"
-    ssh "$(tunnel_host "$dst_h")" "andromeda add platform $dst_p --no-prompt" 2>/dev/null || true
-    ssh "$(tunnel_host "$dst_h")" "andromeda add site $dst_p $dst_s --host $host" || true
+    ssh_cmd "$(tunnel_host "$dst_h")" "andromeda add platform $dst_p --no-prompt" 2>/dev/null || true
+    ssh_cmd "$(tunnel_host "$dst_h")" "andromeda add site $dst_p $dst_s --host $host" || true
     stage=$(stage_from_site "$dst_s")
     # Remote dest: init the platform repo and checkout the stage branch
     # if the remote Andromeda supports ensure. Fall back to a direct init.
-    ssh "$(tunnel_host "$dst_h")" "cd /srv/platforms/$dst_p &&       if [ ! -e .git ]; then git init && git add -A && git commit -m 'init platform $dst_p' --allow-empty || true;       for b in devel test live; do git branch \$b 2>/dev/null || true; done; fi &&       git checkout -B $stage" 2>/dev/null || true
+    ssh_cmd "$(tunnel_host "$dst_h")" "cd /srv/platforms/$dst_p &&       if [ ! -e .git ]; then git init && git add -A && git commit -m 'init platform $dst_p' --allow-empty || true;       for b in devel test live; do git branch \$b 2>/dev/null || true; done; fi &&       git checkout -B $stage" 2>/dev/null || true
     dst_root="$dst_h:/srv/platforms/$dst_p"
     dst_web="$dst_h:/srv/platforms/$dst_p/web"
   fi
@@ -282,13 +284,13 @@ push_site() {
   if is_local_host "$src_h"; then
     as_root -u "$OWNER" "$bee" --root="/srv/platforms/$src_p/web" --site="$src_s" db-export "$dump" 2>/dev/null || true
   else
-    ssh "$(tunnel_host "$src_h")" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || true
+    ssh_cmd "$(tunnel_host "$src_h")" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || true
   fi
   if [ -s "$dump" ]; then
     if is_local_host "$dst_h"; then
       as_root -u "$OWNER" "$bee" --root="/srv/platforms/$dst_p/web" --site="$dst_s" db-import "$dump" || true
     else
-      ssh "$(tunnel_host "$dst_h")" "andromeda bee $dst_p $dst_s db-import -" < "$dump" || true
+      ssh_cmd "$(tunnel_host "$dst_h")" "andromeda bee $dst_p $dst_s db-import -" < "$dump" || true
     fi
   else
     echo "db    none"

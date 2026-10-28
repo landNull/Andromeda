@@ -217,3 +217,5 @@ SSH is only open on the WireGuard net. Named hosts resolve before ssh and rsync:
 - `knarr` → `10.8.0.2`
 
 Override in `/etc/andromeda.conf` with `TUNNEL_BJORN` and `TUNNEL_KNARR`.
+
+SSH on the tunnel listens on port 7022. Override with `SSH_PORT`.
