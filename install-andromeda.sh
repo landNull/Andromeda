@@ -676,7 +676,21 @@ ensure_user() {
 
 write_wg_sudoers() {
   dest=/etc/sudoers.d/andromeda-wg
-  body="%${GROUP} ALL=(root) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick"
+  # Real paths plus the common locations. sudoers matches the path exactly.
+  wg=$(command -v wg 2>/dev/null || true)
+  quick=$(command -v wg-quick 2>/dev/null || true)
+  paths="/usr/bin/wg /usr/bin/wg-quick /usr/sbin/wg /usr/sbin/wg-quick"
+  [ -n "$wg" ] && paths="$paths $wg"
+  [ -n "$quick" ] && paths="$paths $quick"
+  # de-dupe
+  uniq=""
+  for x in $paths; do
+    case " $uniq " in
+      *" $x "*) ;;
+      *) uniq="$uniq $x" ;;
+    esac
+  done
+  body="%${GROUP} ALL=(root) NOPASSWD:${uniq}"
   write_sudoers "$dest" "$body"
 }
 
