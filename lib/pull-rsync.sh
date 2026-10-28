@@ -41,12 +41,23 @@ pull_code() {
     rm -rf "$bare"
     return 1
   fi
+  # An empty source repo has no commits. Do not invent a branch from
+  # FETCH_HEAD. Code cannot move until bjorn has a commit on this platform.
+  if ! git -c safe.directory='*' --git-dir="$bare/src.git" rev-parse --verify HEAD >/dev/null 2>&1; then
+    echo "$PROG: source repo is empty — no commits on $remote:/srv/platforms/$src_p" >&2
+    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
+    rm -rf "$bare"
+    return 0
+  fi
   rm -rf "$bare"
   stage=${role:-devel}
   if git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
     git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
-  else
+  elif git -c safe.directory='*' -C "$root" rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
     git -c safe.directory='*' -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
+  else
+    echo "$PROG: no $stage branch on source — code did not move" >&2
+    return 0
   fi
   echo "code  on branch $stage as $op"
 }
