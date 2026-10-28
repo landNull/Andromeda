@@ -31,6 +31,10 @@ pull_code() {
     return 1
   fi
   unset GIT_SSH_COMMAND
+  # mktemp is mode 700 and owned by the operator. deploy cannot read
+  # it, so the local fetch fails with "does not appear to be a git
+  # repository". Open the staged repo before the owner reads it.
+  chmod -R a+rX "$bare" 2>/dev/null || true
   # The code tree belongs to the code owner (deploy), a member of
   # www-admin. The operator fetched the objects. The owner writes them.
   run_root chown -R "$OWNER:$GROUP" "$root" 2>/dev/null || true
