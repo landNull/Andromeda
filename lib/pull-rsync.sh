@@ -75,15 +75,29 @@ pull_content() {
   run_root mkdir -p "$root/files/$product"
   echo "images rsync from $remote port $port"
   stage=$(mktemp -d)
-  # Include directories so rsync can descend, then only image files.
-  if remote_rsync \
-    --include='*/' \
-    --include='*.jpg' --include='*.jpeg' --include='*.png' \
-    --include='*.gif' --include='*.webp' --include='*.svg' \
-    --include='*.ico' --include='*.bmp' \
-    --exclude='*' \
-    "$remote:/srv/platforms/$src_p/files/$src_s/" "$stage/"; then
+  # Backdrop stores uploads in files/<site> or in the site directory.
+  got=0
+  for src in \
+    "/srv/platforms/$src_p/files/$src_s/" \
+    "/srv/platforms/$src_p/web/sites/$src_s/files/" \
+    "/srv/platforms/$src_p/web/files/"
+  do
+    if remote_rsync \
+      --include='*/' \
+      --include='*.jpg' --include='*.jpeg' --include='*.png' \
+      --include='*.gif' --include='*.webp' --include='*.svg' \
+      --include='*.ico' --include='*.bmp' \
+      --exclude='*' \
+      "$remote:$src" "$stage/" 2>/dev/null; then
+      got=1
+      break
+    fi
+  done
+  if [ "$got" -eq 1 ]; then
     rsync -a "$stage/" "$root/files/$product/" || true
+    echo "images landed in $root/files/$product"
+  else
+    echo "images none — no image tree for $src_s on $remote"
   fi
   rm -rf "$stage"
   chown_files "$root/files/$product" 2>/dev/null || true
@@ -104,6 +118,11 @@ pull_db() {
     ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
     echo "db    import"
+    # Bee runs as deploy. The site dir must be traversable and
+    # settings.local.php group-readable after the operator chown.
+    run_root chmod 0750 "$web/sites/$product" 2>/dev/null || true
+    run_root chmod 0640 "$web/sites/$product/settings.local.php" 2>/dev/null || true
+    run_root chown "$OWNER:$GROUP" "$web/sites/$product/settings.local.php" 2>/dev/null || true
     as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
   else
     echo "db    none"
