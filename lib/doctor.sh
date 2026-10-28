@@ -184,6 +184,7 @@ cmd_doctor() {
     note "not in andromeda — secrets stay unreadable"
   fi
   if [ -f /etc/sudoers.d/andromeda-deploy ]; then ok "sudoers deploy+%${GROUP}"; else note "sudoers andromeda-deploy missing"; fi
+  if [ -f /etc/sudoers.d/andromeda-wg ]; then ok "sudoers andromeda-wg"; else note "sudoers andromeda-wg missing — pull will ask for a password"; fi
   owner_home=$(getent passwd "$OWNER" 2>/dev/null | cut -d: -f6)
   if [ -n "$owner_home" ] && [ -d "$owner_home" ]; then
     ok "owner home $owner_home"

@@ -53,7 +53,7 @@ cmd_repo_ensure() {
   "platform": "$name",
   "bare": "$bare",
   "checkout": "$work",
-  "remote": "deploy@10.8.0.1:$bare"
+  "remote": "10.8.0.1:$bare"
 }
 JSON
   echo "repo ready $name"

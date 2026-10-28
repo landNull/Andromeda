@@ -56,7 +56,12 @@ pull_code() {
   fi
   echo "code  git checkout $stage as $OWNER, source wins"
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
-  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage"; then
+    echo "$PROG: cannot check out as $OWNER" >&2
+    echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
+    echo "$PROG: %www-admin ALL=($OWNER) NOPASSWD: /usr/bin/git" >&2
+    return 1
+  fi
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$stage" || return 1
   echo "code  on branch $stage as $OWNER"
 }
@@ -191,16 +196,19 @@ pull_code_local() {
     return 1
   fi
   echo "code  rsync local web tree"
-  as_root -u "$OWNER" rsync -a --delete \
+  # Operator cannot utime deploy-owned dirs. Exit 23 means files arrived.
+  as_root -u "$OWNER" rsync -a --delete --omit-dir-times \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
     --exclude='sites/sites.php' \
     --exclude='sites/*/files' \
     --exclude='sites/*/' \
-    "$src_web/" "$web/" || {
+    "$src_web/" "$web/"
+  rc=$?
+  if [ "$rc" -ne 0 ] && [ "$rc" -ne 23 ]; then
     echo "$PROG: local rsync web tree failed" >&2
     return 1
-  }
+  fi
 }
 
 pull_content_local() {
