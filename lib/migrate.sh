@@ -238,6 +238,19 @@ cmd_migrate_www() {
     exit 2
   fi
 
+  # Site directory under web/sites/. Default is the source folder name.
+  # Example: /var/www/kl_test -> keslerlumber.test
+  srcbase=${src##*/}
+  printf "site directory name [%s]: " "$srcbase"
+  read -r product
+  product=${product:-$srcbase}
+  product=$(slug "$product")
+  if [ -z "$product" ]; then
+    echo "$PROG: site directory name required" >&2
+    exit 2
+  fi
+  echo "site   $product"
+
   dest=$PLATFORMS/$plat
   web=$dest/web
   echo "migrate $src -> $web"
@@ -265,7 +278,7 @@ cmd_migrate_www() {
   # Standalone installs keep config under files/config_HASH and modules in
   # the docroot. Move both into the platform store so the site matches a
   # native Andromeda site.
-  _convert_standalone "$dest" "$web" "$plat"
+  _convert_standalone "$dest" "$web" "$product"
 
   echo "platform $plat"
   echo "web root  $web"
@@ -305,9 +318,9 @@ cmd_migrate_www() {
     return 0
   fi
 
-  printf "ServerName [$plat.live]: "
+  printf "ServerName [$product]: "
   read -r host
-  host=${host:-$plat.live}
+  host=${host:-$product}
 
   echo "edit $conf"
   sudo sed -i "s|DocumentRoot .*|DocumentRoot $web|" "$conf"
@@ -325,7 +338,7 @@ cmd_migrate_www() {
     reloaded=0
   fi
 
-  _map_site "$web" "$host" "$plat"
+  _map_site "$web" "$host" "$product"
   _write_default_vhost "$plat" "$web"
   mkdir -p /srv/andromeda/state/migrate
   : > /srv/andromeda/state/migrate/$plat
