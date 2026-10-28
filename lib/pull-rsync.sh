@@ -142,6 +142,44 @@ pull_db() {
   rm -f "$dump"
 }
 
+# pull_config ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
+# Backdrop stores site configuration as JSON. The designed move is
+# source active into destination staging, then bee config-import.
+# https://docs.backdropcms.org/documentation/versioned-staging-directory
+pull_config() {
+  root=$1
+  product=$2
+  vps=$3
+  src_p=$4
+  src_s=$5
+  bee=$(bee_bin)
+  remote=$(tunnel_host "$vps")
+  staging="$root/config/$product/staging"
+  run_root mkdir -p "$staging"
+  if command -v setfacl >/dev/null 2>&1; then
+    run_root setfacl -b "$root/config" "$root/config/$product" "$staging" 2>/dev/null || true
+  fi
+  run_root chmod 0775 "$staging" 2>/dev/null || true
+  echo "config staging from $remote port $(ssh_port)"
+  got=0
+  for src in     "/srv/platforms/$src_p/config/$src_s/active/"     "/srv/platforms/$src_p/web/sites/$src_s/files/config_*/active/"
+  do
+    if remote_rsync "$remote:$src" "$staging/"; then
+      got=1
+      break
+    fi
+  done
+  if [ "$got" -ne 1 ]; then
+    echo "config none — no active JSON for $src_s on $remote"
+    return 0
+  fi
+  echo "config landed in $staging"
+  echo "config import"
+  if ! "$bee" -y --root="$root/web" --site="$product" config-import; then
+    echo "$PROG: config import failed for $product" >&2
+  fi
+}
+
 # Local variants — same host, no ssh. Used when the source ref is bare or local.
 
 pull_code_local() {
