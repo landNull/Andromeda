@@ -1,43 +1,44 @@
 # shellcheck shell=sh
 
 # pull-rsync — internal helper. Called by cmd_site_pull.
-# Code by git (rsync of the web tree is the fallback).
-# Content by rsync. Database by Bee. settings.local.php written once.
+# Code by git. Image files by rsync. Database by Bee.
+# settings.local.php written once.
 
 # pull_code ROOT WEB VPS SRC_PLATFORM
+# Code moves by git. Images move by rsync in pull_content.
 pull_code() {
   root=$1
   web=$2
   vps=$3
   src_p=$4
-  if [ -e "$root/.git" ]; then
-    echo "code  git pull"
-    if as_root -u "$OWNER" git -C "$root" pull --ff-only 2>/dev/null; then
-      return 0
-    fi
-    echo "code  git pull skipped — rsync web tree"
-  else
-    echo "code  rsync web tree"
-  fi
-  # Run as OWNER so we can write and set times. Exclude the site
-  # directory that site-add just created so --delete does not remove it.
   remote=$(tunnel_host "$vps")
   port=$(ssh_port)
-  echo "code  rsync from $remote port $port"
-  remote_rsync \
-    --exclude='files/' --exclude='files_private/' \
-    --exclude='sites/*/settings.local.php' \
-    --exclude='sites/sites.php' \
-    --exclude='sites/*/files' \
-    --exclude='sites/*/' \
-    "$remote:/srv/platforms/$src_p/web/" "$web/" || {
-    echo "$PROG: rsync web tree failed" >&2
+  url="ssh://$remote:$port/srv/platforms/$src_p"
+  echo "code  git from $url"
+  if [ ! -e "$root/.git" ]; then
+    as_root -u "$OWNER" git -C "$root" init || return 1
+  fi
+  if as_root -u "$OWNER" git -C "$root" remote get-url origin >/dev/null 2>&1; then
+    as_root -u "$OWNER" git -C "$root" remote set-url origin "$url"
+  else
+    as_root -u "$OWNER" git -C "$root" remote add origin "$url"
+  fi
+  if ! as_root -u "$OWNER" git -C "$root" fetch origin; then
+    echo "$PROG: git fetch failed — code did not move" >&2
     return 1
-  }
-  run_root chown -R "$OWNER:$GROUP" "$web" 2>/dev/null || true
+  fi
+  # Prefer the stage branch. Fall back to whatever the remote has.
+  stage=${role:-devel}
+  if as_root -u "$OWNER" git -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
+    as_root -u "$OWNER" git -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+  else
+    as_root -u "$OWNER" git -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
+  fi
+  echo "code  on branch $stage"
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
+# Rsync image files only. Everything else moves by git.
 pull_content() {
   root=$1
   product=$2
@@ -46,15 +47,21 @@ pull_content() {
   src_s=$5
   remote=$(tunnel_host "$vps")
   port=$(ssh_port)
-  run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
-  echo "files rsync from $remote port $port"
-  remote_rsync "$remote:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
-    remote_rsync "$remote:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
-  echo "private rsync"
-  remote_rsync "$remote:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
-  echo "config rsync"
-  remote_rsync "$remote:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+  run_root mkdir -p "$root/files/$product"
+  echo "images rsync from $remote port $port"
+  stage=$(mktemp -d)
+  # Include directories so rsync can descend, then only image files.
+  if remote_rsync \
+    --include='*/' \
+    --include='*.jpg' --include='*.jpeg' --include='*.png' \
+    --include='*.gif' --include='*.webp' --include='*.svg' \
+    --include='*.ico' --include='*.bmp' \
+    --exclude='*' \
+    "$remote:/srv/platforms/$src_p/files/$src_s/" "$stage/"; then
+    as_root -u "$OWNER" rsync -a "$stage/" "$root/files/$product/" || true
+  fi
+  rm -rf "$stage"
+  chown_files "$root/files/$product" 2>/dev/null || true
 }
 
 # pull_db WEB PRODUCT VPS SRC_PLATFORM SRC_SITE
