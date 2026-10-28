@@ -808,7 +808,9 @@ ssh_cmd() {
 # Do not sudo -u deploy for this. Deploy cannot authenticate.
 remote_rsync() {
   port=$(ssh_port)
-  rsync -a --delete -e "ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
+  # --omit-dir-times: the operator cannot utime deploy-owned directories.
+  rsync -a --delete --omit-dir-times \
+    -e "ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
 }
 
 slug() {
