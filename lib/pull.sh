@@ -138,7 +138,18 @@ cmd_site_pull() {
   # Write settings before the import. Bee reads settings.local.php to
   # learn the database. Writing it after the import is too late.
   _write_local "$root" "$web" "$product" "$host" "$role"
+  # Retry the create. The first one ran inside site-add. If it failed
+  # the import has no database to land in.
+  platform=$dst_p product=$dst_s
+  db=$(db_name "$product" "$role")
+  user=$(printf '%s' "$db" | cut -c1-32)
+  pass=$(read_secret_pass "$platform" "$product" || true)
+  if [ -n "$pass" ]; then
+    ensure_db "$db" "$user" "$pass" || echo "$PROG: database not ready — import will fail" >&2
+  fi
   pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
+  # Source active JSON into destination staging, then Bee applies it.
+  pull_config "$root" "$product" "$vps" "$src_p" "$src_s"
 
   echo "pull done  http://$host"
 }
