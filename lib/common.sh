@@ -809,8 +809,14 @@ ssh_cmd() {
 remote_rsync() {
   port=$(ssh_port)
   # --omit-dir-times: the operator cannot utime deploy-owned directories.
+  # Exit 23 is "some attrs were not transferred". The files arrived.
   rsync -a --delete --omit-dir-times \
     -e "ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
+  rc=$?
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ]; then
+    return 0
+  fi
+  return "$rc"
 }
 
 slug() {
