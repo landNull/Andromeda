@@ -133,7 +133,9 @@ pull_db() {
     fi
     run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
     run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
-    if ! "$bee" --root="$web" --site="$product" db-import "$dump"; then
+    # Recent MariaDB dumps include a sandbox line that older clients
+    # reject. Bee strips it with --mariadb-compatibility.
+    if ! "$bee" --root="$web" --site="$product" db-import --mariadb-compatibility "$dump"; then
       echo "$PROG: db import failed for $product" >&2
     fi
   else
@@ -160,19 +162,27 @@ pull_config() {
     run_root setfacl -b "$root/config" "$root/config/$product" "$staging" 2>/dev/null || true
   fi
   run_root chmod 0775 "$staging" 2>/dev/null || true
+  # Bee owns the export. It copies active to staging on the source.
+  # Then we move that staging tree and let Bee import it here.
+  echo "config export on $remote"
+  ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || \
+    ssh_cmd "$remote" "andromeda bee $src_p $src_s config-export" || true
   echo "config staging from $remote port $(ssh_port)"
   got=0
-  # Platform layout first. Default Backdrop keeps config inside files
-  # under a hashed directory. Ask the remote which one exists.
-  srcs=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/active /srv/platforms/$src_p/files/$src_s/config_*/active /srv/platforms/$src_p/web/sites/$src_s/files/config_*/active; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  srcs=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/staging /srv/platforms/$src_p/files/$src_s/config_*/staging /srv/platforms/$src_p/web/sites/$src_s/files/config_*/staging /srv/platforms/$src_p/web/files/config_*/staging; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  if [ -z "$srcs" ]; then
+    echo "config none — no staging directory for $src_s on $remote"
+    return 0
+  fi
   for src in $srcs; do
+    echo "config from $src"
     if remote_rsync "$remote:${src}/" "$staging/"; then
       got=1
       break
     fi
   done
   if [ "$got" -ne 1 ]; then
-    echo "config none — no active JSON for $src_s on $remote"
+    echo "config none — staging did not arrive for $src_s"
     return 0
   fi
   if ! find "$staging" -name '*.json' -print -quit | grep -q .; then
