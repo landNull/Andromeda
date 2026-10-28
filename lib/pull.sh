@@ -220,7 +220,16 @@ _write_local() {
   cfgactive="$root/config/$product/active"
   cfgstaging="$root/config/$product/staging"
   run_root mkdir -p "$cfgstaging" 2>/dev/null || true
-  dsnline=$(grep -E '^\$database' "$localphp" 2>/dev/null | head -n 1 || true)
+  # Fresh DSN from the directory suffix. Do not keep a doubled name
+  # from an older settings.local.php.
+  db=$(db_name "$product" "$role")
+  user=$(printf '%s' "$db" | cut -c1-32)
+  pass=$(read_secret_pass "$platform" "$product" || true)
+  if [ -n "$pass" ]; then
+    dsnline="\$database = 'mysql://${user}:${pass}@localhost/${db}';"
+  else
+    dsnline=$(grep -E '^\$database' "$localphp" 2>/dev/null | head -n 1 || true)
+  fi
   hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
   tmp=$(mktemp) || return 1
   {

@@ -41,12 +41,26 @@ pull_code() {
     rm -rf "$bare"
     return 1
   fi
-  # An empty source repo has no commits. Do not invent a branch from
-  # FETCH_HEAD. Code cannot move until bjorn has a commit on this platform.
+  # An empty source has no commits. Name the local branch from the
+  # destination directory suffix: keslerlumber.devel -> devel.
   if ! git -c safe.directory='*' --git-dir="$bare/src.git" rev-parse --verify HEAD >/dev/null 2>&1; then
     echo "$PROG: source repo is empty — no commits on $remote:/srv/platforms/$src_p" >&2
-    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
     rm -rf "$bare"
+    stage=$(stage_from_site "${product:-}")
+    [ -n "$stage" ] || stage=devel
+    if [ ! -e "$root/.git" ]; then
+      git -c safe.directory='*' -C "$root" init || return 0
+    fi
+    # An empty init lands on master. Rename it to the stage.
+    cur=$(git -c safe.directory='*' -C "$root" branch --show-current 2>/dev/null || true)
+    if [ "$cur" = "master" ] || [ -z "$cur" ]; then
+      git -c safe.directory='*' -C "$root" checkout -B "$stage" 2>/dev/null || true
+    elif [ "$cur" != "$stage" ]; then
+      git -c safe.directory='*' -C "$root" branch -m "$cur" "$stage" 2>/dev/null || \
+        git -c safe.directory='*' -C "$root" checkout -B "$stage" 2>/dev/null || true
+    fi
+    echo "code  empty branch named $stage from the directory suffix"
+    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
     return 0
   fi
   rm -rf "$bare"
