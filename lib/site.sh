@@ -125,7 +125,11 @@ ensure_db() {
     echo "$PROG: missing $cnf — write_secret first" >&2
     return 1
   fi
-  priv mysql-create "$db" "$user" "$cnf"
+  echo "db    create $db"
+  if ! priv mysql-create "$db" "$user" "$cnf"; then
+    echo "$PROG: mysql-create failed for $db" >&2
+    return 1
+  fi
 }
 
 ensure_vhost() {
@@ -246,7 +250,11 @@ cmd_site_add() {
   ensure_settings_php "$root" "$product"
   ensure_sites_php "$web" "$host" "$product"
   ensure_local_php "$web/sites/$product/settings.local.php" "$dsn" "$hostpat" "$role"
-  ensure_db "$db" "$user" "$pass"
+  # Database create can fail (priv, credentials). Do not abort site-add;
+  # a pull will import the source database afterward.
+  if ! ensure_db "$db" "$user" "$pass"; then
+    echo "$PROG: database not ready for $product — continuing" >&2
+  fi
 
   bee=$(bee_bin)
   if [ "$no_install" -eq 1 ]; then
@@ -290,6 +298,7 @@ cmd_site_add() {
       as_root touch "$web/sites/$product/.andromeda-installed"
       run_root chown "$OWNER:$GROUP" "$web/sites/$product/.andromeda-installed"
     else
+      echo "install $product with bee"
       run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" "$bee" --root="$web" --site="$product" install \
         --db-name="$db" --db-user="$user" --db-pass="$pass" \
