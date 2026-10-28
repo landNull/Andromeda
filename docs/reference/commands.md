@@ -94,6 +94,9 @@ Every reload runs `apache2ctl configtest` first. A failed configtest refuses the
 
 `pull site` moves each piece with the tool that owns it.
 
+A second run heals a hand edit. The destination name in the command is the source of truth. A renamed directory with the same stem (or the product `sites.php` maps the host to) is moved into place, with its files and config. A wrong `sites.php` line for that host is rewritten. `settings.local.php` is written again from the template.
+
+
 | Piece | Tool |
 |---|---|
 | Code | git bundle, then checkout of the stage branch |

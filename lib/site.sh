@@ -71,7 +71,14 @@ ensure_sites_php() {
 <?php
 EOF
   fi
-  if ! grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
+  # A hand edit can leave the host pointing at the old product.
+  # The command's product is the source of truth. Rewrite the line.
+  if grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
+    if ! grep -q "sites\['$host'\] = '$product'" "$dest" 2>/dev/null; then
+      echo "heal  sites.php $host -> $product"
+      as_root sed -i "s|\\$sites\['$host'\] = '.*';|\\$sites['$host'] = '$product';|" "$dest" || true
+    fi
+  else
     as_root tee -a "$dest" >/dev/null <<EOF
 \$sites['$host'] = '$product';
 EOF

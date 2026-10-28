@@ -67,6 +67,66 @@ parse_site_refs() {
   [ -n "$SRC_PLAT" ] && [ -n "$SRC_SITE" ] && [ -n "$DST_PLAT" ] && [ -n "$DST_SITE" ]
 }
 
+
+# heal_renamed_site WEB ROOT PRODUCT HOST
+# The destination name in the command is the source of truth.
+# A hand rename (keslerlumber.test, or the old product) is moved into place.
+# Matching files, private, and config directories move with it.
+heal_renamed_site() {
+  web=$1
+  root=$2
+  product=$3
+  host=$4
+  sites=$web/sites
+  [ -d "$sites" ] || return 0
+  if [ -d "$sites/$product" ]; then
+    return 0
+  fi
+  stem=$product
+  case $stem in
+    *.devel|*.test|*.live) stem=${stem%.*} ;;
+  esac
+  cand=""
+  # Same stem, different stage. The user renamed the suffix.
+  for s in "$stem" "$stem.devel" "$stem.test" "$stem.live"; do
+    [ "$s" = "$product" ] && continue
+    if [ -d "$sites/$s" ]; then
+      cand="$cand $s"
+    fi
+  done
+  # sites.php maps this host at an old product.
+  if [ -f "$sites/sites.php" ]; then
+    mapped=$(sed -n "s/.*sites\['$host'\] = '\([^']*\)'.*/\1/p" "$sites/sites.php" | head -1)
+    if [ -n "$mapped" ] && [ "$mapped" != "$product" ] && [ -d "$sites/$mapped" ]; then
+      case " $cand " in
+        *" $mapped "*) ;;
+        *) cand="$cand $mapped" ;;
+      esac
+    fi
+  fi
+  # shellcheck disable=SC2086
+  set -- $cand
+  if [ "$#" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$#" -gt 1 ]; then
+    echo "$PROG: several renamed dirs for $product:$*" >&2
+    echo "$PROG: not guessing. Move one into $sites/$product and pull again." >&2
+    return 0
+  fi
+  old=$1
+  echo "heal  rename $old -> $product"
+  as_root mv "$sites/$old" "$sites/$product" || return 1
+  for kind in files files_private; do
+    if [ -d "$root/$kind/$old" ] && [ ! -e "$root/$kind/$product" ]; then
+      as_root mv "$root/$kind/$old" "$root/$kind/$product" || true
+    fi
+  done
+  if [ -d "$root/config/$old" ] && [ ! -e "$root/config/$product" ]; then
+    as_root mv "$root/config/$old" "$root/config/$product" || true
+  fi
+}
+
 # Pull a site from a remote host and stand it up locally.
 # Tools: WireGuard, andro add platform, andro add site, andro repo-ensure,
 # git, rsync, andro bee, andromeda-priv, andro heal site.
@@ -131,7 +191,11 @@ cmd_site_pull() {
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  # 3. Site. andro add site creates dirs, sites.php, settings, db user.
+  # 3. Adopt a hand rename before site-add, so site-add does not
+  # create an empty directory and hide the renamed one.
+  resolve_site "$dst_p" "$dst_s"
+  heal_renamed_site "$web" "$root" "$product" "$host"
+  # Site. andro add site creates dirs, sites.php, settings, db user.
   if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install; then
     echo "$PROG: site-add failed — continuing with pull" >&2
   fi
@@ -278,6 +342,9 @@ _write_local() {
     fi
   } > "$tmp"
   as_root chmod 0640 "$tmp"
+  if [ -f "$localphp" ]; then
+    echo "heal  settings.local.php (hand edit replaced)"
+  fi
   if as_root mv -f "$tmp" "$localphp"; then
     echo "write $localphp (role $role)"
   else
