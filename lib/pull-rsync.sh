@@ -17,10 +17,15 @@ pull_code() {
   port=$(ssh_port)
   url="ssh://$remote:$port/srv/platforms/$src_p"
   echo "code  git from $url as $op"
+  # The platform repo is owned by deploy. Git refuses it as dubious
+  # ownership unless the SSH user has marked it safe.
+  echo "code  mark safe.directory on $remote"
+  ssh_cmd "$remote" "git config --global --add safe.directory /srv/platforms/$src_p/.git" || true
+  ssh_cmd "$remote" "git config --global --add safe.directory '*'" || true
   # Fetch as the operator. Deploy is nologin and has no key.
   bare=$(mktemp -d)
   export GIT_SSH_COMMAND="ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-  if ! git clone --bare "$url" "$bare/src.git"; then
+  if ! git -c safe.directory='*' clone --bare "$url" "$bare/src.git"; then
     echo "$PROG: git fetch failed — code did not move" >&2
     rm -rf "$bare"
     return 1
@@ -29,19 +34,19 @@ pull_code() {
   # Hand the platform tree to the operator so checkout can write.
   run_root chown -R "$op:$GROUP" "$root" 2>/dev/null || true
   if [ ! -e "$root/.git" ]; then
-    git -C "$root" init || { rm -rf "$bare"; return 1; }
+    git -c safe.directory='*' -C "$root" init || { rm -rf "$bare"; return 1; }
   fi
-  if ! git -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
+  if ! git -c safe.directory='*' -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
     echo "$PROG: local fetch from staged repo failed" >&2
     rm -rf "$bare"
     return 1
   fi
   rm -rf "$bare"
   stage=${role:-devel}
-  if git -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    git -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+  if git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
+    git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
   else
-    git -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
+    git -c safe.directory='*' -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
   fi
   echo "code  on branch $stage as $op"
 }
