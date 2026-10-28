@@ -124,7 +124,7 @@ cmd_site_pull() {
     cmd_platform_add "$dst_p" --no-prompt
   fi
   # Full site-add. If it fails, still move code, content, and the database.
-  if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"; then
+  if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install; then
     echo "$PROG: site-add failed — continuing with pull" >&2
   fi
   resolve_site "$dst_p" "$dst_s"
