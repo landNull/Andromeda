@@ -135,9 +135,11 @@ cmd_site_pull() {
   . "$LIBDIR/pull-rsync.sh"
   pull_code "$root" "$web" "$vps" "$src_p" || exit 1
   pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
+  # Write settings before the import. Bee reads settings.local.php to
+  # learn the database. Writing it after the import is too late.
+  _write_local "$root" "$web" "$product" "$host" "$role"
   pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
 
-  _write_local "$root" "$web" "$product" "$host" "$role"
   echo "pull done  http://$host"
 }
 

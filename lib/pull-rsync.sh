@@ -118,12 +118,15 @@ pull_db() {
     ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
     echo "db    import"
-    # The tree was handed to the operator. Bee as deploy cannot read
-    # settings.local.php through landy-owned directories. Import as
-    # the operator, who can.
-    op=$(id -un)
-    chmod 0755 "$web/sites" "$web/sites/$product" 2>/dev/null || true
-    chmod 0644 "$web/sites/$product/settings.local.php" 2>/dev/null || true
+    # Site directories carry ACLs from crdir/setacl that deny everyone
+    # but deploy, www-admin, and www-data. Clear them so the operator
+    # can read settings.local.php, then import as the operator.
+    site="$web/sites/$product"
+    if command -v setfacl >/dev/null 2>&1; then
+      run_root setfacl -b "$web" "$web/sites" "$site" "$site/settings.local.php" 2>/dev/null || true
+    fi
+    run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
+    run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
     if ! "$bee" --root="$web" --site="$product" db-import "$dump"; then
       echo "$PROG: db import failed for $product" >&2
     fi
