@@ -108,6 +108,69 @@ branch_for_role() {
   esac
 }
 
+# stage_from_site PRODUCT
+# The suffix of the site directory is the stage and the default branch.
+# keslerlumber.devel → devel
+# keslerlumber.test  → test
+# keslerlumber.live  → live
+# No suffix → branch_for_role.
+stage_from_site() {
+  product=$1
+  case $product in
+    *.devel) printf '%s\n' devel ;;
+    *.test)  printf '%s\n' test ;;
+    *.live)  printf '%s\n' live ;;
+    *)       branch_for_role ;;
+  esac
+}
+
+# ensure_platform_git PLATFORM STAGE
+# Creates a local git repo on the platform if missing, seeds the three
+# stage branches, and checks out STAGE. Idempotent.
+ensure_platform_git() {
+  plat=$1
+  stage=$2
+  dest=$PLATFORMS/$plat
+  if [ ! -d "$dest" ]; then
+    echo "$PROG: platform $dest missing — cannot init git" >&2
+    return 1
+  fi
+  if [ -z "$stage" ]; then
+    stage=devel
+  fi
+  if [ ! -e "$dest/.git" ]; then
+    echo "git   init $dest"
+    if [ "${DRYRUN:-0}" -eq 1 ]; then
+      echo "+ git -C $dest init"
+      echo "+ seed branches devel test live"
+      echo "+ checkout $stage"
+      return 0
+    fi
+    as_root -u "$OWNER" git -C "$dest" init
+    write_gitignore "$dest/.gitignore"
+    # Empty repo has no HEAD yet. Create an initial commit so branches
+    # can be named, then seed the stage branches from it.
+    as_root -u "$OWNER" git -C "$dest" add -A 2>/dev/null || true
+    if ! as_root -u "$OWNER" git -C "$dest" rev-parse HEAD >/dev/null 2>&1; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "init platform $plat" --allow-empty || true
+    fi
+    for b in devel test live; do
+      as_root -u "$OWNER" git -C "$dest" branch "$b" 2>/dev/null || true
+    done
+  fi
+  if [ "${DRYRUN:-0}" -eq 1 ]; then
+    echo "+ git -C $dest checkout $stage"
+    return 0
+  fi
+  if ! as_root -u "$OWNER" git -C "$dest" show-ref --verify --quiet "refs/heads/$stage"; then
+    echo "git   create branch $stage"
+    as_root -u "$OWNER" git -C "$dest" checkout -B "$stage" 2>/dev/null || true
+  else
+    as_root -u "$OWNER" git -C "$dest" checkout "$stage" 2>/dev/null || true
+  fi
+  echo "git   $plat on branch $stage"
+}
+
 is_tty() {
   [ -t 0 ] && [ -t 2 ]
 }

@@ -129,7 +129,14 @@ cmd_platform_add() {
 
   if [ "$DRYRUN" -eq 0 ] && [ ! -e "$dest/.git" ]; then
     as_root -u "$OWNER" git -C "$dest" init
-    as_root -u "$OWNER" git -C "$dest" checkout -B "$branch" 2>/dev/null || true
+    as_root -u "$OWNER" git -C "$dest" add -A 2>/dev/null || true
+    if ! as_root -u "$OWNER" git -C "$dest" rev-parse HEAD >/dev/null 2>&1; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "init platform $name" --allow-empty || true
+    fi
+    for b in devel test live; do
+      as_root -u "$OWNER" git -C "$dest" branch "$b" 2>/dev/null || true
+    done
+    as_root -u "$OWNER" git -C "$dest" checkout "$branch" 2>/dev/null || true
   fi
 
   echo "platform $name ready at $dest"

@@ -122,6 +122,11 @@ cmd_site_pull() {
   fi
   ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
   resolve_site "$dst_p" "$dst_s"
+  # Local dest: ensure the platform repo exists and is on the stage branch.
+  if is_local_host "$dst_h"; then
+    stage=$(stage_from_site "$dst_s")
+    ensure_platform_git "$dst_p" "$stage" || true
+  fi
 
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"

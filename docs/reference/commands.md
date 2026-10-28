@@ -171,3 +171,13 @@ andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live h
 ```
 
 `push` is the forward counterpart of `pull`: code, content, and database move. `promote` remains the git-only fast-forward on a target host.
+
+## platform git and stage branches
+
+The site directory suffix is the stage and the default git branch:
+
+- `keslerlumber.devel` → branch `devel`
+- `keslerlumber.test` → branch `test`
+- `keslerlumber.live` → branch `live`
+
+On the first local push between stages (for example `push site ecom/keslerlumber.devel to ecom/keslerlumber.test`), Andromeda creates the platform repo at `/srv/platforms/<plat>` if it does not exist, seeds the `devel`, `test`, and `live` branches, and checks out the destination stage. The same init runs on a local pull destination and on a remote push destination. `platform-add` also seeds the three branches when it creates a new platform.

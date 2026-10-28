@@ -161,12 +161,20 @@ push_site() {
       cmd_platform_add "$dst_p" --no-prompt
     fi
     ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" || true
+    # First local push between stages inits the platform repo and
+    # checks out the destination stage branch.
+    stage=$(stage_from_site "$dst_s")
+    ensure_platform_git "$dst_p" "$stage" || true
     dst_root="/srv/platforms/$dst_p"
     dst_web="$dst_root/web"
   else
     echo "ensure dest site on $dst_h"
     ssh "$dst_h" "andromeda add platform $dst_p --no-prompt" 2>/dev/null || true
     ssh "$dst_h" "andromeda add site $dst_p $dst_s --host $host" || true
+    stage=$(stage_from_site "$dst_s")
+    # Remote dest: init the platform repo and checkout the stage branch
+    # if the remote Andromeda supports ensure. Fall back to a direct init.
+    ssh "$dst_h" "cd /srv/platforms/$dst_p &&       if [ ! -e .git ]; then git init && git add -A && git commit -m 'init platform $dst_p' --allow-empty || true;       for b in devel test live; do git branch \$b 2>/dev/null || true; done; fi &&       git checkout -B $stage" 2>/dev/null || true
     dst_root="$dst_h:/srv/platforms/$dst_p"
     dst_web="$dst_h:/srv/platforms/$dst_p/web"
   fi
