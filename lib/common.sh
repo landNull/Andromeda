@@ -798,9 +798,9 @@ ssh_port() {
 # key fails instead of asking for deploy's password. Deploy is nologin
 # and has no password.
 ssh_cmd() {
-  host=$1
+  ssh_target=$1
   shift
-  ssh -p "$(ssh_port)" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$host" "$@"
+  ssh -p "$(ssh_port)" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$ssh_target" "$@"
 }
 
 # remote_rsync SRC DST
@@ -826,6 +826,10 @@ slug() {
 db_name() {
   product=$1
   role=${2:-$ANDROMEDA_ROLE}
+  # keslerlumber.devel + role devel must not become keslerlumber_devel_devel
+  case $product in
+    *."$role") product=${product%."$role"} ;;
+  esac
   n="${DB_PREFIX}${product}_${role}"
   printf '%s' "$n" | tr -c 'a-z0-9_' '_' | cut -c1-64
 }
