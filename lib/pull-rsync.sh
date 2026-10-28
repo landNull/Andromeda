@@ -11,13 +11,13 @@ pull_code() {
   web=$2
   vps=$3
   src_p=$4
+  # The person running andro. On knarr this is landy. Not deploy.
+  op=$(id -un)
   remote=$(tunnel_host "$vps")
   port=$(ssh_port)
   url="ssh://$remote:$port/srv/platforms/$src_p"
-  echo "code  git from $url"
-  # Fetch as the operator. Deploy is nologin and has no key, so a fetch
-  # run as deploy asks for a password. Stage the objects locally, then
-  # let deploy check them out.
+  echo "code  git from $url as $op"
+  # Fetch as the operator. Deploy is nologin and has no key.
   bare=$(mktemp -d)
   export GIT_SSH_COMMAND="ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
   if ! git clone --bare "$url" "$bare/src.git"; then
@@ -26,22 +26,24 @@ pull_code() {
     return 1
   fi
   unset GIT_SSH_COMMAND
+  # Hand the platform tree to the operator so checkout can write.
+  run_root chown -R "$op:$GROUP" "$root" 2>/dev/null || true
   if [ ! -e "$root/.git" ]; then
-    as_root -u "$OWNER" git -C "$root" init || { rm -rf "$bare"; return 1; }
+    git -C "$root" init || { rm -rf "$bare"; return 1; }
   fi
-  if ! as_root -u "$OWNER" git -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
+  if ! git -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
     echo "$PROG: local fetch from staged repo failed" >&2
     rm -rf "$bare"
     return 1
   fi
   rm -rf "$bare"
   stage=${role:-devel}
-  if as_root -u "$OWNER" git -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    as_root -u "$OWNER" git -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+  if git -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
+    git -C "$root" checkout -B "$stage" "origin/$stage" || return 1
   else
-    as_root -u "$OWNER" git -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
+    git -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
   fi
-  echo "code  on branch $stage"
+  echo "code  on branch $stage as $op"
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
@@ -65,7 +67,7 @@ pull_content() {
     --include='*.ico' --include='*.bmp' \
     --exclude='*' \
     "$remote:/srv/platforms/$src_p/files/$src_s/" "$stage/"; then
-    as_root -u "$OWNER" rsync -a "$stage/" "$root/files/$product/" || true
+    rsync -a "$stage/" "$root/files/$product/" || true
   fi
   rm -rf "$stage"
   chown_files "$root/files/$product" 2>/dev/null || true
