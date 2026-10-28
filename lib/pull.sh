@@ -72,9 +72,10 @@ parse_site_refs() {
 # rsync content, Bee database. Hostname still comes from the site name.
 cmd_site_pull() {
   role=${ANDROMEDA_ROLE:-devel}
+  role_set=0
   while [ $# -gt 0 ]; do
     case $1 in
-      --role) role=$2; shift 2 ;;
+      --role) role=$2; role_set=1; shift 2 ;;
       --) shift; break ;;
       -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
       *) break ;;
@@ -90,11 +91,18 @@ cmd_site_pull() {
   dst_h=$DST_HOST
   dst_p=$DST_PLAT
   dst_s=$DST_SITE
+  # Site suffix is the stage unless --role was given.
+  if [ "$role_set" -eq 0 ]; then
+    case $dst_s in
+      *.devel|*.test|*.live) role=$(stage_from_site "$dst_s") ;;
+    esac
+  fi
   host=$(hostname_for_site "$dst_s" "$OVERRIDE_HOST")
 
   src_path="/srv/platforms/$src_p/web/sites/$src_s"
   dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
   echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
+  echo "hostname $host"
   echo "from $src_path  on $vps"
   echo "to   $dst_path"
   wg_up || return 1
@@ -104,7 +112,8 @@ cmd_site_pull() {
     echo "+ rsync files, private, config"
     echo "+ bee db-export + rsync + db-import"
     echo "+ platform-add $dst_p   (if missing)"
-    echo "+ site-add $dst_p $dst_s"
+    echo "+ site-add $dst_p $dst_s --host $host"
+    echo "+ checkout branch $role"
     echo "+ write settings.local.php once"
     return 0
   fi
@@ -113,8 +122,13 @@ cmd_site_pull() {
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
+  # Full site-add. If it fails, still move code, content, and the database.
+  if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"; then
+    echo "$PROG: site-add failed — continuing with pull" >&2
+  fi
   resolve_site "$dst_p" "$dst_s"
+  # Branch matches the stage in the destination folder name.
+  ensure_platform_git "$dst_p" "$role" || true
 
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
@@ -130,9 +144,10 @@ cmd_site_pull() {
 # Same ref grammar as pull. Forward counterpart.
 cmd_site_push() {
   role=${ANDROMEDA_ROLE:-devel}
+  role_set=0
   while [ $# -gt 0 ]; do
     case $1 in
-      --role) role=$2; shift 2 ;;
+      --role) role=$2; role_set=1; shift 2 ;;
       --) shift; break ;;
       -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
       *) break ;;
@@ -148,9 +163,14 @@ cmd_site_push() {
   dst_h=$DST_HOST
   dst_p=$DST_PLAT
   dst_s=$DST_SITE
+  if [ "$role_set" -eq 0 ]; then
+    case $dst_s in
+      *.devel|*.test|*.live) role=$(stage_from_site "$dst_s") ;;
+    esac
+  fi
   host=$(hostname_for_site "$dst_s" "$OVERRIDE_HOST")
 
-  echo "push @$src_h:$src_p/$src_s to @$dst_h:$dst_p/$dst_s"
+  echo "push @$src_h:$src_p/$src_s to @$dst_h:$dst_p/$dst_s ($role)"
   echo "hostname $host"
 
   need_wg=0

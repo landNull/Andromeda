@@ -24,6 +24,7 @@ pull_code() {
   as_root -u "$OWNER" rsync -a --delete \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
+    --exclude='sites/sites.php' \
     --exclude='sites/*/files' \
     --exclude='sites/*/' \
     "$vps:/srv/platforms/$src_p/web/" "$web/" || {
@@ -86,6 +87,7 @@ pull_code_local() {
   as_root -u "$OWNER" rsync -a --delete \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
+    --exclude='sites/sites.php' \
     --exclude='sites/*/files' \
     --exclude='sites/*/' \
     "$src_web/" "$web/" || {
@@ -240,6 +242,7 @@ push_site() {
       as_root -u "$OWNER" rsync -a --delete \
         --exclude='files/' --exclude='files_private/' \
         --exclude='sites/*/settings.local.php' \
+        --exclude='sites/sites.php' \
         --exclude='sites/*/files' \
         --exclude='sites/*/' \
         "/srv/platforms/$src_p/web/" "$dst_web/" || true
@@ -247,6 +250,7 @@ push_site() {
       as_root -u "$OWNER" rsync -a --delete \
         --exclude='files/' --exclude='files_private/' \
         --exclude='sites/*/settings.local.php' \
+        --exclude='sites/sites.php' \
         --exclude='sites/*/files' \
         --exclude='sites/*/' \
         "$src_root/web/" "$dst_web/" || true

@@ -198,3 +198,13 @@ Remote push (`push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumbe
 3. If the git push fails, the web tree is rsynced as a fallback.
 4. Content and database move by rsync and Bee, as on a pull.
 5. Hostname for a `.live` site is `project.com` unless `hostname NAME` or `--host NAME` is given.
+
+## Stage from the site name
+
+On pull and push, the destination folder suffix is the stage unless `--role` is given:
+
+- `keslerlumber.devel` → role and branch `devel`, hostname `keslerlumber.devel`
+- `keslerlumber.test` → role and branch `test`, hostname `keslerlumber.test`
+- `keslerlumber.live` → role and branch `live`, hostname `keslerlumber.com`
+
+`hostname NAME` or `--host NAME` overrides the hostname. A failed `site-add` no longer aborts the pull; code, content, and the database still move. The web-tree rsync excludes `sites.php` so the destination host mapping survives.
