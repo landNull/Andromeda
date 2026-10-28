@@ -162,15 +162,21 @@ pull_config() {
   run_root chmod 0775 "$staging" 2>/dev/null || true
   echo "config staging from $remote port $(ssh_port)"
   got=0
-  for src in     "/srv/platforms/$src_p/config/$src_s/active/"     "/srv/platforms/$src_p/web/sites/$src_s/files/config_*/active/"
-  do
-    if remote_rsync "$remote:$src" "$staging/"; then
+  # Platform layout first. Default Backdrop keeps config inside files
+  # under a hashed directory. Ask the remote which one exists.
+  srcs=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/active /srv/platforms/$src_p/files/$src_s/config_*/active /srv/platforms/$src_p/web/sites/$src_s/files/config_*/active; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  for src in $srcs; do
+    if remote_rsync "$remote:${src}/" "$staging/"; then
       got=1
       break
     fi
   done
   if [ "$got" -ne 1 ]; then
     echo "config none — no active JSON for $src_s on $remote"
+    return 0
+  fi
+  if ! find "$staging" -name '*.json' -print -quit | grep -q .; then
+    echo "config none — staging has no JSON"
     return 0
   fi
   echo "config landed in $staging"

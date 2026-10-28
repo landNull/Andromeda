@@ -134,6 +134,9 @@ cmd_site_pull() {
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
   pull_code "$root" "$web" "$vps" "$src_p" || exit 1
+  # The checkout restores the source sites.php. That file does not
+  # know this site. Bee refuses the site without the line.
+  ensure_sites_php "$web" "$host" "$product"
   pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
   # Write settings before the import. Bee reads settings.local.php to
   # learn the database. Writing it after the import is too late.
