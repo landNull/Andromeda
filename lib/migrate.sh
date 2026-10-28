@@ -1,6 +1,11 @@
 # shellcheck shell=sh
-# Migrate a full Backdrop docroot from /var/www into a Andromeda platform.
-# The docroot lands at /srv/platforms/<name>/web, not under web/sites.
+# Two distinct migrate paths:
+#   migrate-www (or migrate www) — interactive move of a standalone Backdrop
+#     docroot from /var/www into a new platform under $PLATFORMS (/srv/platforms).
+#     This is the only command that reads /var/www.
+#   migrate site SRC DEST — move a site that already lives under $PLATFORMS
+#     from one platform to another. Never touches /var/www.
+# The docroot from migrate-www lands at /srv/platforms/<name>/web.
 
 is_docroot() {
   d=$1
@@ -403,4 +408,96 @@ _migrate_report() {
     printf '  \033[31m✘ done with failures\033[0m  see the lines above\n'
   fi
   echo
+}
+
+# migrate site — move a site between platforms under $PLATFORMS (/srv/platforms).
+# Does not touch /var/www. That path is migrate-www only.
+#
+# Default is a true move: the source site is deleted after the destination
+# is confirmed. Pass --keep to leave the source in place (copy).
+cmd_site_migrate() {
+  keep=0
+  host=""
+  pass=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --keep) keep=1; shift ;;
+      --host) host=$2; shift 2 ;;
+      --pass) pass=$2; shift 2 ;;
+      --) shift; break ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
+
+  src_p=${1:-}
+  src_s=${2:-}
+  dst_p=${3:-}
+  dst_s=${4:-}
+  if [ -z "$src_p" ] || [ -z "$src_s" ] || [ -z "$dst_p" ] || [ -z "$dst_s" ]; then
+    echo "usage: $PROG migrate site SRC_PLATFORM SRC_PRODUCT DEST_PLATFORM DEST_PRODUCT [--host HOST] [--keep]" >&2
+    echo "  both platforms must already exist under $PLATFORMS" >&2
+    exit 2
+  fi
+
+  # Both ends must resolve under $PLATFORMS. resolve_site exits if not.
+  resolve_site "$src_p" "$src_s"
+  src_root=$root
+  src_web=$web
+  src_platform=$platform
+  src_product=$product
+
+  # Destination platform must exist (we do not create it).
+  if [ ! -d "$PLATFORMS/$dst_p" ]; then
+    echo "$PROG: destination platform $dst_p does not exist under $PLATFORMS" >&2
+    echo "$PROG: add platform $dst_p first" >&2
+    exit 1
+  fi
+
+  if [ "$src_platform" = "$dst_p" ] && [ "$src_product" = "$dst_s" ]; then
+    echo "$PROG: source and destination are the same site" >&2
+    exit 2
+  fi
+
+  echo "migrate $src_platform/$src_product -> $dst_p/$dst_s"
+  if [ "$keep" -eq 1 ]; then
+    echo "  --keep: source will remain"
+  else
+    echo "  source will be deleted after destination is ready"
+  fi
+
+  # Reuse the clone path (backup + add + restore). It already constrains
+  # both ends to $PLATFORMS via resolve_site.
+  clone_args="$src_platform $src_product $dst_p $dst_s"
+  if [ -n "$host" ]; then
+    clone_args="$clone_args --host $host"
+  fi
+  if [ -n "$pass" ]; then
+    clone_args="$clone_args --pass $pass"
+  fi
+  # shellcheck disable=SC2086
+  cmd_site_clone $clone_args || {
+    echo "$PROG: clone step failed — source left untouched" >&2
+    exit 1
+  }
+
+  if [ "$keep" -eq 1 ]; then
+    echo "migrated (kept source) $src_platform/$src_product -> $dst_p/$dst_s"
+    return 0
+  fi
+
+  # True move: remove the source site. site-delete refuses on live without --force.
+  echo "removing source $src_platform/$src_product"
+  if [ "$ANDROMEDA_ROLE" = live ]; then
+    cmd_site_delete --force "$src_platform" "$src_product" || {
+      echo "$PROG: destination is ready but source delete failed — run delete site manually" >&2
+      return 1
+    }
+  else
+    cmd_site_delete "$src_platform" "$src_product" || {
+      echo "$PROG: destination is ready but source delete failed — run delete site manually" >&2
+      return 1
+    }
+  fi
+  echo "migrated $src_platform/$src_product -> $dst_p/$dst_s"
 }

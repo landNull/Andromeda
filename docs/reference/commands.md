@@ -113,6 +113,21 @@ Existing verbs already cover the rest of the Aegir set:
 | backup    | `backup site`                      |
 | restore   | `restore site`                     |
 | clone     | `clone site`                       |
-| migrate   | `migrate www` (legacy) / `promote` (forward) |
+| migrate   | `migrate site` (between platforms) / `migrate www` (from /var/www) |
 | delete    | `delete site` / `remove platform`  |
 | login-reset | `login-reset site` (new)         |
+
+## migrate
+
+Two commands. They do not overlap.
+
+`migrate www` (and the hyphen form `migrate-www`) is the only command that reads `/var/www`. It lists standalone Backdrop docroots, asks for a new platform name, copies the tree into `/srv/platforms/<name>/web`, converts the hashed config store, and updates a chosen vhost. `migrate www heal` (or `migrate-www heal`) re-scans and repairs an already-migrated platform.
+
+`migrate site SRC_PLATFORM SRC_PRODUCT DEST_PLATFORM DEST_PRODUCT` moves a site that already lives under `/srv/platforms` from one platform to another. Both platforms must already exist. It reuses the clone path (backup, add, restore) and then deletes the source site. Pass `--keep` to leave the source in place. It never touches `/var/www`.
+
+```
+andro migrate www
+andro migrate-www
+andro migrate site ecom kl_test ecom kl_devel
+andro migrate site ecom kl_test otherplat kl_copy --keep
+```
