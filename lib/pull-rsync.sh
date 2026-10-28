@@ -31,12 +31,13 @@ pull_code() {
     return 1
   fi
   unset GIT_SSH_COMMAND
-  # Hand the platform tree to the operator so checkout can write.
-  run_root chown -R "$op:$GROUP" "$root" 2>/dev/null || true
+  # The code tree belongs to the code owner (deploy), a member of
+  # www-admin. The operator fetched the objects. The owner writes them.
+  run_root chown -R "$OWNER:$GROUP" "$root" 2>/dev/null || true
   if [ ! -e "$root/.git" ]; then
-    git -c safe.directory='*' -C "$root" init || { rm -rf "$bare"; return 1; }
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" init || { rm -rf "$bare"; return 1; }
   fi
-  if ! git -c safe.directory='*' -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
     echo "$PROG: local fetch from staged repo failed" >&2
     rm -rf "$bare"
     return 1
@@ -67,17 +68,18 @@ pull_code() {
   stage=${role:-devel}
   # The platform already has Backdrop files from site-add. They are
   # untracked, so a plain checkout aborts. A pull takes the source tree.
-  echo "code  checkout $stage, source wins"
-  git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
-  if git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    git -c safe.directory='*' -C "$root" checkout -f -B "$stage" "origin/$stage" || return 1
-  elif git -c safe.directory='*' -C "$root" rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
-    git -c safe.directory='*' -C "$root" checkout -f -B "$stage" FETCH_HEAD || return 1
+  # Clean and checkout as the code owner, who can unlink them.
+  echo "code  checkout $stage as $OWNER, source wins"
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
+  if as_root -u "$OWNER" git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -f -B "$stage" "origin/$stage" || return 1
+  elif as_root -u "$OWNER" git -c safe.directory='*' -C "$root" rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -f -B "$stage" FETCH_HEAD || return 1
   else
     echo "$PROG: no $stage branch on source — code did not move" >&2
     return 0
   fi
-  echo "code  on branch $stage as $op"
+  echo "code  on branch $stage as $OWNER"
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
