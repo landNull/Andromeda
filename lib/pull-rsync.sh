@@ -15,19 +15,26 @@ pull_code() {
   port=$(ssh_port)
   url="ssh://$remote:$port/srv/platforms/$src_p"
   echo "code  git from $url"
-  if [ ! -e "$root/.git" ]; then
-    as_root -u "$OWNER" git -C "$root" init || return 1
-  fi
-  if as_root -u "$OWNER" git -C "$root" remote get-url origin >/dev/null 2>&1; then
-    as_root -u "$OWNER" git -C "$root" remote set-url origin "$url"
-  else
-    as_root -u "$OWNER" git -C "$root" remote add origin "$url"
-  fi
-  if ! as_root -u "$OWNER" git -C "$root" fetch origin; then
+  # Fetch as the operator. Deploy is nologin and has no key, so a fetch
+  # run as deploy asks for a password. Stage the objects locally, then
+  # let deploy check them out.
+  bare=$(mktemp -d)
+  export GIT_SSH_COMMAND="ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+  if ! git clone --bare "$url" "$bare/src.git"; then
     echo "$PROG: git fetch failed — code did not move" >&2
+    rm -rf "$bare"
     return 1
   fi
-  # Prefer the stage branch. Fall back to whatever the remote has.
+  unset GIT_SSH_COMMAND
+  if [ ! -e "$root/.git" ]; then
+    as_root -u "$OWNER" git -C "$root" init || { rm -rf "$bare"; return 1; }
+  fi
+  if ! as_root -u "$OWNER" git -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
+    echo "$PROG: local fetch from staged repo failed" >&2
+    rm -rf "$bare"
+    return 1
+  fi
+  rm -rf "$bare"
   stage=${role:-devel}
   if as_root -u "$OWNER" git -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
     as_root -u "$OWNER" git -C "$root" checkout -B "$stage" "origin/$stage" || return 1
