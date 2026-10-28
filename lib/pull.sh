@@ -68,8 +68,9 @@ parse_site_refs() {
 }
 
 # Pull a site from a remote host and stand it up locally.
-# Restored path: WireGuard, full site-add, then git pull (rsync fallback),
-# rsync content, Bee database. Hostname still comes from the site name.
+# Tools: WireGuard, andro add platform, andro add site, andro repo-ensure,
+# git, rsync, andro bee, andromeda-priv, andro heal site.
+# Gaps: settings.local.php template, sites.php line.
 cmd_site_pull() {
   role=${ANDROMEDA_ROLE:-devel}
   role_set=0
@@ -106,43 +107,52 @@ cmd_site_pull() {
   echo "tunnel $(tunnel_host "$vps") port $(ssh_port)"
   echo "from $src_path  on $vps"
   echo "to   $dst_path"
+  # 1. WireGuard for the tunnel.
   wg_up || return 1
   trap wg_down EXIT
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ git pull code (or rsync web tree)"
-    echo "+ rsync files, private, config"
-    echo "+ bee db-export + rsync + db-import"
-    echo "+ platform-add $dst_p   (if missing)"
-    echo "+ site-add $dst_p $dst_s --host $host"
-    echo "+ checkout branch $role"
+    echo "+ andro add platform $dst_p   (if missing)"
+    echo "+ andro add site $dst_p $dst_s --host $host"
+    echo "+ andro repo-ensure $dst_p"
+    echo "+ git checkout branch $role"
+    echo "+ rsync image files"
     echo "+ write settings.local.php once"
+    echo "+ andromeda-priv mysql-create"
+    echo "+ andro bee $src_p $src_s db-export"
+    echo "+ andro bee $dst_p $dst_s db-import"
+    echo "+ andro bee $src_p $src_s config-export"
+    echo "+ andro bee $dst_p $dst_s config-import"
+    echo "+ andro heal site $dst_p $dst_s"
     return 0
   fi
 
+  # 2. Platform. andro add platform.
   if [ ! -d "$PLATFORMS/$dst_p" ]; then
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  # Full site-add. If it fails, still move code, content, and the database.
+  # 3. Site. andro add site creates dirs, sites.php, settings, db user.
   if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install; then
     echo "$PROG: site-add failed — continuing with pull" >&2
   fi
   resolve_site "$dst_p" "$dst_s"
-  # Branch matches the stage in the destination folder name.
+  # 4. Git repo. andro repo-ensure seeds the bare and the stage branches.
+  cmd_repo_ensure "$dst_p" || true
   ensure_platform_git "$dst_p" "$role" || true
 
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
+  # 5. Code by git.
   pull_code "$root" "$web" "$vps" "$src_p" || exit 1
   # The checkout restores the source sites.php. That file does not
   # know this site. Bee refuses the site without the line.
   ensure_sites_php "$web" "$host" "$product"
+  # 6. Images by rsync.
   pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
-  # Write settings before the import. Bee reads settings.local.php to
-  # learn the database. Writing it after the import is too late.
+  # 7. settings.local.php — the gap. One template write.
+  # Bee reads it to learn the database. Writing it after the import is too late.
   _write_local "$root" "$web" "$product" "$host" "$role"
-  # Retry the create. The first one ran inside site-add. If it failed
-  # the import has no database to land in.
+  # 8. Database user by andromeda-priv. site-add already tried; retry.
   platform=$dst_p product=$dst_s
   db=$(db_name "$product" "$role")
   user=$(printf '%s' "$db" | cut -c1-32)
@@ -150,9 +160,12 @@ cmd_site_pull() {
   if [ -n "$pass" ]; then
     ensure_db "$db" "$user" "$pass" || echo "$PROG: database not ready — import will fail" >&2
   fi
+  # 9. Database by andro bee.
   pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
-  # Source active JSON into destination staging, then Bee applies it.
+  # 10. Configuration by andro bee.
   pull_config "$root" "$product" "$vps" "$src_p" "$src_s"
+  # 11. Vhost and permissions by andro heal site.
+  cmd_site_heal "$dst_p" "$dst_s" || true
 
   echo "pull done  http://$host"
 }

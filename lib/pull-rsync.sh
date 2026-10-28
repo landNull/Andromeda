@@ -1,16 +1,13 @@
 # shellcheck shell=sh
 
 # pull-rsync — internal helper. Called by cmd_site_pull.
-# Code by git. Image files by rsync. Database by Bee.
-# settings.local.php written once.
+# Tools: WireGuard, git, rsync, andro bee, andromeda-priv.
+# Gaps: settings.local.php template, sites.php line.
 
 # pull_code ROOT WEB VPS SRC_PLATFORM
-# Code moves by a git bundle. The operator pulls the bundle over SSH.
-# The code owner fetches from that file and checks it out. A bundle is
-# one file, so there is no temp repo, no chmod of a directory, and no
-# safe.directory dance on the local side.
-# See git-bundle(1): bundles exist for moving objects without a live
-# git server on the far side.
+# Code moves by git. A bundle is the tool when the source repo is
+# owned by deploy and the operator cannot fetch over SSH directly.
+# See git-bundle(1).
 pull_code() {
   root=$1
   web=$2
@@ -21,35 +18,33 @@ pull_code() {
   port=$(ssh_port)
   stage=$(stage_from_site "${product:-}")
   [ -n "$stage" ] || stage=${role:-devel}
-  echo "code  bundle from ssh://$remote:$port/srv/platforms/$src_p as $op"
-  # landy reads a repo owned by deploy on bjorn. Mark it safe there.
+  echo "code  git from ssh://$remote:$port/srv/platforms/$src_p as $op"
+  # landy reads a repo owned by deploy. Mark it safe on the source.
   ssh_cmd "$remote" "git config --global --add safe.directory /srv/platforms/$src_p/.git" || true
   ssh_cmd "$remote" "git config --global --add safe.directory '*'" || true
-  # A file in /tmp, not a 700 directory. deploy can read a 644 file in /tmp.
   bundle=$(mktemp /tmp/andromeda-code.XXXXXX.bundle)
   if ! ssh_cmd "$remote" \
       "git -c safe.directory='*' -C /srv/platforms/$src_p bundle create - --branches" \
       > "$bundle"; then
-    echo "$PROG: bundle failed — code did not move" >&2
+    echo "$PROG: git bundle failed — code did not move" >&2
     rm -f "$bundle"
     return 1
   fi
   chmod 0644 "$bundle" 2>/dev/null || true
   if [ ! -s "$bundle" ] || ! git bundle verify "$bundle" >/dev/null 2>&1; then
     echo "$PROG: source repo is empty — no commits on $remote:/srv/platforms/$src_p" >&2
-    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
+    echo "$PROG: code did not move. Commit the platform on the source, then pull again." >&2
     rm -f "$bundle"
     return 0
   fi
-  # The code tree belongs to deploy. Fetch and reset as that user.
   run_root chown -R "$OWNER:$GROUP" "$root" 2>/dev/null || true
   if [ ! -e "$root/.git" ]; then
     as_root -u "$OWNER" git -c safe.directory='*' -C "$root" init || { rm -f "$bundle"; return 1; }
   fi
-  echo "code  fetch bundle as $OWNER"
+  echo "code  git fetch bundle as $OWNER"
   if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" \
       fetch "$bundle" "+refs/heads/*:refs/remotes/origin/*"; then
-    echo "$PROG: fetch from bundle failed — code did not move" >&2
+    echo "$PROG: git fetch from bundle failed — code did not move" >&2
     rm -f "$bundle"
     return 1
   fi
@@ -59,9 +54,7 @@ pull_code() {
     echo "$PROG: no $stage branch in the bundle — code did not move" >&2
     return 0
   fi
-  # Source wins. clean removes the untracked Backdrop files from
-  # site-add; reset --hard puts the branch on the fetched commit.
-  echo "code  reset $stage as $OWNER, source wins"
+  echo "code  git checkout $stage as $OWNER, source wins"
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$stage" || return 1
@@ -69,7 +62,7 @@ pull_code() {
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
-# Rsync image files only. Everything else moves by git.
+# Image files by rsync. Everything else moves by git.
 pull_content() {
   root=$1
   product=$2
@@ -81,7 +74,6 @@ pull_content() {
   run_root mkdir -p "$root/files/$product"
   echo "images rsync from $remote port $port"
   stage=$(mktemp -d)
-  # Backdrop stores uploads in files/<site> or in the site directory.
   got=0
   for src in \
     "/srv/platforms/$src_p/files/$src_s/" \
@@ -110,33 +102,28 @@ pull_content() {
 }
 
 # pull_db WEB PRODUCT VPS SRC_PLATFORM SRC_SITE
+# Database by andro bee. Remote export, local import.
 pull_db() {
   web=$1
   product=$2
   vps=$3
   src_p=$4
   src_s=$5
-  bee=$(bee_bin)
   dump=$(mktemp)
   remote=$(tunnel_host "$vps")
-  echo "db    export on $remote port $(ssh_port)"
+  echo "db    andro bee export on $remote"
   ssh_cmd "$remote" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
     ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
   if [ -s "$dump" ]; then
-    echo "db    import"
-    # Site directories carry ACLs from crdir/setacl that deny everyone
-    # but deploy, www-admin, and www-data. Clear them so the operator
-    # can read settings.local.php, then import as the operator.
+    echo "db    andro bee import"
     site="$web/sites/$product"
     if command -v setfacl >/dev/null 2>&1; then
       run_root setfacl -b "$web" "$web/sites" "$site" "$site/settings.local.php" 2>/dev/null || true
     fi
     run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
     run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
-    # Recent MariaDB dumps include a sandbox line that older clients
-    # reject. Bee strips it with --mariadb-compatibility.
-    if ! "$bee" --root="$web" --site="$product" db-import --mariadb-compatibility "$dump"; then
-      echo "$PROG: db import failed for $product" >&2
+    if ! bee_site_cmd "$web" "$product" db-import --mariadb-compatibility "$dump"; then
+      echo "$PROG: andro bee db-import failed for $product" >&2
     fi
   else
     echo "db    none"
@@ -145,8 +132,7 @@ pull_db() {
 }
 
 # pull_config ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
-# Backdrop stores site configuration as JSON. The designed move is
-# source active into destination staging, then bee config-import.
+# Configuration by andro bee. Remote config-export, rsync staging, local config-import.
 # https://docs.backdropcms.org/documentation/versioned-staging-directory
 pull_config() {
   root=$1
@@ -154,7 +140,6 @@ pull_config() {
   vps=$3
   src_p=$4
   src_s=$5
-  bee=$(bee_bin)
   remote=$(tunnel_host "$vps")
   staging="$root/config/$product/staging"
   run_root mkdir -p "$staging"
@@ -162,11 +147,9 @@ pull_config() {
     run_root setfacl -b "$root/config" "$root/config/$product" "$staging" 2>/dev/null || true
   fi
   run_root chmod 0775 "$staging" 2>/dev/null || true
-  # Bee owns the export. It copies active to staging on the source.
-  # Then we move that staging tree and let Bee import it here.
-  echo "config export on $remote"
-  ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || \
-    ssh_cmd "$remote" "andromeda bee $src_p $src_s config-export" || true
+  echo "config andro bee export on $remote"
+  ssh_cmd "$remote" "andromeda bee $src_p $src_s -y config-export" || \
+    ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || true
   echo "config staging from $remote port $(ssh_port)"
   got=0
   srcs=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/staging /srv/platforms/$src_p/files/$src_s/config_*/staging /srv/platforms/$src_p/web/sites/$src_s/files/config_*/staging /srv/platforms/$src_p/web/files/config_*/staging; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
@@ -190,9 +173,9 @@ pull_config() {
     return 0
   fi
   echo "config landed in $staging"
-  echo "config import"
-  if ! "$bee" -y --root="$root/web" --site="$product" config-import; then
-    echo "$PROG: config import failed for $product" >&2
+  echo "config andro bee import"
+  if ! bee_site_cmd "$root/web" "$product" -y config-import; then
+    echo "$PROG: andro bee config-import failed for $product" >&2
   fi
 }
 
@@ -247,19 +230,17 @@ pull_db_local() {
   product=$2
   src_p=$3
   src_s=$4
-  bee=$(bee_bin)
   dump=$(mktemp)
-  echo "db    export local"
-  as_root -u "$OWNER" "$bee" --root="/srv/platforms/$src_p/web" --site="$src_s" db-export "$dump" 2>/dev/null || true
+  echo "db    andro bee export local"
+  bee_site_cmd "/srv/platforms/$src_p/web" "$src_s" db-export "$dump" 2>/dev/null || true
   if [ -s "$dump" ]; then
-    echo "db    import"
-    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump" || true
+    echo "db    andro bee import"
+    bee_site_cmd "$web" "$product" db-import --mariadb-compatibility "$dump" || true
   else
     echo "db    none"
   fi
   rm -f "$dump"
 }
-
 # push_code_via_git SRC_HOST SRC_PLAT SRC_SITE DST_HOST DST_PLAT DST_SITE
 # Prefer git for code. Commit on the source stage, then checkout or merge
 # into the destination stage. Returns 0 if git handled the code move,
