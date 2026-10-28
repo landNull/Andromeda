@@ -65,10 +65,14 @@ pull_code() {
   fi
   rm -rf "$bare"
   stage=${role:-devel}
+  # The platform already has Backdrop files from site-add. They are
+  # untracked, so a plain checkout aborts. A pull takes the source tree.
+  echo "code  checkout $stage, source wins"
+  git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
   if git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+    git -c safe.directory='*' -C "$root" checkout -f -B "$stage" "origin/$stage" || return 1
   elif git -c safe.directory='*' -C "$root" rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
-    git -c safe.directory='*' -C "$root" checkout -B "$stage" FETCH_HEAD || return 1
+    git -c safe.directory='*' -C "$root" checkout -f -B "$stage" FETCH_HEAD || return 1
   else
     echo "$PROG: no $stage branch on source — code did not move" >&2
     return 0
