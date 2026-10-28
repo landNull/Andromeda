@@ -5,7 +5,10 @@ andro (Andromeda) accepts verb-first commands. Object-first forms remain as alia
 ## Preferred form
 
 ```
-andro pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
+andro pull site @bjorn:ecom/keslerlumber.live to @knarr:ecom/keslerlumber.devel
+andro push site ecom/keslerlumber.devel to ecom/keslerlumber.test
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live hostname keslerlumber.net
 andro add platform ecom
 andro add site ecom kl_devel
 andro heal site ecom kl_devel
@@ -131,3 +134,40 @@ andro migrate-www
 andro migrate site ecom kl_test ecom kl_devel
 andro migrate site ecom kl_test otherplat kl_copy --keep
 ```
+
+## pull and push
+
+Both accept the same ref grammar.
+
+Full form (canonical, works everywhere):
+
+```
+andro pull site @bjorn:ecom/keslerlumber.live to @knarr:ecom/keslerlumber.devel
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live
+```
+
+Short form (local only, both ends on this host):
+
+```
+andro push site ecom/keslerlumber.devel to ecom/keslerlumber.test
+```
+
+A bare `plat/site` means this host. Mixed forms are allowed.
+
+`to` and `+` are both accepted between the two refs.
+
+## hostname rule
+
+The site directory name encodes the stage. Hostname is derived from it:
+
+- `keslerlumber.devel` → hostname `keslerlumber.devel`
+- `keslerlumber.test` → hostname `keslerlumber.test`
+- `keslerlumber.live` → hostname `keslerlumber.com` (strip `.live`, append `.com`)
+
+Override with `hostname NAME` or `--host NAME`:
+
+```
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live hostname keslerlumber.net
+```
+
+`push` is the forward counterpart of `pull`: code, content, and database move. `promote` remains the git-only fast-forward on a target host.

@@ -673,6 +673,42 @@ need_crdir() {
   fi
 }
 
+# hostname_for_site PRODUCT [OVERRIDE]
+# Directory name encodes the stage.
+# .live → strip the suffix and append .com (keslerlumber.live → keslerlumber.com)
+# everything else → the directory name is the hostname
+# (keslerlumber.devel, keslerlumber.test).
+# An explicit override wins.
+hostname_for_site() {
+  product=$1
+  override=${2:-}
+  if [ -n "$override" ]; then
+    printf '%s' "$override"
+    return 0
+  fi
+  case $product in
+    *.live)
+      printf '%s.com' "${product%.live}"
+      ;;
+    *)
+      printf '%s' "$product"
+      ;;
+  esac
+}
+
+# True when the host ref means this machine.
+is_local_host() {
+  h=${1:-}
+  case $h in
+    ""|local|localhost|127.0.0.1) return 0 ;;
+  esac
+  me=$(hostname 2>/dev/null || true)
+  short=$(hostname -s 2>/dev/null || true)
+  [ -n "$me" ] && [ "$h" = "$me" ] && return 0
+  [ -n "$short" ] && [ "$h" = "$short" ] && return 0
+  return 1
+}
+
 slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//'
 }
