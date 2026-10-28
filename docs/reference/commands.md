@@ -208,3 +208,12 @@ On pull and push, the destination folder suffix is the stage unless `--role` is 
 - `keslerlumber.live` → role and branch `live`, hostname `keslerlumber.com`
 
 `hostname NAME` or `--host NAME` overrides the hostname. A failed `site-add` no longer aborts the pull; code, content, and the database still move. The web-tree rsync excludes `sites.php` so the destination host mapping survives.
+
+## Tunnel addresses
+
+SSH is only open on the WireGuard net. Named hosts resolve before ssh and rsync:
+
+- `bjorn` → `10.8.0.1`
+- `knarr` → `10.8.0.2`
+
+Override in `/etc/andromeda.conf` with `TUNNEL_BJORN` and `TUNNEL_KNARR`.

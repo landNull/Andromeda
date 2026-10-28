@@ -772,6 +772,20 @@ is_local_host() {
   return 1
 }
 
+# tunnel_host NAME
+# SSH is only open on the WireGuard net. Named hosts resolve to their
+# tunnel address. Override in /etc/andromeda.conf:
+#   TUNNEL_BJORN=10.8.0.1
+#   TUNNEL_KNARR=10.8.0.2
+tunnel_host() {
+  name=$1
+  case $name in
+    bjorn) printf '%s\n' "${TUNNEL_BJORN:-10.8.0.1}" ;;
+    knarr) printf '%s\n' "${TUNNEL_KNARR:-10.8.0.2}" ;;
+    *)     printf '%s\n' "$name" ;;
+  esac
+}
+
 slug() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//'
 }
