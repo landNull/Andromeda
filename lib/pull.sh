@@ -181,7 +181,8 @@ cmd_site_push() {
   fi
 
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ rsync code, files, private, config"
+    echo "+ git commit on source stage, merge into dest stage (rsync fallback)"
+    echo "+ rsync files, private, config"
     echo "+ bee db-export + import on dest"
     echo "+ ensure site on dest with host $host"
     return 0

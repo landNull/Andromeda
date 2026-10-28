@@ -134,6 +134,60 @@ pull_db_local() {
   rm -f "$dump"
 }
 
+# push_code_via_git SRC_HOST SRC_PLAT SRC_SITE DST_HOST DST_PLAT DST_SITE
+# Prefer git for code. Commit on the source stage, then checkout or merge
+# into the destination stage. Returns 0 if git handled the code move,
+# 1 so the caller can fall back to rsync.
+push_code_via_git() {
+  src_h=$1
+  src_p=$2
+  src_s=$3
+  dst_h=$4
+  dst_p=$5
+  dst_s=$6
+  src_stage=$(stage_from_site "$src_s")
+  dst_stage=$(stage_from_site "$dst_s")
+
+  # Same platform, both ends local: commit on source stage, merge into dest.
+  if is_local_host "$src_h" && is_local_host "$dst_h" && [ "$src_p" = "$dst_p" ]; then
+    dest=$PLATFORMS/$src_p
+    ensure_platform_git "$src_p" "$src_stage" || return 1
+    echo "git   commit on $src_stage"
+    as_root -u "$OWNER" git -C "$dest" add -A
+    if ! as_root -u "$OWNER" git -C "$dest" diff --cached --quiet 2>/dev/null; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "push $src_s -> $dst_s" || return 1
+    else
+      echo "git   nothing new on $src_stage"
+    fi
+    echo "git   checkout $dst_stage and merge $src_stage"
+    as_root -u "$OWNER" git -C "$dest" checkout "$dst_stage" 2>/dev/null || \
+      as_root -u "$OWNER" git -C "$dest" checkout -B "$dst_stage"
+    as_root -u "$OWNER" git -C "$dest" merge --no-edit "$src_stage" || return 1
+    return 0
+  fi
+
+  # Local source, remote dest: commit, push the branch over ssh, merge there.
+  if is_local_host "$src_h" && ! is_local_host "$dst_h"; then
+    dest=$PLATFORMS/$src_p
+    [ -d "$dest" ] || return 1
+    ensure_platform_git "$src_p" "$src_stage" || return 1
+    as_root -u "$OWNER" git -C "$dest" add -A
+    if ! as_root -u "$OWNER" git -C "$dest" diff --cached --quiet 2>/dev/null; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "push $src_s -> $dst_s" || true
+    fi
+    echo "git   push $src_stage to $dst_h:$dst_p"
+    if ! as_root -u "$OWNER" git -C "$dest" push "ssh://$dst_h/srv/platforms/$dst_p" "$src_stage:$src_stage"; then
+      echo "git   push failed — will rsync"
+      return 1
+    fi
+    echo "git   merge $src_stage into $dst_stage on $dst_h"
+    ssh "$dst_h" "cd /srv/platforms/$dst_p && git checkout -B $dst_stage && git merge --no-edit $src_stage" || return 1
+    return 0
+  fi
+
+  return 1
+}
+
 # push_site SRC_HOST SRC_PLAT SRC_SITE DST_HOST DST_PLAT DST_SITE HOSTNAME ROLE
 # Moves code, content, and db. Ensures the destination site exists with the
 # computed hostname. Local ends use the filesystem; remote ends use ssh/rsync.
@@ -179,21 +233,24 @@ push_site() {
     dst_web="$dst_h:/srv/platforms/$dst_p/web"
   fi
 
-  echo "code  rsync"
-  if is_local_host "$src_h" && is_local_host "$dst_h"; then
-    as_root -u "$OWNER" rsync -a --delete \
-      --exclude='files/' --exclude='files_private/' \
-      --exclude='sites/*/settings.local.php' \
-      --exclude='sites/*/files' \
-      --exclude='sites/*/' \
-      "/srv/platforms/$src_p/web/" "$dst_web/" || true
-  else
-    as_root -u "$OWNER" rsync -a --delete \
-      --exclude='files/' --exclude='files_private/' \
-      --exclude='sites/*/settings.local.php' \
-      --exclude='sites/*/files' \
-      --exclude='sites/*/' \
-      "$src_root/web/" "$dst_web/" || true
+  echo "code  git"
+  if ! push_code_via_git "$src_h" "$src_p" "$src_s" "$dst_h" "$dst_p" "$dst_s"; then
+    echo "code  git skipped — rsync web tree"
+    if is_local_host "$src_h" && is_local_host "$dst_h"; then
+      as_root -u "$OWNER" rsync -a --delete \
+        --exclude='files/' --exclude='files_private/' \
+        --exclude='sites/*/settings.local.php' \
+        --exclude='sites/*/files' \
+        --exclude='sites/*/' \
+        "/srv/platforms/$src_p/web/" "$dst_web/" || true
+    else
+      as_root -u "$OWNER" rsync -a --delete \
+        --exclude='files/' --exclude='files_private/' \
+        --exclude='sites/*/settings.local.php' \
+        --exclude='sites/*/files' \
+        --exclude='sites/*/' \
+        "$src_root/web/" "$dst_web/" || true
+    fi
   fi
 
   echo "files rsync"

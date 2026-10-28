@@ -181,3 +181,20 @@ The site directory suffix is the stage and the default git branch:
 - `keslerlumber.live` → branch `live`
 
 On the first local push between stages (for example `push site ecom/keslerlumber.devel to ecom/keslerlumber.test`), Andromeda creates the platform repo at `/srv/platforms/<plat>` if it does not exist, seeds the `devel`, `test`, and `live` branches, and checks out the destination stage. The same init runs on a local pull destination and on a remote push destination. `platform-add` also seeds the three branches when it creates a new platform.
+
+## push prefers git for code
+
+Local push between stages on the same platform (`push site ecom/keslerlumber.devel to ecom/keslerlumber.test`):
+
+1. Commit any changes on the source stage branch (`devel`).
+2. Check out the destination stage branch (`test`).
+3. Merge the source stage into it.
+4. Rsync site content (`files/`, `files_private/`, `config/`) and move the database with Bee. Those paths are gitignored.
+
+Remote push (`push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live`):
+
+1. WireGuard comes up if either end is not local.
+2. Commit on the source stage, push that branch over ssh to the destination platform repo, and merge it into the destination stage (`live`) on the far side.
+3. If the git push fails, the web tree is rsynced as a fallback.
+4. Content and database move by rsync and Bee, as on a pull.
+5. Hostname for a `.live` site is `project.com` unless `hostname NAME` or `--host NAME` is given.
