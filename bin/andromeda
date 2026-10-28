@@ -96,6 +96,13 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG disable site PLATFORM PRODUCT
   $PROG enable site PLATFORM PRODUCT
   $PROG delete site PLATFORM PRODUCT force
+  $PROG lock platform NAME
+  $PROG unlock platform NAME
+  $PROG verify site PLATFORM PRODUCT
+  $PROG verify platform NAME
+  $PROG verify all
+  $PROG login-reset site PLATFORM PRODUCT
+  $PROG install site PLATFORM PRODUCT          # alias of add site
   $PROG remove platform NAME
   $PROG upgrade platform NAME no-pull
 
@@ -218,7 +225,7 @@ set -- $_rest
 # verb-first: pull site, add platform, heal site, list sites, promote platform
 # object-first forms (site pull, platform add) remain as aliases
 case $cmd in
-  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test)
+  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset)
     obj=${1:-}
     case $cmd in
       pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
@@ -236,6 +243,11 @@ case $cmd in
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
+      lock)    case $obj in platform) cmd=platform-lock; shift ;; esac ;;
+      unlock)  case $obj in platform) cmd=platform-unlock; shift ;; esac ;;
+      verify)  case $obj in site) cmd=verify; shift ;; platform|all|"") cmd=verify; shift ;; esac ;;
+      install) case $obj in site) cmd=site-add; shift ;; esac ;;
+      login-reset) case $obj in site) cmd=site-login-reset; shift ;; esac ;;
     esac
     # sentence words become flags so the line reads as a sentence
     # pull keeps "to" as a separator between two @refs
@@ -285,7 +297,7 @@ case $cmd in
   site|platform|backup|cron)
     verb=${1:-}
     case $verb in
-      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|remove|all)
+      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|remove|all|lock|unlock|verify)
         cmd="$cmd-$verb"
         shift
         ;;
@@ -336,6 +348,10 @@ dispatch() {
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
     site-delete) cmd_site_delete "$@" ;;
+    platform-lock) cmd_platform_lock "$@" ;;
+    platform-unlock) cmd_platform_unlock "$@" ;;
+    verify) cmd_verify "$@" ;;
+    site-login-reset) cmd_site_login_reset "$@" ;;
     inventory) cmd_inventory ;;
     ui)
       # Textual front-end. Repo layout is ../tui; installed copy is under share.
@@ -396,7 +412,7 @@ case $cmd in
     task_log "$cmd $*" "$rc"
     [ "$rc" -eq 0 ] || exit "$rc"
     ;;
-  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port|test)
+  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|platform-lock|platform-unlock|verify|site-login-reset|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port|test)
     open_run_log "$cmd"
     rcfile=$(mktemp)
     {

@@ -21,6 +21,13 @@ andro check site ecom kl_devel
 andro disable site ecom kl_devel
 andro enable site ecom kl_devel
 andro delete site ecom kl_devel
+andro lock platform ecom
+andro unlock platform ecom
+andro verify site ecom kl_devel
+andro verify platform ecom
+andro verify all
+andro login-reset site ecom kl_devel
+andro install site ecom kl_devel          # alias of add site
 andro remove platform ecom
 andro upgrade platform ecom
 ```
@@ -83,3 +90,29 @@ Every reload runs `apache2ctl configtest` first. A failed configtest refuses the
 ## pull site
 
 `pull site` prefers `git pull --ff-only` for the platform code. If the dest is not a checkout, it rsyncs the web tree excluding runtime directories. Content directories are rsynced directly. The database is a Bee export on the source, an rsync of the dump, and a Bee import on the dest. `settings.local.php` is overwritten in one pass.
+
+## Aegir-aligned verbs
+
+Andromeda is not bound to the Drupal stack. These verbs exist where the Aegir meaning still fits:
+
+- `verify site|platform|all` — checks configuration, rebuilds vhosts (configtest gated), and enforces ownership on site directories. Safe, idempotent.
+- `lock platform NAME` / `unlock platform NAME` — prevents (or allows) new site provisioning on a platform. A locked platform refuses `add site` / `install site`.
+- `login-reset site PLATFORM PRODUCT` — asks Bee for a one-time admin login link when the installed Bee supports `user-login`/`uli`; otherwise points at the secret file.
+- `install site` — alias of `add site`. The Backdrop install path remains the same.
+
+Existing verbs already cover the rest of the Aegir set:
+
+| Aegir     | Andromeda                          |
+|-----------|------------------------------------|
+| verify    | `verify` (new)                     |
+| lock      | `lock platform` (new)              |
+| unlock    | `unlock platform` (new)            |
+| install   | `add site` / `install site`        |
+| disable   | `disable site`                     |
+| enable    | `enable site`                      |
+| backup    | `backup site`                      |
+| restore   | `restore site`                     |
+| clone     | `clone site`                       |
+| migrate   | `migrate www` (legacy) / `promote` (forward) |
+| delete    | `delete site` / `remove platform`  |
+| login-reset | `login-reset site` (new)         |

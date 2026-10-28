@@ -194,6 +194,11 @@ cmd_site_add() {
 
   resolve_site "$platform" "$product"
 
+  if platform_is_locked "$platform"; then
+    echo "$PROG: platform $platform is locked — refuse site-add (unlock platform first)" >&2
+    exit 1
+  fi
+
   role=$ANDROMEDA_ROLE
   if [ -z "$host" ]; then
     host="${product}.${role}"
@@ -341,4 +346,33 @@ cmd_site_delete() {
   fi
   run_root rm -f "$dest"
   echo "deleted $platform/$product (platform left in place)"
+}
+
+# login-reset — generate a one-time login link for the site admin.
+# Uses Bee when available; falls back to a pointer at the secret file.
+cmd_site_login_reset() {
+  platform=${1:-}
+  product=${2:-}
+  if [ -z "$platform" ] || [ -z "$product" ]; then
+    echo "usage: $PROG login-reset site PLATFORM PRODUCT" >&2
+    exit 2
+  fi
+  resolve_site "$platform" "$product"
+  bee=$(bee_bin)
+  if [ -z "$bee" ] || [ ! -x "$bee" ]; then
+    echo "$PROG: bee not found — admin credentials are in $(secret_file "$platform" "$product")" >&2
+    exit 1
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ $bee --root=$web --site=$product user-login admin"
+    return 0
+  fi
+  # Prefer user-login / uli if the installed Bee supports it.
+  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" help 2>/dev/null | grep -q "user-login\|uli"; then
+    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" user-login admin 2>/dev/null || \
+      as_root -u "$OWNER" "$bee" --root="$web" --site="$product" uli admin
+  else
+    echo "Bee has no user-login/uli. Admin pass is in $(secret_file "$platform" "$product")"
+    echo "Or run: bee --root=$web --site=$product user-pass admin NEWPASS"
+  fi
 }

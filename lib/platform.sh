@@ -276,3 +276,54 @@ cmd_platform_remove() {
   echo "backup  $snap/tree.tgz"
 }
 
+
+# Platform lock — Aegir-style: prevent new site provisioning.
+# Stored as a flag file next to the platform json.
+
+platform_lock_file() {
+  name=$1
+  echo "/srv/andromeda/state/platforms/${name}.lock"
+}
+
+platform_is_locked() {
+  name=$1
+  [ -f "$(platform_lock_file "$name")" ]
+}
+
+cmd_platform_lock() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG lock platform NAME" >&2
+    exit 2
+  fi
+  dest=$PLATFORMS/$name
+  if [ ! -d "$dest" ]; then
+    echo "$PROG: platform $name not found" >&2
+    exit 1
+  fi
+  lock=$(platform_lock_file "$name")
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ touch $lock"
+    return 0
+  fi
+  mkdir -p "$(dirname "$lock")" 2>/dev/null || run_root mkdir -p "$(dirname "$lock")"
+  touch "$lock" 2>/dev/null || run_root touch "$lock"
+  echo "locked platform $name (no new sites)"
+}
+
+cmd_platform_unlock() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG unlock platform NAME" >&2
+    exit 2
+  fi
+  lock=$(platform_lock_file "$name")
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ rm -f $lock"
+    return 0
+  fi
+  rm -f "$lock" 2>/dev/null || run_root rm -f "$lock"
+  echo "unlocked platform $name"
+}

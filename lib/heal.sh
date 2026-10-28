@@ -186,3 +186,101 @@ _check_http() {
     *)   echo "FAIL  HTTP $code" ;;
   esac
 }
+
+# verify — Aegir-style: check configuration, rebuild vhosts, enforce permissions.
+# Safe to run anytime. Does not mutate site content or DB.
+cmd_verify() {
+  target=${1:-}
+  if [ -z "$target" ] || [ "$target" = "all" ]; then
+    echo "verify all"
+    for p in "$PLATFORMS"/*; do
+      [ -d "$p/web" ] || continue
+      name=${p##*/}
+      case $name in .*) continue ;; esac
+      cmd_verify_platform "$name" || true
+    done
+    return 0
+  fi
+  # site form: verify site PLATFORM PRODUCT
+  if [ "$target" = "site" ]; then
+    shift
+    platform=${1:-}
+    product=${2:-}
+    if [ -z "$platform" ] || [ -z "$product" ]; then
+      echo "usage: $PROG verify site PLATFORM PRODUCT" >&2
+      exit 2
+    fi
+    cmd_verify_site "$platform" "$product"
+    return
+  fi
+  # bare platform name
+  cmd_verify_platform "$target"
+}
+
+cmd_verify_platform() {
+  name=$1
+  echo "== verify platform $name"
+  dest=$PLATFORMS/$name
+  if [ ! -d "$dest/web" ]; then
+    echo "  missing web root"
+    return 1
+  fi
+  # Enforce ownership on the platform tree (safe directories only).
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ chown -R $OWNER:$GROUP $dest"
+  else
+    run_root chown -R "$OWNER:$GROUP" "$dest" 2>/dev/null || true
+  fi
+  # Rebuild vhost for the current role (and any site that declares a host).
+  web=$dest/web
+  root=$dest
+  role=${ANDROMEDA_ROLE:-devel}
+  for s in "$web/sites"/*; do
+    [ -d "$s" ] || continue
+    base=${s##*/}
+    case $base in default|all) continue ;; esac
+    host=$(ANDROMEDA_ROLE=$role guess_host "$base" 2>/dev/null || printf '%s.%s' "$base" "$role")
+    ensure_vhost "$name" "$host" "$web" "$root" "$role" || true
+  done
+  echo "  vhosts rebuilt (configtest gated)"
+  # Per-site checks
+  for s in "$dest/web/sites"/*; do
+    [ -d "$s" ] || continue
+    base=${s##*/}
+    case $base in default|all) continue ;; esac
+    if [ -f "$s/settings.php" ] || [ -f "$s/settings.local.php" ]; then
+      cmd_verify_site "$name" "$base" || true
+    fi
+  done
+}
+
+cmd_verify_site() {
+  platform=$1
+  product=$2
+  echo "  verify site $platform/$product"
+  resolve_site "$platform" "$product" || return 1
+  host=$(guess_host "$product")
+  # Debug checks (read-only)
+  cmd_site_debug "$platform" "$product" >/tmp/andromeda-verify.debug 2>&1 || true
+  if grep -q FAIL /tmp/andromeda-verify.debug; then
+    echo "  FAIL (see debug):"
+    grep FAIL /tmp/andromeda-verify.debug | sed 's/^/    /'
+  else
+    echo "  checks ok"
+  fi
+  # Rebuild this site's vhost
+  ensure_vhost "$platform" "$host" "$web" "$root" "$ANDROMEDA_ROLE" || true
+  # Ownership on site dirs
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ crdir ownership $root/files/$product ..."
+  else
+    cr=$(need_crdir)
+    "$cr" -s -o "$DAEMON" -g "$GROUP" \
+      "$root/files/$product" \
+      "$root/files_private/$product" \
+      "$root/config/$product/active" 2>/dev/null || true
+    "$cr" -o "$OWNER" -g "$GROUP" \
+      "$root/config/$product/staging" 2>/dev/null || true
+  fi
+  echo "  permissions enforced"
+}
