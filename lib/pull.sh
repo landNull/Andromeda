@@ -67,7 +67,9 @@ parse_site_refs() {
   [ -n "$SRC_PLAT" ] && [ -n "$SRC_SITE" ] && [ -n "$DST_PLAT" ] && [ -n "$DST_SITE" ]
 }
 
-# Pull a site. Remote or local source, onto a destination under $PLATFORMS.
+# Pull a site from a remote host and stand it up locally.
+# Restored path: WireGuard, full site-add, then git pull (rsync fallback),
+# rsync content, Bee database. Hostname still comes from the site name.
 cmd_site_pull() {
   role=${ANDROMEDA_ROLE:-devel}
   while [ $# -gt 0 ]; do
@@ -92,26 +94,17 @@ cmd_site_pull() {
 
   src_path="/srv/platforms/$src_p/web/sites/$src_s"
   dst_path="/srv/platforms/$dst_p/web/sites/$dst_s"
-  echo "pull @$vps:$src_p/$src_s to @$dst_h:$dst_p/$dst_s"
-  echo "hostname $host"
+  echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
   echo "from $src_path  on $vps"
   echo "to   $dst_path"
-
-  need_wg=0
-  if ! is_local_host "$vps"; then
-    need_wg=1
-  fi
-  if [ "$need_wg" -eq 1 ]; then
-    wg_up || return 1
-    trap wg_down EXIT
-  fi
-
+  wg_up || return 1
+  trap wg_down EXIT
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ git pull code (or rsync web tree)"
     echo "+ rsync files, private, config"
     echo "+ bee db-export + rsync + db-import"
     echo "+ platform-add $dst_p   (if missing)"
-    echo "+ site-add $dst_p $dst_s --host $host"
+    echo "+ site-add $dst_p $dst_s"
     echo "+ write settings.local.php once"
     return 0
   fi
@@ -120,31 +113,14 @@ cmd_site_pull() {
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  # Skeleton only. A fresh Backdrop install is not required; the pull
-  # overwrites code, content, and the database. Do not abort the pull
-  # if the skeleton step fails.
-  if ! ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install; then
-    echo "$PROG: site skeleton failed — continuing with pull" >&2
-  fi
+  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host"
   resolve_site "$dst_p" "$dst_s"
-  # Local dest: ensure the platform repo exists and is on the stage branch.
-  if is_local_host "$dst_h"; then
-    stage=$(stage_from_site "$dst_s")
-    ensure_platform_git "$dst_p" "$stage" || true
-  fi
 
-  echo "pulling code, content, and database"
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
-  if is_local_host "$vps"; then
-    pull_code_local "$root" "$web" "$src_p" || exit 1
-    pull_content_local "$root" "$product" "$src_p" "$src_s"
-    pull_db_local "$web" "$product" "$src_p" "$src_s"
-  else
-    pull_code "$root" "$web" "$vps" "$src_p" || exit 1
-    pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
-    pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
-  fi
+  pull_code "$root" "$web" "$vps" "$src_p" || exit 1
+  pull_content "$root" "$product" "$vps" "$src_p" "$src_s"
+  pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
 
   _write_local "$root" "$web" "$product" "$host" "$role"
   echo "pull done  http://$host"
