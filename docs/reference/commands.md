@@ -92,7 +92,17 @@ Every reload runs `apache2ctl configtest` first. A failed configtest refuses the
 
 ## pull site
 
-`pull site` prefers `git pull --ff-only` for the platform code. If the dest is not a checkout, it rsyncs the web tree excluding runtime directories. Content directories are rsynced directly. The database is a Bee export on the source, an rsync of the dump, and a Bee import on the dest. `settings.local.php` is overwritten in one pass.
+`pull site` moves each piece with the tool that owns it.
+
+| Piece | Tool |
+|---|---|
+| Code | git bundle, then checkout of the stage branch |
+| Images | rsync of image files only |
+| Environment | one write of `settings.local.php` (database array, trusted host, cache) |
+| Database | `bee db-export` on the source, `bee db-import` on the dest |
+| Configuration | source active JSON into dest staging, then `bee config-import` |
+
+The configuration step is the Backdrop path. JSON lands in staging. Bee applies it. Environment values stay in `settings.local.php` and are not in the JSON.
 
 ## Aegir-aligned verbs
 
