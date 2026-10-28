@@ -33,9 +33,12 @@ cmd_repo_ensure() {
   echo "repo $name"
   if [ ! -d "$bare" ]; then
     echo "bare $bare"
-    mkdir -p /srv/git
+    priv=${PRIV:-/usr/local/sbin/andromeda-priv}
+    sudo -n "$priv" mkdir /srv/git 2>/dev/null || mkdir -p /srv/git
+    sudo -n "$priv" chown "$OWNER:$GROUP" /srv/git 2>/dev/null || true
+    sudo -n "$priv" chmod 2770 /srv/git 2>/dev/null || true
     git init --bare "$bare"
-    chown -R "$OWNER:$OWNER" "$bare" 2>/dev/null || true
+    sudo -n "$priv" chown-code "$bare" 2>/dev/null || true
   fi
   if [ ! -d "$work/.git" ]; then
     echo "checkout $work"
@@ -43,9 +46,9 @@ cmd_repo_ensure() {
     chown -R "$OWNER:$GROUP" "$work" 2>/dev/null || true
   fi
   for b in devel test live; do
-    git -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -C "$work" checkout -B "$b"
+    git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -c safe.directory='*' -C "$work" checkout -B "$b"
   done
-  git -C "$work" checkout devel
+  git -c safe.directory='*' -C "$work" checkout devel
   state=/srv/andromeda/state/platforms
   mkdir -p "$state"
   cat > "$state/$name.json" << JSON

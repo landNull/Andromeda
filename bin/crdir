@@ -104,11 +104,37 @@ EOF
 }
 
 as_root() {
-  if [ "$(id -u)" -ne 0 ]; then
-    sudo "$@"
-  else
+  if [ "$(id -u)" -eq 0 ]; then
     "$@"
+    return $?
   fi
+  # www-admin may run andromeda-priv with no password. A bare sudo
+  # mkdir or chown is not in that rule, so it asks. Capcom cannot type one.
+  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
+  case $1 in
+    mkdir)
+      shift
+      [ "${1:-}" = "-p" ] && shift
+      sudo -n "$priv" mkdir "$@"
+      ;;
+    chown)
+      shift
+      sudo -n "$priv" chown "$@"
+      ;;
+    chmod)
+      shift
+      if [ "${1:-}" = "g+s" ]; then
+        shift
+        sudo -n "$priv" setgid "$@"
+      else
+        sudo -n "$priv" chmod "$@"
+      fi
+      ;;
+    *)
+      echo "crdir: refuse $1" >&2
+      return 1
+      ;;
+  esac
 }
 
 run() {

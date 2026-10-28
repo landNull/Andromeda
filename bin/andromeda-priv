@@ -27,7 +27,7 @@ fi
 path_ok() {
   p=$1
   case $p in
-    "$PLATFORMS"|"$PLATFORMS"/*|"$ANDROMEDA_ROOT"|"$ANDROMEDA_ROOT"/*) return 0 ;;
+    "$PLATFORMS"|"$PLATFORMS"/*|"$ANDROMEDA_ROOT"|"$ANDROMEDA_ROOT"/*|/srv/git|/srv/git/*) return 0 ;;
     *)
       echo "$PROG: refuse path $p" >&2
       return 1
@@ -71,6 +71,20 @@ case $cmd in
     [ $# -gt 0 ] || exit 2
     for p in "$@"; do path_ok "$p" || exit 1; done
     mkdir -p "$@"
+    ;;
+  # crdir: chown OWNER:GROUP path [path ...]
+  chown)
+    spec=$1
+    shift
+    printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_]+:[A-Za-z0-9_]+$' || exit 2
+    [ $# -gt 0 ] || exit 2
+    for p in "$@"; do path_ok "$p" || exit 1; done
+    chown "$spec" "$@"
+    ;;
+  setgid)
+    [ $# -gt 0 ] || exit 2
+    for p in "$@"; do path_ok "$p" || exit 1; done
+    chmod g+s "$@"
     ;;
   setacl)
     [ $# -gt 0 ] || exit 2
@@ -229,7 +243,7 @@ EOF
     chmod 0640 "$dest" 2>/dev/null || true
     ;;
   *)
-    echo "usage: $PROG chown-files|chown-code|chown-secret|chmod|mkdir|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
+    echo "usage: $PROG chown-files|chown-code|chown-secret|chown|chmod|mkdir|setgid|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
     exit 2
     ;;
 esac
