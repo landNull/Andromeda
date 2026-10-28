@@ -794,11 +794,21 @@ ssh_port() {
 }
 
 # ssh_cmd HOST CMD...
-# Opens SSH on the tunnel port.
+# Opens SSH on the tunnel port as the operator. BatchMode so a missing
+# key fails instead of asking for deploy's password. Deploy is nologin
+# and has no password.
 ssh_cmd() {
   host=$1
   shift
-  ssh -p "$(ssh_port)" "$host" "$@"
+  ssh -p "$(ssh_port)" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$host" "$@"
+}
+
+# remote_rsync SRC DST
+# Rsync over the tunnel as the operator, so the operator's key is used.
+# Do not sudo -u deploy for this. Deploy cannot authenticate.
+remote_rsync() {
+  port=$(ssh_port)
+  rsync -a --delete -e "ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
 }
 
 slug() {

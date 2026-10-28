@@ -24,7 +24,7 @@ pull_code() {
   remote=$(tunnel_host "$vps")
   port=$(ssh_port)
   echo "code  rsync from $remote port $port"
-  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" \
+  remote_rsync \
     --exclude='files/' --exclude='files_private/' \
     --exclude='sites/*/settings.local.php' \
     --exclude='sites/sites.php' \
@@ -34,6 +34,7 @@ pull_code() {
     echo "$PROG: rsync web tree failed" >&2
     return 1
   }
+  run_root chown -R "$OWNER:$GROUP" "$web" 2>/dev/null || true
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
@@ -47,12 +48,12 @@ pull_content() {
   port=$(ssh_port)
   run_root mkdir -p "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active"
   echo "files rsync from $remote port $port"
-  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
-    as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
+  remote_rsync "$remote:/srv/platforms/$src_p/files/$src_s/" "$root/files/$product/" 2>/dev/null || \
+    remote_rsync "$remote:/srv/platforms/$src_p/web/files/" "$root/files/$product/" || true
   echo "private rsync"
-  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
+  remote_rsync "$remote:/srv/platforms/$src_p/files_private/$src_s/" "$root/files_private/$product/" 2>/dev/null || true
   echo "config rsync"
-  as_root -u "$OWNER" rsync -a --delete -e "ssh -p $port" "$remote:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
+  remote_rsync "$remote:/srv/platforms/$src_p/config/$src_s/active/" "$root/config/$product/active/" 2>/dev/null || true
   chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 }
 

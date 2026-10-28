@@ -219,3 +219,5 @@ SSH is only open on the WireGuard net. Named hosts resolve before ssh and rsync:
 Override in `/etc/andromeda.conf` with `TUNNEL_BJORN` and `TUNNEL_KNARR`.
 
 SSH on the tunnel listens on port 7022. Override with `SSH_PORT`.
+
+Remote rsync and ssh run as the operator, using the operator's key. They do not run as `deploy`. Deploy is nologin and has no password. `BatchMode` is on, so a missing key fails instead of prompting.
