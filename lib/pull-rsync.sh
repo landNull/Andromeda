@@ -5,84 +5,66 @@
 # settings.local.php written once.
 
 # pull_code ROOT WEB VPS SRC_PLATFORM
-# Code moves by git. Images move by rsync in pull_content.
+# Code moves by a git bundle. The operator pulls the bundle over SSH.
+# The code owner fetches from that file and checks it out. A bundle is
+# one file, so there is no temp repo, no chmod of a directory, and no
+# safe.directory dance on the local side.
+# See git-bundle(1): bundles exist for moving objects without a live
+# git server on the far side.
 pull_code() {
   root=$1
   web=$2
   vps=$3
   src_p=$4
-  # The person running andro. On knarr this is landy. Not deploy.
   op=$(id -un)
   remote=$(tunnel_host "$vps")
   port=$(ssh_port)
-  url="ssh://$remote:$port/srv/platforms/$src_p"
-  echo "code  git from $url as $op"
-  # The platform repo is owned by deploy. Git refuses it as dubious
-  # ownership unless the SSH user has marked it safe.
-  echo "code  mark safe.directory on $remote"
+  stage=$(stage_from_site "${product:-}")
+  [ -n "$stage" ] || stage=${role:-devel}
+  echo "code  bundle from ssh://$remote:$port/srv/platforms/$src_p as $op"
+  # landy reads a repo owned by deploy on bjorn. Mark it safe there.
   ssh_cmd "$remote" "git config --global --add safe.directory /srv/platforms/$src_p/.git" || true
   ssh_cmd "$remote" "git config --global --add safe.directory '*'" || true
-  # Fetch as the operator. Deploy is nologin and has no key.
-  bare=$(mktemp -d)
-  export GIT_SSH_COMMAND="ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
-  if ! git -c safe.directory='*' clone --bare "$url" "$bare/src.git"; then
-    echo "$PROG: git fetch failed — code did not move" >&2
-    rm -rf "$bare"
+  # A file in /tmp, not a 700 directory. deploy can read a 644 file in /tmp.
+  bundle=$(mktemp /tmp/andromeda-code.XXXXXX.bundle)
+  if ! ssh_cmd "$remote" \
+      "git -c safe.directory='*' -C /srv/platforms/$src_p bundle create - --branches" \
+      > "$bundle"; then
+    echo "$PROG: bundle failed — code did not move" >&2
+    rm -f "$bundle"
     return 1
   fi
-  unset GIT_SSH_COMMAND
-  # mktemp is mode 700 and owned by the operator. deploy cannot read
-  # it, so the local fetch fails with "does not appear to be a git
-  # repository". Open the staged repo before the owner reads it.
-  chmod -R a+rX "$bare" 2>/dev/null || true
-  # The code tree belongs to the code owner (deploy), a member of
-  # www-admin. The operator fetched the objects. The owner writes them.
+  chmod 0644 "$bundle" 2>/dev/null || true
+  if [ ! -s "$bundle" ] || ! git bundle verify "$bundle" >/dev/null 2>&1; then
+    echo "$PROG: source repo is empty — no commits on $remote:/srv/platforms/$src_p" >&2
+    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
+    rm -f "$bundle"
+    return 0
+  fi
+  # The code tree belongs to deploy. Fetch and reset as that user.
   run_root chown -R "$OWNER:$GROUP" "$root" 2>/dev/null || true
   if [ ! -e "$root/.git" ]; then
-    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" init || { rm -rf "$bare"; return 1; }
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" init || { rm -f "$bundle"; return 1; }
   fi
-  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" fetch "$bare/src.git" "+refs/heads/*:refs/remotes/origin/*"; then
-    echo "$PROG: local fetch from staged repo failed" >&2
-    rm -rf "$bare"
+  echo "code  fetch bundle as $OWNER"
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" \
+      fetch "$bundle" "+refs/heads/*:refs/remotes/origin/*"; then
+    echo "$PROG: fetch from bundle failed — code did not move" >&2
+    rm -f "$bundle"
     return 1
   fi
-  # An empty source has no commits. Name the local branch from the
-  # destination directory suffix: keslerlumber.devel -> devel.
-  if ! git -c safe.directory='*' --git-dir="$bare/src.git" rev-parse --verify HEAD >/dev/null 2>&1; then
-    echo "$PROG: source repo is empty — no commits on $remote:/srv/platforms/$src_p" >&2
-    rm -rf "$bare"
-    stage=$(stage_from_site "${product:-}")
-    [ -n "$stage" ] || stage=devel
-    if [ ! -e "$root/.git" ]; then
-      git -c safe.directory='*' -C "$root" init || return 0
-    fi
-    # An empty init lands on master. Rename it to the stage.
-    cur=$(git -c safe.directory='*' -C "$root" branch --show-current 2>/dev/null || true)
-    if [ "$cur" = "master" ] || [ -z "$cur" ]; then
-      git -c safe.directory='*' -C "$root" checkout -B "$stage" 2>/dev/null || true
-    elif [ "$cur" != "$stage" ]; then
-      git -c safe.directory='*' -C "$root" branch -m "$cur" "$stage" 2>/dev/null || \
-        git -c safe.directory='*' -C "$root" checkout -B "$stage" 2>/dev/null || true
-    fi
-    echo "code  empty branch named $stage from the directory suffix"
-    echo "$PROG: code did not move. Commit the platform on bjorn, then pull again." >&2
+  rm -f "$bundle"
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" \
+      rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
+    echo "$PROG: no $stage branch in the bundle — code did not move" >&2
     return 0
   fi
-  rm -rf "$bare"
-  stage=${role:-devel}
-  # The platform already has Backdrop files from site-add. They are
-  # untracked, so a plain checkout aborts. A pull takes the source tree.
-  # Clean and checkout as the code owner, who can unlink them.
-  echo "code  checkout $stage as $OWNER, source wins"
+  # Source wins. clean removes the untracked Backdrop files from
+  # site-add; reset --hard puts the branch on the fetched commit.
+  echo "code  reset $stage as $OWNER, source wins"
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
-  if as_root -u "$OWNER" git -c safe.directory='*' -C "$root" rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -f -B "$stage" "origin/$stage" || return 1
-  elif as_root -u "$OWNER" git -c safe.directory='*' -C "$root" rev-parse --verify FETCH_HEAD >/dev/null 2>&1; then
-    as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -f -B "$stage" FETCH_HEAD || return 1
-  else
-    echo "$PROG: no $stage branch on source — code did not move" >&2
-    return 0
-  fi
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage" || return 1
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$stage" || return 1
   echo "code  on branch $stage as $OWNER"
 }
 
