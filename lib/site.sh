@@ -126,10 +126,14 @@ ensure_db() {
     return 1
   fi
   echo "db    create $db"
-  if ! priv mysql-create "$db" "$user" "$cnf"; then
+  err=$(mktemp)
+  if ! priv mysql-create "$db" "$user" "$cnf" >"$err" 2>&1; then
     echo "$PROG: mysql-create failed for $db" >&2
+    sed 's/^/    /' "$err" >&2
+    rm -f "$err"
     return 1
   fi
+  rm -f "$err"
 }
 
 ensure_vhost() {
