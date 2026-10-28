@@ -220,23 +220,27 @@ _write_local() {
   cfgactive="$root/config/$product/active"
   cfgstaging="$root/config/$product/staging"
   run_root mkdir -p "$cfgstaging" 2>/dev/null || true
-  # Fresh DSN from the directory suffix. Do not keep a doubled name
-  # from an older settings.local.php.
+  # Backdrop 1.30 reads an array, not a DSN string. A missing array
+  # leaves Database::getConnectionInfo() null, and bee db-import dies.
   db=$(db_name "$product" "$role")
   user=$(printf '%s' "$db" | cut -c1-32)
   pass=$(read_secret_pass "$platform" "$product" || true)
-  if [ -n "$pass" ]; then
-    dsnline="\$database = 'mysql://${user}:${pass}@localhost/${db}';"
-  else
-    dsnline=$(grep -E '^\$database' "$localphp" 2>/dev/null | head -n 1 || true)
+  if [ -z "$pass" ]; then
+    echo "$PROG: no database password for $product — settings will not connect" >&2
   fi
   hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')
   tmp=$(mktemp) || return 1
   {
     echo "<?php"
     echo "// Written by andromeda pull. Overwritten on each run."
-    if [ -n "$dsnline" ]; then
-      echo "$dsnline"
+    if [ -n "$pass" ]; then
+      echo "\$database = array("
+      echo "  'database' => '$db',"
+      echo "  'username' => '$user',"
+      echo "  'password' => '$pass',"
+      echo "  'host'     => 'localhost',"
+      echo "  'driver'   => 'mysql',"
+      echo ");"
     fi
     echo "\$config_directories['active']  = '$cfgactive';"
     echo "\$config_directories['staging'] = '$cfgstaging';"
