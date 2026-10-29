@@ -21,7 +21,7 @@ _write_default_vhost() {
   web=$2
   def=/etc/apache2/sites-available/000-default.conf
   [ -f "$def" ] || return 0
-  echo "fix   000-default.conf -> $web"
+  echo "Fix     000-default.conf -> $web"
   sudo tee "$def" >/dev/null << EOF
 <VirtualHost *:80>
   ServerName ${plat}.live
@@ -53,7 +53,7 @@ _map_site() {
     echo "<?php" | sudo tee "$dest" >/dev/null
   fi
   if ! grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
-    echo "map   $host -> $product"
+    echo "Map     $host -> $product"
     echo "\$sites['$host'] = '$product';" | sudo tee -a "$dest" >/dev/null
   else
     echo "map   $host already set"
@@ -61,13 +61,13 @@ _map_site() {
   # Single-site installs keep settings.php at the web root. Copy it into the product
   # so the host map has a folder to land on.
   if [ -f "$web/settings.php" ] && [ ! -f "$web/sites/$product/settings.php" ]; then
-    echo "copy  settings.php -> sites/$product/"
+    echo "Copy    settings.php -> sites/$product/"
     sudo cp "$web/settings.php" "$web/sites/$product/settings.php"
   fi
   localphp=$web/sites/$product/settings.local.php
   if [ ! -f "$localphp" ]; then
     hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
-    echo "write trusted host in settings.local.php"
+    echo "Write   settings.local.php  trusted host $host"
     sudo tee "$localphp" >/dev/null << EOF
 <?php
 \$settings['trusted_host_patterns'] = array('^${hostpat}$');
@@ -230,45 +230,56 @@ cmd_migrate_www() {
     exit 2
   fi
 
-  # One project name, then the stage. Most hosts do all three stages.
-  # "Kesler Lumber" + test becomes kesler-lumber.test.
-  # The old /var/www folder is context only. It is not a default.
+  # Platform, then site, then stage. The old folder is context only.
+  # Site is kesler-lumber.test. Host defaults to www.kesler-lumber.test.
+  # The form the user does not keep redirects to the form they keep.
   srcbase=${src##*/}
-  printf "project name (example: Kesler Lumber): "
-  read -r project
-  base=$(slug "$project")
-  if [ -z "$base" ]; then
-    echo "$PROG: project name required" >&2
+  plat=$(prompt_line "Platform name" "" \
+    "A platform holds one or more sites under /srv/platforms/<name>/web." "example: kesler-lumber")
+  plat=$(slug "$plat")
+  if [ -z "$plat" ]; then
+    echo "$PROG: platform name required" >&2
+    exit 2
+  fi
+  product=$(prompt_line "Site" "$plat" \
+    "The directory under the platform. Hyphenated. Stage is next.
+/srv/platforms/$plat/web/sites/<name>")
+  product=$(slug "$product")
+  if [ -z "$product" ]; then
+    echo "$PROG: site name required" >&2
     exit 2
   fi
   defrole=${ANDROMEDA_ROLE:-devel}
-  printf "stage [devel/test/live] (%s): " "$defrole"
-  read -r role
-  role=${role:-$defrole}
+  role=$(prompt_line "Stage [devel/test/live]" "$defrole" \
+    "devel, test, or live. Enter keeps the host role.")
   role=$(printf '%s' "$role" | tr '[:upper:]' '[:lower:]' | sed 's/^[.]//')
   case $role in
     devel|test|live) ;;
     *) echo "$PROG: stage must be devel, test, or live" >&2; exit 2 ;;
   esac
-  plat=$base
-  product="${base}.${role}"
-  host=$(hostname_for_site "$product")
+  product="${product}.${role}"
+  defhost="www.${product}"
+  host=$(prompt_line "Hostname" "$defhost")
+  host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
+  # The form they did not type redirects to the form they kept.
+  case $host in
+    www.*) redirect=${host#www.} ;;
+    *)     redirect="www.${host}" ;;
+  esac
   db=$(db_name "$product" "$role")
   echo "source   $src  (was $srcbase)"
   echo "platform $plat"
-  echo "site     $product"
+  echo "site     /srv/platforms/$plat/web/sites/$product"
   echo "host     $host"
+  echo "redirect $redirect -> $host"
   echo "db       $db"
-  printf "hostname [$host]: "
-  read -r hostover
-  [ -n "$hostover" ] && host=$hostover
-  printf "use these? [y/N] "
+  printf "Use these? [y/N] "
   read -r ok
   [ "$ok" = "y" ] || { echo "stopped"; return 0; }
 
   dest=$PLATFORMS/$plat
   web=$dest/web
-  echo "migrate $src -> $web"
+  echo "Migrate $src -> $web"
 
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ platform-add $plat"
@@ -292,54 +303,54 @@ cmd_migrate_www() {
   # native Andromeda site.
   _convert_standalone "$dest" "$web" "$product"
 
-  echo "platform $plat"
-  echo "web root  $web"
+  echo "Platform $plat"
+  echo "Web root  $web"
 
   avail=/etc/apache2/sites-available
   if [ ! -d "$avail" ]; then
     echo "no $avail"
     return 0
   fi
-  echo "apache configs"
-  j=0
-  alist=""
-  for c in "$avail"/*.conf; do
-    [ -f "$c" ] || continue
-    j=$((j + 1))
-    base=${c##*/}
-    alist="$alist $j:$base"
-    echo "  $j) $base"
-  done
-  if [ "$j" -eq 0 ]; then
-    echo "no vhost to update"
-    return 0
-  fi
-  printf "vhost number: "
-  read -r vp
-  conf=""
-  for item in $alist; do
-    n=${item%%:*}
-    name=${item#*:}
-    if [ "$n" = "$vp" ]; then
-      conf=$avail/$name
-      break
+  conf=$avail/${product}.conf
+  echo "Write   $conf"
+  sudo tee "$conf" >/dev/null << EOF
+<VirtualHost *:80>
+  ServerName $host
+  DocumentRoot $web
+  <Directory $web>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  <Directory $PLATFORMS/$plat/config>
+    Require all denied
+  </Directory>
+  <Directory $PLATFORMS/$plat/files_private>
+    Require all denied
+  </Directory>
+</VirtualHost>
+
+<VirtualHost *:80>
+  ServerName $redirect
+  Redirect permanent / http://$host/
+</VirtualHost>
+EOF
+  echo "Enable  ${product}.conf"
+  sudo a2ensite "${product}.conf" >/dev/null 2>&1 || true
+  # Old edge-case confs stay in sites-available. Disable them.
+  for en in /etc/apache2/sites-enabled/*.conf; do
+    [ -f "$en" ] || continue
+    name=${en##*/}
+    [ "$name" = "${product}.conf" ] && continue
+    [ "$name" = "000-default.conf" ] && continue
+    if grep -q "/var/www\|ServerName ${srcbase}" "$en" 2>/dev/null; then
+      echo "Disable $name  (left in sites-available)"
+      echo "        remove it with: sudo rm $avail/$name"
+      sudo a2dissite "$name" >/dev/null 2>&1 || true
     fi
   done
-  if [ -z "$conf" ]; then
-    echo "no such vhost"
-    return 0
-  fi
-
-  echo "edit $conf  ServerName $host"
-  sudo sed -i "s|DocumentRoot .*|DocumentRoot $web|" "$conf"
-  if grep -q "^[[:space:]]*ServerName" "$conf"; then
-    sudo sed -i "s|^[[:space:]]*ServerName .*|  ServerName $host|" "$conf"
-  else
-    sudo sed -i "/<VirtualHost/a\  ServerName $host" "$conf"
-  fi
-  sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
   _ensure_apache_mysql
-  echo "reload apache"
+  echo "Reload  Apache"
   if apache_reload; then
     reloaded=1
   else
