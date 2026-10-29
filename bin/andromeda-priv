@@ -151,6 +151,8 @@ case $cmd in
     [ -f "$cnf" ] || { echo "$PROG: missing $cnf" >&2; exit 1; }
     pass=$(sed -n 's/^password=//p' "$cnf" | head -n 1)
     [ -n "$pass" ] || { echo "$PROG: no password= in $cnf" >&2; exit 1; }
+    # Single quotes in a hand-set password break the SQL. Double them.
+    pass_sql=$(printf '%s' "$pass" | sed "s/'/''/g")
     # Root connects by socket. A missing binary or a password-only root
     # fails here. Print the real mysql line so the pull can show it.
     mysql_bin=$(command -v mysql || true)
@@ -160,13 +162,14 @@ case $cmd in
       echo "$PROG: create database $db failed" >&2
       exit 1
     fi
-    if ! "$mysql_bin" -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1; then
+    # CREATE USER IF NOT EXISTS does not change the password. A previous
+    # site-add leaves the old one, and bee is refused. Drop and recreate
+    # so the password always matches the secret.
+    "$mysql_bin" -e "DROP USER IF EXISTS '$user'@'localhost';" 2>&1 || true
+    if ! "$mysql_bin" -e "CREATE USER '$user'@'localhost' IDENTIFIED BY '$pass_sql';" 2>&1; then
       echo "$PROG: create user $user failed" >&2
       exit 1
     fi
-    # IF NOT EXISTS leaves an old password from a previous site-add
-    "$mysql_bin" -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1 || \
-      "$mysql_bin" -e "SET PASSWORD FOR '$user'@'localhost' = PASSWORD('$pass');" 2>&1 || true
     if ! "$mysql_bin" -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;" 2>&1; then
       echo "$PROG: grant on $db failed" >&2
       exit 1
