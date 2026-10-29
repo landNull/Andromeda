@@ -146,12 +146,33 @@ pull_config() {
   src_p=$4
   src_s=$5
   remote=$(tunnel_host "$vps")
+  active="$root/config/$product/active"
   staging="$root/config/$product/staging"
-  run_root mkdir -p "$staging"
+  run_root mkdir -p "$active" "$staging"
   if command -v setfacl >/dev/null 2>&1; then
-    run_root setfacl -b "$root/config" "$root/config/$product" "$staging" 2>/dev/null || true
+    run_root setfacl -b "$root/config" "$root/config/$product" "$active" "$staging" 2>/dev/null || true
   fi
-  run_root chmod 0775 "$staging" 2>/dev/null || true
+  run_root chmod 0775 "$active" "$staging" 2>/dev/null || true
+  # Active config is what makes the site boot. A migrated site has it
+  # and may have no staging. Copy it first. See docs/reference/repo-ensure.md.
+  echo "config active from $remote"
+  actives=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/active /srv/platforms/$src_p/files/$src_s/config_*/active /srv/platforms/$src_p/web/sites/$src_s/files/config_*/active /srv/platforms/$src_p/web/files/config_*/active; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  if [ -z "$actives" ]; then
+    echo "config none — no active directory for $src_s on $remote"
+  else
+    for src in $actives; do
+      echo "config active from $src"
+      if remote_rsync "$remote:${src}/" "$active/"; then
+        break
+      fi
+    done
+  fi
+  if [ -f "$active/system.core.json" ]; then
+    echo "config active ready $active"
+  else
+    echo "config active has no system.core.json — site will not boot"
+  fi
+  chown_files "$active" 2>/dev/null || true
   echo "config andro bee export on $remote"
   ssh_cmd "$remote" "andromeda bee $src_p $src_s -y config-export" || \
     ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || true
