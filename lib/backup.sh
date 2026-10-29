@@ -179,6 +179,23 @@ cmd_site_restore() {
   elif [ -f "$from/config-active.tar.gz" ]; then
     as_root tar -C "$root/config/$product" -xzf "$from/config-active.tar.gz"
   fi
+  # Migrated site. Config rides inside the files tree.
+  if [ ! -f "$root/config/$product/active/system.core.json" ]; then
+    found=""
+    for d in "$root/files/$product"/config_*/active "$from/files"/config_*/active; do
+      if [ -f "$d/system.core.json" ]; then
+        found=$d
+        break
+      fi
+    done
+    if [ -n "$found" ]; then
+      echo "config from files $found"
+      run_root mkdir -p "$root/config/$product/active"
+      rsync -a "$found/" "$root/config/$product/active/" 2>/dev/null || as_root rsync -a "$found/" "$root/config/$product/active/"
+    else
+      echo "config none"
+    fi
+  fi
   chown_files \
     "$root/files/$product" \
     "$root/files_private/$product" \
