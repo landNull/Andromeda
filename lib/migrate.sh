@@ -163,6 +163,23 @@ _convert_standalone() {
   echo "config $dest/config/$product/active"
 }
 
+
+# commit_tree DEST
+# Commit the web tree as deploy. The gitignore excludes the runtime
+# stores. Modules, themes, layouts, and custom code stay in git so
+# the bundle has something to carry.
+commit_tree() {
+  dest=$1
+  [ -d "$dest/.git" ] || return 0
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$dest" add -A 2>/dev/null || true
+  if as_root -u "$OWNER" git -c safe.directory='*' -C "$dest" diff --cached --quiet 2>/dev/null; then
+    echo "git    no changes to commit"
+    return 0
+  fi
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$dest" commit -m "migrate web tree" || true
+  echo "git    committed web tree as $OWNER"
+}
+
 cmd_migrate_www() {
   src_root=${WWW_ROOT:-/var/www}
   if [ ! -d "$src_root" ]; then
@@ -281,6 +298,8 @@ cmd_migrate_www() {
   # the docroot. Move both into the platform store so the site matches a
   # native Andromeda site.
   _convert_standalone "$dest" "$web" "$product"
+
+  commit_tree "$dest"
 
   echo "Platform $plat"
   echo "Web root  $web"
