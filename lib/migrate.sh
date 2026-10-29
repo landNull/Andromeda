@@ -16,33 +16,6 @@ is_docroot() {
 
 
 
-_write_default_vhost() {
-  plat=$1
-  web=$2
-  def=/etc/apache2/sites-available/000-default.conf
-  [ -f "$def" ] || return 0
-  echo "Fix     000-default.conf -> $web"
-  sudo tee "$def" >/dev/null << EOF
-<VirtualHost *:80>
-  ServerName ${plat}.live
-  DocumentRoot $web
-  <Directory $web>
-    Options FollowSymLinks
-    AllowOverride All
-    Require all granted
-  </Directory>
-  <Directory $PLATFORMS/$plat/config>
-    Require all denied
-  </Directory>
-  <Directory $PLATFORMS/$plat/files_private>
-    Require all denied
-  </Directory>
-</VirtualHost>
-EOF
-  sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
-}
-
-
 _map_site() {
   web=$1
   host=$2
@@ -364,7 +337,6 @@ EOF
   fi
 
   _map_site "$web" "$host" "$product"
-  _write_default_vhost "$plat" "$web"
   mkdir -p /srv/andromeda/state/migrate
   : > /srv/andromeda/state/migrate/$plat
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
