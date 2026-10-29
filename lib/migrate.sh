@@ -258,13 +258,19 @@ cmd_migrate_www() {
     *) echo "$PROG: stage must be devel, test, or live" >&2; exit 2 ;;
   esac
   product="${product}.${role}"
-  defhost="www.${product}"
-  host=$(prompt_line "Hostname" "$defhost")
-  host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
-  # The form they did not type redirects to the form they kept.
-  case $host in
-    www.*) redirect=${host#www.} ;;
-    *)     redirect="www.${host}" ;;
+  bare=$product
+  www="www.${product}"
+  echo "Hostname"
+  echo "  The one you do not pick redirects to the one you pick."
+  echo "  1) $bare"
+  echo "  2) $www"
+  printf "number [2]: "
+  read -r pick
+  pick=${pick:-2}
+  case $pick in
+    1) host=$bare; redirect=$www ;;
+    2) host=$www;  redirect=$bare ;;
+    *) echo "$PROG: pick 1 or 2" >&2; exit 2 ;;
   esac
   db=$(db_name "$product" "$role")
   echo "source   $src  (was $srcbase)"
