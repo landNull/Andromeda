@@ -193,7 +193,7 @@ The site directory suffix is the stage and the default git branch:
 - `keslerlumber.test` → branch `test`
 - `keslerlumber.live` → branch `live`
 
-On the first local push between stages (for example `push site ecom/keslerlumber.devel to ecom/keslerlumber.test`), Andromeda creates the platform repo at `/srv/platforms/<plat>` if it does not exist, seeds the `devel`, `test`, and `live` branches, and checks out the destination stage. The bare repo lives at `/srv/git/<plat>.git`. That directory is root-owned. `repo-ensure` hands it to the code owner through `andromeda-priv` before `git init`. A missing helper or a missing sudoers line stops the pull with the exact command to run. The same init runs on a local pull destination and on a remote push destination. `platform-add` also seeds the three branches when it creates a new platform.
+On the first local push between stages (for example `push site ecom/keslerlumber.devel to ecom/keslerlumber.test`), Andromeda creates the platform repo at `/srv/platforms/<plat>` if it does not exist, seeds the `devel`, `test`, and `live` branches, and checks out the destination stage. The same init runs on a local pull destination and on a remote push destination. `platform-add` also seeds the three branches when it creates a new platform.
 
 ## push prefers git for code
 
