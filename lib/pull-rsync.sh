@@ -343,6 +343,9 @@ pull_config() {
   if ! bee_site_cmd "$root/web" "$product" -y config-import; then
     echo "$PROG: andro bee config-import failed for $product" >&2
   fi
+  # Clear caches so the new config and database are visible.
+  echo "cache clear"
+  bee_site_cmd "$root/web" "$product" cc all 2>/dev/null || true
 }
 
 # Local variants — same host, no ssh. Used when the source ref is bare or local.
