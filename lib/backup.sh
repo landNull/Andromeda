@@ -69,10 +69,25 @@ cmd_site_backup() {
   else
     echo "private none"
   fi
-  if [ -d "$root/config/$product/active" ]; then
-    echo "config $root/config/$product/active"
+  # Config. The platform store, or the files tree Backdrop uses.
+  # A migrated site keeps config under files/config_*/active.
+  cfg=""
+  if [ -f "$root/config/$product/active/system.core.json" ]; then
+    cfg="$root/config/$product/active"
+  else
+    for d in "$web/sites/$product/files"/config_*/active              "$web/files"/config_*/active              "$root/files/$product"/config_*/active; do
+      if [ -f "$d/system.core.json" ]; then
+        cfg=$d
+        break
+      fi
+    done
+  fi
+  if [ -n "$cfg" ]; then
+    echo "config $cfg"
     run_root mkdir -p "$dest/config-active"
-    rsync -a "$root/config/$product/active/" "$dest/config-active/" 2>/dev/null || as_root rsync -a "$root/config/$product/active/" "$dest/config-active/"
+    rsync -a "$cfg/" "$dest/config-active/" 2>/dev/null || as_root rsync -a "$cfg/" "$dest/config-active/"
+  else
+    echo "config none"
   fi
 
   as_root sh -c "cat > '$dest/MANIFEST'" <<EOF
