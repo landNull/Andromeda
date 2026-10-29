@@ -128,9 +128,10 @@ heal_renamed_site() {
 }
 
 # Pull a site from a remote host and stand it up locally.
-# Tools: WireGuard, andro add platform, andro add site, andro repo-ensure,
-# git, rsync, andro bee, andromeda-priv, andro heal site.
-# Gaps: settings.local.php template, sites.php line.
+# Tools: WireGuard, git bundle, andro add platform, andro add site,
+# rsync, andro bee, andromeda-priv, andro heal site.
+# Code by git. Content and config by rsync. Database by Bee.
+# settings.local.php is written by site-add. It is gitignored.
 cmd_site_pull() {
   role=${ANDROMEDA_ROLE:-devel}
   role_set=0
@@ -169,42 +170,35 @@ cmd_site_pull() {
   remote=$(tunnel_host "$vps")
   echo "tunnel $remote port $(ssh_port)"
   if [ "$DRYRUN" -eq 1 ]; then
-    echo "+ ssh $remote andromeda site-backup $src_p $src_s"
-    echo "+ rsync snapshot"
+    echo "+ git bundle from $remote:/srv/platforms/$src_p, checkout $role"
     echo "+ andro add platform $dst_p   (if missing)"
     echo "+ andro add site $dst_p $dst_s --host $host"
-    echo "+ andro restore site --from SNAPSHOT $dst_p $dst_s"
+    echo "+ rsync files, private"
+    echo "+ rsync config active"
+    echo "+ andro bee db-export on $remote, db-import here"
     return 0
   fi
 
-  # Snapshot on the source. Bee exports the database. rsync copies
-  # files, private, and config. This is the working path.
-  echo "backup on $remote"
-  ssh_cmd "$remote" "andromeda site-backup $src_p $src_s" || {
-    echo "$PROG: remote backup failed" >&2
-    exit 1
-  }
-  snap=$(ssh_cmd "$remote" "andromeda site-backup $src_p $src_s --latest" 2>/dev/null || true)
-  snap=$(printf '%s\n' "$snap" | sed 's/\x1b\[[0-9;]*m//g' | grep '^/srv/andromeda/backups/' | tail -n 1)
-  if [ -z "$snap" ]; then
-    echo "$PROG: remote snapshot path missing" >&2
-    exit 1
-  fi
-  echo "snapshot $snap"
-  local_snap="$HOME/.andromeda/pull/$src_p/$src_s"
-  mkdir -p "$local_snap"
-  remote_rsync "$remote:$snap/" "$local_snap/" || {
-    echo "$PROG: rsync failed" >&2
-    exit 1
-  }
+  # shellcheck disable=SC1091
+  . "$LIBDIR/pull-rsync.sh"
 
-  # Platform and site. site-add creates the directories, the secret,
-  # and the database user. --no-install: Bee does not run yet.
-  # The user must exist before Bee imports.
+  # Platform first. pull_code fetches into its repo.
   if [ ! -d "$PLATFORMS/$dst_p" ] || [ ! -d "$PLATFORMS/$dst_p/web" ]; then
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
+  root=$PLATFORMS/$dst_p
+  web=$root/web
+
+  # Code by git. A bundle, because the source repo is owned by deploy.
+  # settings.local.php is gitignored, so the reset does not touch it.
+  pull_code "$root" "$web" "$vps" "$src_p" || {
+    echo "$PROG: code did not move" >&2
+    exit 1
+  }
+
+  # Site skeleton. Writes settings.local.php, the sites.php line, and
+  # the empty stores. --no-install: Bee does not run yet.
   ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install || {
     echo "$PROG: site-add failed" >&2
     exit 1
@@ -223,7 +217,6 @@ cmd_site_pull() {
     echo "$PROG: database user not created — Bee will not run" >&2
     exit 1
   fi
-  # Login test. The same check heal uses. Do not restore until it passes.
   cnf=$(secret_file "$platform" "$product").cnf
   echo "db    login test $user"
   if ! mysql --defaults-extra-file="$cnf" -e "SELECT 1" >/dev/null 2>&1; then
@@ -233,13 +226,10 @@ cmd_site_pull() {
   fi
   echo "db    $user can log in"
 
-  # Restore the snapshot. Bee imports the database. rsync copies
-  # files, private, and config. Existing tool.
-  echo "restore $local_snap -> $dst_p/$dst_s"
-  cmd_site_restore --from "$local_snap" "$dst_p" "$dst_s" || {
-    echo "$PROG: restore failed" >&2
-    exit 1
-  }
+  # Content by rsync. Config by rsync. Database by Bee.
+  pull_files "$root" "$product" "$vps" "$src_p" "$src_s"
+  pull_config "$root" "$product" "$vps" "$src_p" "$src_s"
+  pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
   cmd_site_heal "$dst_p" "$dst_s" || true
   echo "pull done  http://$host"
 }

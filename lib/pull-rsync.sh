@@ -49,20 +49,32 @@ pull_code() {
     return 1
   fi
   rm -f "$bundle"
+  src_branch=$stage
   if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" \
       rev-parse --verify "origin/$stage" >/dev/null 2>&1; then
-    echo "$PROG: no $stage branch in the bundle — code did not move" >&2
-    return 0
+    src_branch=""
+    for b in devel test live; do
+      if as_root -u "$OWNER" git -c safe.directory='*' -C "$root" \
+          rev-parse --verify "origin/$b" >/dev/null 2>&1; then
+        echo "code  no $stage branch — using $b"
+        src_branch=$b
+        break
+      fi
+    done
+    if [ -z "$src_branch" ]; then
+      echo "$PROG: no stage branch in the bundle — code did not move" >&2
+      return 0
+    fi
   fi
   echo "code  git checkout $stage as $OWNER, source wins"
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
-  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$stage"; then
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$src_branch"; then
     echo "$PROG: cannot check out as $OWNER" >&2
     echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
     echo "$PROG: %www-admin ALL=($OWNER) NOPASSWD: /usr/bin/git" >&2
     return 1
   fi
-  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$stage" || return 1
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$src_branch" || return 1
   echo "code  on branch $stage as $OWNER"
 }
 
@@ -105,6 +117,63 @@ pull_content() {
   fi
   rm -rf "$stage"
   chown_files "$root/files/$product" 2>/dev/null || true
+}
+
+
+# pull_files ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
+# User content by rsync. The whole tree, not images only.
+# Staged locally, then copied as root: the store is www-data:www-admin.
+pull_files() {
+  root=$1
+  product=$2
+  vps=$3
+  src_p=$4
+  src_s=$5
+  remote=$(tunnel_host "$vps")
+  run_root mkdir -p "$root/files/$product" "$root/files_private/$product"
+
+  echo "files from $remote"
+  stage=$(mktemp -d)
+  got=0
+  for src in \
+    "/srv/platforms/$src_p/files/$src_s/" \
+    "/srv/platforms/$src_p/web/sites/$src_s/files/" \
+    "/srv/platforms/$src_p/web/files/"
+  do
+    if remote_rsync "$remote:$src" "$stage/"; then
+      got=1
+      break
+    fi
+  done
+  if [ "$got" -eq 1 ]; then
+    as_root rsync -a "$stage/" "$root/files/$product/" || true
+    echo "files landed in $root/files/$product"
+  else
+    echo "files none — no files tree for $src_s on $remote"
+  fi
+  rm -rf "$stage"
+
+  echo "private from $remote"
+  stage=$(mktemp -d)
+  got=0
+  for src in \
+    "/srv/platforms/$src_p/files_private/$src_s/" \
+    "/srv/platforms/$src_p/web/sites/$src_s/files/private/" \
+    "/srv/platforms/$src_p/web/files/private/"
+  do
+    if remote_rsync "$remote:$src" "$stage/"; then
+      got=1
+      break
+    fi
+  done
+  if [ "$got" -eq 1 ]; then
+    as_root rsync -a "$stage/" "$root/files_private/$product/" || true
+    echo "private landed in $root/files_private/$product"
+  else
+    echo "private none"
+  fi
+  rm -rf "$stage"
+  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
 }
 
 # pull_db WEB PRODUCT VPS SRC_PLATFORM SRC_SITE
