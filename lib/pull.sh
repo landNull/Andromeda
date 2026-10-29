@@ -201,7 +201,7 @@ cmd_site_pull() {
   fi
   resolve_site "$dst_p" "$dst_s"
   # 4. Git repo. andro repo-ensure seeds the bare and the stage branches.
-  cmd_repo_ensure "$dst_p" || true
+  cmd_repo_ensure "$dst_p" || return 1
   ensure_platform_git "$dst_p" "$role" || true
 
   # shellcheck disable=SC1091
