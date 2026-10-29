@@ -91,10 +91,7 @@ ensure_local_php() {
   dsn=$2
   hostpat=$3
   role=$4
-  if [ -f "$dest" ]; then
-    echo "settings.local.php exists: $dest (not overwritten)"
-    return 0
-  fi
+  # Always rewrite. A second pull must point at the destination stores.
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ write $dest"
     return 0
