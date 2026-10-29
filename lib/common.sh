@@ -820,7 +820,9 @@ remote_rsync() {
 }
 
 slug() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//'
+  # Spaces and other marks become hyphens. Runs collapse.
+  # "Kesler Lumber" -> kesler-lumber. Underscores stay.
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/-\+/-/g;s/^-*//;s/-*$//'
 }
 
 db_name() {

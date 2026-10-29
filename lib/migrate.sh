@@ -230,33 +230,37 @@ cmd_migrate_www() {
     exit 2
   fi
 
-  printf "new platform name: "
-  read -r plat
-  plat=$(slug "$plat")
-  if [ -z "$plat" ]; then
-    echo "$PROG: platform name required" >&2
-    exit 2
-  fi
-
-  # Site directory under web/sites/. Default is the source folder name.
-  # Example: /var/www/kl_test -> keslerlumber.test
+  # One project name. The host role forces the stage suffix.
+  # "Kesler Lumber" on a live host becomes kesler-lumber.live.
+  # The old /var/www folder is context only. It is not a default.
   srcbase=${src##*/}
-  printf "site directory name [%s]: " "$srcbase"
-  read -r product
-  product=${product:-$srcbase}
-  product=$(slug "$product")
-  if [ -z "$product" ]; then
-    echo "$PROG: site directory name required" >&2
+  role=${ANDROMEDA_ROLE:-devel}
+  printf "project name (example: Kesler Lumber): "
+  read -r project
+  base=$(slug "$project")
+  if [ -z "$base" ]; then
+    echo "$PROG: project name required" >&2
     exit 2
   fi
-  echo "site   $product"
+  plat=$base
+  product="${base}.${role}"
+  host=$(hostname_for_site "$product")
+  db=$(db_name "$product" "$role")
+  echo "source   $src  (was $srcbase)"
+  echo "platform $plat"
+  echo "site     $product"
+  echo "host     $host"
+  echo "db       $db"
+  printf "hostname [$host]: "
+  read -r hostover
+  [ -n "$hostover" ] && host=$hostover
+  printf "use these? [y/N] "
+  read -r ok
+  [ "$ok" = "y" ] || { echo "stopped"; return 0; }
 
   dest=$PLATFORMS/$plat
   web=$dest/web
   echo "migrate $src -> $web"
-  printf "sudo to copy? [y/N] "
-  read -r ok
-  [ "$ok" = "y" ] || { echo "stopped"; return 0; }
 
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ platform-add $plat"
@@ -318,11 +322,7 @@ cmd_migrate_www() {
     return 0
   fi
 
-  printf "ServerName [$product]: "
-  read -r host
-  host=${host:-$product}
-
-  echo "edit $conf"
+  echo "edit $conf  ServerName $host"
   sudo sed -i "s|DocumentRoot .*|DocumentRoot $web|" "$conf"
   if grep -q "^[[:space:]]*ServerName" "$conf"; then
     sudo sed -i "s|^[[:space:]]*ServerName .*|  ServerName $host|" "$conf"

@@ -137,7 +137,7 @@ Existing verbs already cover the rest of the Aegir set:
 
 Two commands. They do not overlap.
 
-`migrate www` (and the hyphen form `migrate-www`) is the only command that reads `/var/www`. It lists standalone Backdrop docroots, asks for a new platform name, copies the tree into `/srv/platforms/<name>/web`, converts the hashed config store, and updates a chosen vhost. `migrate www heal` (or `migrate-www heal`) re-scans and repairs an already-migrated platform.
+`migrate www` (and the hyphen form `migrate-www`) is the only command that reads `/var/www`. It lists standalone Backdrop docroots and asks for one project name. `Kesler Lumber` becomes `kesler-lumber`. The host role forces the stage: `kesler-lumber.live` on a live host, `kesler-lumber.devel` on a devel host. Platform, site directory, config store, and database all use that name. The old `/var/www` folder is shown as context and is not a default. A hostname line can override the derived host (`kesler-lumber.com` for `.live`). It copies the tree into `/srv/platforms/<name>/web`, converts the hashed config store, and updates a chosen vhost. `migrate www heal` (or `migrate-www heal`) re-scans and repairs an already-migrated platform.
 
 `migrate site SRC_PLATFORM SRC_PRODUCT DEST_PLATFORM DEST_PRODUCT` moves a site that already lives under `/srv/platforms` from one platform to another. Both platforms must already exist. It reuses the clone path (backup, add, restore) and then deletes the source site. Pass `--keep` to leave the source in place. It never touches `/var/www`.
 
