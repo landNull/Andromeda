@@ -223,6 +223,21 @@ EOF
     fi
     a2ensite "${plat}-${role}" >/dev/null 2>&1 || true
     ;;
+  secret-write)
+    # secret-write PLATFORM PRODUCT DB USER PASS
+    plat=${1:-} prod=${2:-} db=${3:-} user=${4:-} pass=${5:-}
+    printf '%s' "$plat" | grep -Eq '^[A-Za-z0-9_-]+$' || exit 2
+    printf '%s' "$prod" | grep -Eq '^[A-Za-z0-9._-]+$' || exit 2
+    dir="$ANDROMEDA_ROOT/state/secrets/$plat"
+    mkdir -p "$dir"
+    chown "$OWNER:andromeda" "$ANDROMEDA_ROOT/state/secrets" "$dir"
+    chmod 2750 "$ANDROMEDA_ROOT/state/secrets" "$dir"
+    dest="$dir/$prod"
+    printf 'db=%s\nuser=%s\npass=%s\nhost=localhost\n' "$db" "$user" "$pass" > "$dest"
+    printf '[client]\nuser=%s\npassword=%s\nhost=localhost\n' "$user" "$pass" > "$dest.cnf"
+    chown "$OWNER:andromeda" "$dest" "$dest.cnf"
+    chmod 0640 "$dest" "$dest.cnf"
+    ;;
   settings-write)
     # settings-write DEST DSN HOSTPAT ROLE
     dest=${1:-} dsn=${2:-} hostpat=${3:-} role=${4:-devel}
@@ -243,7 +258,7 @@ EOF
     chmod 0640 "$dest" 2>/dev/null || true
     ;;
   *)
-    echo "usage: $PROG chown-files|chown-code|chown-secret|chown|chmod|mkdir|setgid|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
+    echo "usage: $PROG chown-files|chown-code|chown-secret|chown|chmod|mkdir|setgid|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|secret-write|mysql-create|mysql-drop|tail-log" >&2
     exit 2
     ;;
 esac
