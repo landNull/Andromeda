@@ -39,7 +39,7 @@ cmd_repo_ensure() {
     if ! sudo -n "$priv" mkdir /srv/git; then
       echo "$PROG: cannot create /srv/git" >&2
       echo "  andromeda-priv is missing or not in sudoers" >&2
-      echo "  sudo $priv mkdir /srv/git" >&2
+      echo "  %${GROUP} ALL=(root) NOPASSWD: $priv" >&2
       return 1
     fi
   fi
