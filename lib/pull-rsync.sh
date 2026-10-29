@@ -67,11 +67,12 @@ pull_code() {
     fi
   fi
   echo "code  git checkout $stage as $OWNER, source wins"
+  # Source wins. A tracked change (sites.php) blocks checkout.
+  # clean removes untracked files. reset removes tracked changes.
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard >/dev/null 2>&1 || true
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" clean -fd >/dev/null 2>&1 || true
   if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$root" checkout -B "$stage" "origin/$src_branch"; then
-    echo "$PROG: cannot check out as $OWNER" >&2
-    echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
-    echo "$PROG: %www-admin ALL=($OWNER) NOPASSWD: /usr/bin/git" >&2
+    echo "$PROG: cannot check out $stage as $OWNER" >&2
     return 1
   fi
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$src_branch" || return 1
