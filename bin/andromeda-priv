@@ -151,49 +151,29 @@ case $cmd in
     [ -f "$cnf" ] || { echo "$PROG: missing $cnf" >&2; exit 1; }
     pass=$(sed -n 's/^password=//p' "$cnf" | head -n 1)
     [ -n "$pass" ] || { echo "$PROG: no password= in $cnf" >&2; exit 1; }
-    # Single quotes in a hand-set password break the SQL. Double them.
-    pass_sql=$(printf '%s' "$pass" | sed "s/'/''/g")
     # Root connects by socket. A missing binary or a password-only root
     # fails here. Print the real mysql line so the pull can show it.
     mysql_bin=$(command -v mysql || true)
     [ -z "$mysql_bin" ] && [ -x /usr/bin/mysql ] && mysql_bin=/usr/bin/mysql
     [ -n "$mysql_bin" ] || { echo "$PROG: mysql not on PATH" >&2; exit 1; }
-    # Write the SQL to a file. A double-quoted -e string lets the shell
-    # expand $ and backticks in the password before MySQL sees it.
-    # set -e would exit before the error is printed. Turn it off here.
-    set +e
-    sql=$(mktemp)
-    echo "$PROG: mysql-create $db user $user" >&2
-    # MariaDB: GRANT ... IDENTIFIED BY creates the user or resets the
-    # password. CREATE USER IF NOT EXISTS does neither.
-    {
-      printf "CREATE DATABASE IF NOT EXISTS \`%s\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n" "$db"
-      printf "GRANT ALL ON \`%s\`.* TO '%s'@'localhost' IDENTIFIED BY '%s';\n" "$db" "$user" "$pass_sql"
-      printf "FLUSH PRIVILEGES;\n"
-    } > "$sql"
-    "$mysql_bin" < "$sql" >"$sql.out" 2>&1
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-      echo "$PROG: GRANT form failed (rc $rc), trying drop and recreate" >&2
-      sed 's/^/    /' "$sql.out" >&2
-      {
-        printf "CREATE DATABASE IF NOT EXISTS \`%s\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n" "$db"
-        printf "DROP USER IF EXISTS '%s'@'localhost';\n" "$user"
-        printf "CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\n" "$user" "$pass_sql"
-        printf "GRANT ALL ON \`%s\`.* TO '%s'@'localhost';\n" "$db" "$user"
-        printf "FLUSH PRIVILEGES;\n"
-      } > "$sql"
-      "$mysql_bin" < "$sql" >"$sql.out" 2>&1
-      rc=$?
-      if [ "$rc" -ne 0 ]; then
-        echo "$PROG: create user $user failed (rc $rc)" >&2
-        sed 's/^/    /' "$sql.out" >&2
-        rm -f "$sql" "$sql.out"
-        exit 1
-      fi
+    if ! "$mysql_bin" -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1; then
+      echo "$PROG: create database $db failed" >&2
+      exit 1
     fi
-    rm -f "$sql" "$sql.out"
-    set -e
+    if ! "$mysql_bin" -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1; then
+      echo "$PROG: create user $user failed" >&2
+      exit 1
+    fi
+    # IF NOT EXISTS leaves an old password from a previous site-add.
+    # Bee connects with the secret. The password must match it.
+    if ! "$mysql_bin" -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1; then
+      echo "$PROG: set password for $user failed" >&2
+      exit 1
+    fi
+    if ! "$mysql_bin" -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;" 2>&1; then
+      echo "$PROG: grant on $db failed" >&2
+      exit 1
+    fi
     ;;
   mysql-drop)
     db=$1 user=$2
