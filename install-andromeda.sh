@@ -674,20 +674,6 @@ ensure_user() {
 }
 
 
-
-write_priv_sudoers() {
-  dest=/etc/sudoers.d/andromeda-deploy
-  priv=/usr/local/sbin/andromeda-priv
-  body="# Andromeda — priv helper
-Defaults:${OWNER} !requiretty
-Defaults:%${GROUP} !requiretty
-${OWNER} ALL=(root) NOPASSWD: ${priv}
-%${GROUP} ALL=(root) NOPASSWD: ${priv}
-%${GROUP} ALL=(${OWNER}) NOPASSWD: /usr/local/bin/bee, /usr/bin/git, /usr/local/bin/crdir
-"
-  write_sudoers "$dest" "$body"
-}
-
 write_wg_sudoers() {
   dest=/etc/sudoers.d/andromeda-wg
   # Real paths plus the common locations. sudoers matches the path exactly.
@@ -1829,9 +1815,6 @@ fi
 install_charm
 
 write_wg_sudoers
-# The priv helper is the only root path. Rewrite the line every run
-# so a rename from stardust-priv cannot leave a stale path.
-write_priv_sudoers
 echo "done."
 
 # Shell wrapper so @host:plat/site is not eaten.
