@@ -31,6 +31,7 @@ cmd_repo_ensure() {
   bare=/srv/git/$name.git
   work=$PLATFORMS/$name
   echo "repo $name"
+  # Ownership contract: docs/reference/repo-ensure.md
   priv=${PRIV:-/usr/local/sbin/andromeda-priv}
   if [ ! -d "$bare" ]; then
     echo "bare $bare"

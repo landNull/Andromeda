@@ -11,6 +11,7 @@
 
 - `reference/commands.md` — command reference
 - `reference/wg-nopasswd.md` — WireGuard NOPASSWD
+- `reference/repo-ensure.md` — bare and checkout ownership
 
 ## Architecture and milestones
 
