@@ -83,7 +83,7 @@ Defaults:%$GROUP !requiretty
 $OWNER ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
 $OWNER ALL=(root) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/a2enmod
 %$GROUP ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
-%$GROUP ALL=($OWNER) NOPASSWD: /usr/local/bin/bee, /usr/bin/git, /usr/local/bin/crdir
+%$GROUP ALL=($OWNER) NOPASSWD: /usr/local/bin/bee, /usr/bin/git, /usr/bin/rsync, /usr/local/bin/crdir
 "
 
 if [ -d /etc/sudoers.d ]; then

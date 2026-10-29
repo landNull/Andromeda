@@ -82,16 +82,19 @@ pull_code() {
   if [ ! -d "$web/core" ]; then
     echo "code  no core — rsync web tree from $remote"
     run_root mkdir -p "$web"
-    remote_rsync \
-      --no-perms --no-owner --no-group \
+    stage=$(mktemp -d)
+    if ! remote_rsync \
       --exclude='sites/*/settings.local.php' \
       --exclude='files/' \
       --exclude='sites/*/files/' \
-      "$remote:/srv/platforms/$src_p/web/" "$web/" || {
+      "$remote:/srv/platforms/$src_p/web/" "$stage/"; then
       echo "$PROG: web tree did not move" >&2
+      rm -rf "$stage"
       return 1
-    }
-    echo "code  web tree from $remote"
+    fi
+    as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$web/" || true
+    rm -rf "$stage"
+    echo "code  web tree from $remote as $OWNER"
   fi
 }
 
@@ -127,7 +130,7 @@ pull_content() {
   done
   if [ "$got" -eq 1 ]; then
     # The files dir is www-data:www-admin 0770. The operator cannot write it.
-    rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files/$product/" || true
+    as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files/$product/" || true
     echo "images landed in $root/files/$product"
   else
     echo "images none — no image tree for $src_s on $remote"
@@ -170,7 +173,7 @@ pull_files() {
     fi
   done
   if [ "$got" -eq 1 ]; then
-    rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files/$product/" || true
+    as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files/$product/" || true
     echo "files landed in $root/files/$product"
   else
     echo "files none — no files tree for $src_s on $remote"
@@ -195,7 +198,7 @@ pull_files() {
     fi
   done
   if [ "$got" -eq 1 ]; then
-    rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files_private/$product/" || true
+    as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$root/files_private/$product/" || true
     echo "private landed in $root/files_private/$product"
   else
     echo "private none"
@@ -269,7 +272,7 @@ pull_config() {
       fi
       echo "config active from $src"
       if remote_rsync "$remote:${src}/" "$stage/"; then
-        rsync -a --no-perms --no-owner --no-group "$stage/" "$active/" || true
+        as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$active/" || true
         break
       fi
     done
@@ -298,7 +301,7 @@ pull_config() {
     fi
     echo "config from $src"
     if remote_rsync "$remote:${src}/" "$stage/"; then
-      rsync -a --no-perms --no-owner --no-group "$stage/" "$staging/" || true
+      as_root -u "$OWNER" rsync -a --no-perms --no-owner --no-group "$stage/" "$staging/" || true
       got=1
       break
     fi
