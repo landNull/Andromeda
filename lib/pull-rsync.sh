@@ -260,16 +260,19 @@ pull_config() {
   if [ -z "$actives" ]; then
     echo "config none — no active directory for $src_s on $remote"
   else
+    stage=$(mktemp -d)
     for src in $actives; do
       # Skip an empty store. The real config is the one with the file.
       if ! ssh_cmd "$remote" "test -f '$src/system.core.json'" 2>/dev/null; then
         continue
       fi
       echo "config active from $src"
-      if remote_rsync "$remote:${src}/" "$active/"; then
+      if remote_rsync "$remote:${src}/" "$stage/"; then
+        as_root rsync -a "$stage/" "$active/" || true
         break
       fi
     done
+    rm -rf "$stage"
   fi
   if [ -f "$active/system.core.json" ]; then
     echo "config active ready $active"
@@ -287,16 +290,19 @@ pull_config() {
     echo "config none — no staging directory for $src_s on $remote"
     return 0
   fi
+  stage=$(mktemp -d)
   for src in $srcs; do
     if ! ssh_cmd "$remote" "find '$src' -name '*.json' -print -quit | grep -q ." 2>/dev/null; then
       continue
     fi
     echo "config from $src"
-    if remote_rsync "$remote:${src}/" "$staging/"; then
+    if remote_rsync "$remote:${src}/" "$stage/"; then
+      as_root rsync -a "$stage/" "$staging/" || true
       got=1
       break
     fi
   done
+  rm -rf "$stage"
   if [ "$got" -ne 1 ]; then
     echo "config none — staging did not arrive for $src_s"
     return 0
