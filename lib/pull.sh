@@ -198,16 +198,40 @@ cmd_site_pull() {
     exit 1
   }
 
-  # Platform and site. Existing tools. site-add creates the database
-  # user so Bee can import.
+  # Platform and site. site-add creates the directories, the secret,
+  # and the database user. --no-install: Bee does not run yet.
+  # The user must exist before Bee imports.
   if [ ! -d "$PLATFORMS/$dst_p" ] || [ ! -d "$PLATFORMS/$dst_p/web" ]; then
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
-  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" || {
+  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install || {
     echo "$PROG: site-add failed" >&2
     exit 1
   }
+  resolve_site "$dst_p" "$dst_s"
+
+  # Database user. andromeda-priv mysql-create. Bee cannot create a user.
+  db=$(db_name "$product" "$role")
+  user=$(printf '%s' "$db" | cut -c1-32)
+  pass=$(read_secret_pass "$platform" "$product" || true)
+  if [ -z "$pass" ]; then
+    echo "$PROG: no secret for $platform/$product" >&2
+    exit 1
+  fi
+  if ! ensure_db "$db" "$user" "$pass"; then
+    echo "$PROG: database user not created — Bee will not run" >&2
+    exit 1
+  fi
+  # Login test. The same check heal uses. Do not restore until it passes.
+  cnf=$(secret_file "$platform" "$product").cnf
+  echo "db    login test $user"
+  if ! mysql --defaults-extra-file="$cnf" -e "SELECT 1" >/dev/null 2>&1; then
+    echo "$PROG: $user cannot log in — Bee will not run" >&2
+    mysql --defaults-extra-file="$cnf" -e "SELECT 1" >&2 || true
+    exit 1
+  fi
+  echo "db    $user can log in"
 
   # Restore the snapshot. Bee imports the database. rsync copies
   # files, private, and config. Existing tool.
