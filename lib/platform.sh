@@ -38,8 +38,13 @@ cmd_repo_ensure() {
     # Free-form chown is not in the installed helper. chown-code is.
     sudo -n "$priv" chown-code /srv/git 2>/dev/null || true
     sudo -n "$priv" chmod 2770 /srv/git 2>/dev/null || true
-    git init --bare "$bare"
-    sudo -n "$priv" chown-code "$bare" 2>/dev/null || true
+    # Create as the code owner. The operator never owns the bare.
+    if ! as_root -u "$OWNER" git init --bare "$bare"; then
+      echo "$PROG: cannot create $bare as $OWNER" >&2
+      echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
+      echo "$PROG: %$GROUP ALL=($OWNER) NOPASSWD: /usr/bin/git" >&2
+      return 1
+    fi
   fi
   if [ ! -d "$work/.git" ]; then
     echo "checkout $work"
