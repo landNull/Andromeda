@@ -35,7 +35,8 @@ cmd_repo_ensure() {
     echo "bare $bare"
     priv=${PRIV:-/usr/local/sbin/andromeda-priv}
     sudo -n "$priv" mkdir /srv/git 2>/dev/null || mkdir -p /srv/git
-    sudo -n "$priv" chown "$OWNER:$GROUP" /srv/git 2>/dev/null || true
+    # Free-form chown is not in the installed helper. chown-code is.
+    sudo -n "$priv" chown-code /srv/git 2>/dev/null || true
     sudo -n "$priv" chmod 2770 /srv/git 2>/dev/null || true
     git init --bare "$bare"
     sudo -n "$priv" chown-code "$bare" 2>/dev/null || true
