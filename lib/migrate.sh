@@ -230,11 +230,10 @@ cmd_migrate_www() {
     exit 2
   fi
 
-  # One project name. The host role forces the stage suffix.
-  # "Kesler Lumber" on a live host becomes kesler-lumber.live.
+  # One project name, then the stage. Most hosts do all three stages.
+  # "Kesler Lumber" + test becomes kesler-lumber.test.
   # The old /var/www folder is context only. It is not a default.
   srcbase=${src##*/}
-  role=${ANDROMEDA_ROLE:-devel}
   printf "project name (example: Kesler Lumber): "
   read -r project
   base=$(slug "$project")
@@ -242,6 +241,15 @@ cmd_migrate_www() {
     echo "$PROG: project name required" >&2
     exit 2
   fi
+  defrole=${ANDROMEDA_ROLE:-devel}
+  printf "stage [devel/test/live] (%s): " "$defrole"
+  read -r role
+  role=${role:-$defrole}
+  role=$(printf '%s' "$role" | tr '[:upper:]' '[:lower:]' | sed 's/^[.]//')
+  case $role in
+    devel|test|live) ;;
+    *) echo "$PROG: stage must be devel, test, or live" >&2; exit 2 ;;
+  esac
   plat=$base
   product="${base}.${role}"
   host=$(hostname_for_site "$product")
