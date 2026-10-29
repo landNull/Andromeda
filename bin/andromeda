@@ -80,6 +80,9 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
 
   Preferred (verb first, reads as a sentence):
   $PROG pull site @host:plat/site to @host:plat/site
+  $PROG pull site plat/site to plat/site
+  $PROG push site @host:plat/site to @host:plat/site
+  $PROG push site plat/site to plat/site [hostname NAME]
   $PROG add platform NAME from URL branch BRANCH
   $PROG add site PLATFORM PRODUCT host HOST name TITLE pass PASS
   $PROG heal site PLATFORM PRODUCT
@@ -91,11 +94,21 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
   $PROG backup site PLATFORM PRODUCT
   $PROG restore site from DIR PLATFORM PRODUCT
   $PROG clone site SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD host HOST
+  $PROG migrate site SRC_PLAT SRC_PROD DEST_PLAT DEST_PROD [--keep]
+  $PROG migrate www
+  $PROG migrate-www
   $PROG debug site PLATFORM PRODUCT
   $PROG check site PLATFORM PRODUCT host HOST
   $PROG disable site PLATFORM PRODUCT
   $PROG enable site PLATFORM PRODUCT
   $PROG delete site PLATFORM PRODUCT force
+  $PROG lock platform NAME
+  $PROG unlock platform NAME
+  $PROG verify site PLATFORM PRODUCT
+  $PROG verify platform NAME
+  $PROG verify all
+  $PROG login-reset site PLATFORM PRODUCT
+  $PROG install site PLATFORM PRODUCT          # alias of add site
   $PROG remove platform NAME
   $PROG upgrade platform NAME no-pull
 
@@ -218,10 +231,11 @@ set -- $_rest
 # verb-first: pull site, add platform, heal site, list sites, promote platform
 # object-first forms (site pull, platform add) remain as aliases
 case $cmd in
-  pull|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test)
+  pull|push|add|heal|list|promote|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset|migrate)
     obj=${1:-}
     case $cmd in
       pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
+      push)    case $obj in site) cmd=site-push; shift ;; esac ;;
       add)     case $obj in platform) cmd=platform-add; shift ;; site) cmd=site-add; shift ;; esac ;;
       heal)    case $obj in site) cmd=site-heal; shift ;; all) cmd=heal-all; shift ;; esac ;;
       list)    case $obj in site|sites) cmd=site-list; shift ;; platform|platforms) cmd=platform-list; shift ;; esac ;;
@@ -236,10 +250,16 @@ case $cmd in
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
+      lock)    case $obj in platform) cmd=platform-lock; shift ;; esac ;;
+      unlock)  case $obj in platform) cmd=platform-unlock; shift ;; esac ;;
+      verify)  case $obj in site) cmd=verify; shift ;; platform|all|"") cmd=verify; shift ;; esac ;;
+      install) case $obj in site) cmd=site-add; shift ;; esac ;;
+      login-reset) case $obj in site) cmd=site-login-reset; shift ;; esac ;;
+      migrate) case $obj in www) cmd=migrate-www; shift ;; site) cmd=site-migrate; shift ;; esac ;;
     esac
     # sentence words become flags so the line reads as a sentence
     # pull keeps "to" as a separator between two @refs
-    if [ "$cmd" = "site-pull" ]; then
+    if [ "$cmd" = "site-pull" ] || [ "$cmd" = "site-push" ]; then
       _clean=
       for _a in "$@"; do
         [ "$_a" = "to" ] && continue
@@ -252,7 +272,7 @@ case $cmd in
       _next=
       for _a in "$@"; do
         case $_a in
-          to|from|host|name|pass|branch|role|git)
+          to|from|host|hostname|name|pass|branch|role|git)
             _clean="$_clean --$_a"
             ;;
           force|no-pull)
@@ -276,7 +296,7 @@ case $cmd in
       shift
     fi
     ;;
-  migrate-www|migrate)
+  migrate-www)
     if [ "${1:-}" = "heal" ]; then
       cmd="migrate-heal"
       shift
@@ -285,7 +305,7 @@ case $cmd in
   site|platform|backup|cron)
     verb=${1:-}
     case $verb in
-      list|add|upgrade|backup|restore|clone|pull|debug|heal|check|disable|enable|delete|remove|all)
+      list|add|upgrade|backup|restore|clone|pull|push|debug|heal|check|disable|enable|delete|remove|all|lock|unlock|verify|migrate)
         cmd="$cmd-$verb"
         shift
         ;;
@@ -320,6 +340,7 @@ dispatch() {
     platform-remove) cmd_platform_remove "$@" ;;
     migrate-www) cmd_migrate_www "$@" ;;
     migrate-heal) cmd_migrate_heal "$@" ;;
+    site-migrate) cmd_site_migrate "$@" ;;
     repo-ensure) cmd_repo_ensure "$@" ;;
     platform-upgrade) cmd_platform_upgrade "$@" ;;
     promote) cmd_promote "$@" ;;
@@ -328,6 +349,7 @@ dispatch() {
     site-restore) cmd_site_restore "$@" ;;
     site-clone) cmd_site_clone "$@" ;;
     site-pull) cmd_site_pull "$@" ;;
+    site-push) cmd_site_push "$@" ;;
     site-debug) cmd_site_debug "$@" ;;
     site-heal) cmd_site_heal "$@" ;;
     heal-all) cmd_heal_all ;;
@@ -336,6 +358,10 @@ dispatch() {
     site-disable) cmd_site_disable "$@" ;;
     site-enable) cmd_site_enable "$@" ;;
     site-delete) cmd_site_delete "$@" ;;
+    platform-lock) cmd_platform_lock "$@" ;;
+    platform-unlock) cmd_platform_unlock "$@" ;;
+    verify) cmd_verify "$@" ;;
+    site-login-reset) cmd_site_login_reset "$@" ;;
     inventory) cmd_inventory ;;
     ui)
       # Textual front-end. Repo layout is ../tui; installed copy is under share.
@@ -396,7 +422,7 @@ case $cmd in
     task_log "$cmd $*" "$rc"
     [ "$rc" -eq 0 ] || exit "$rc"
     ;;
-  site-add|site-backup|site-clone|site-pull|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port|test)
+  site-add|site-backup|site-clone|site-pull|site-push|site-heal|site-check|site-disable|site-enable|cron-all|platform-add|platform-lock|platform-unlock|verify|site-login-reset|site-migrate|migrate-www|migrate-heal|bee|d7|d7-migrate|d7-prep|d7-assess|d7-test|d7-apply|d7-convert|d7-attach|d7-toolkit|d7-stubs|d7-port|test)
     open_run_log "$cmd"
     rcfile=$(mktemp)
     {

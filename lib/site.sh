@@ -71,7 +71,14 @@ ensure_sites_php() {
 <?php
 EOF
   fi
-  if ! grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
+  # A hand edit can leave the host pointing at the old product.
+  # The command's product is the source of truth. Rewrite the line.
+  if grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
+    if ! grep -q "sites\['$host'\] = '$product'" "$dest" 2>/dev/null; then
+      echo "heal  sites.php $host -> $product"
+      as_root sed -i "s|\\$sites\['$host'\] = '.*';|\\$sites['$host'] = '$product';|" "$dest" || true
+    fi
+  else
     as_root tee -a "$dest" >/dev/null <<EOF
 \$sites['$host'] = '$product';
 EOF
@@ -125,7 +132,15 @@ ensure_db() {
     echo "$PROG: missing $cnf — write_secret first" >&2
     return 1
   fi
-  priv mysql-create "$db" "$user" "$cnf"
+  echo "db    create $db"
+  err=$(mktemp)
+  if ! priv mysql-create "$db" "$user" "$cnf" >"$err" 2>&1; then
+    echo "$PROG: mysql-create failed for $db" >&2
+    sed 's/^/    /' "$err" >&2
+    rm -f "$err"
+    return 1
+  fi
+  rm -f "$err"
 }
 
 ensure_vhost() {
@@ -183,16 +198,23 @@ cmd_site_add() {
   host=""
   title=""
   pass=""
+  no_install=0
   while [ $# -gt 0 ]; do
     case $1 in
       --host) host=$2; shift 2 ;;
       --name) title=$2; shift 2 ;;
       --pass) pass=$2; shift 2 ;;
+      --no-install) no_install=1; shift ;;
       *) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
     esac
   done
 
   resolve_site "$platform" "$product"
+
+  if platform_is_locked "$platform"; then
+    echo "$PROG: platform $platform is locked — refuse site-add (unlock platform first)" >&2
+    exit 1
+  fi
 
   role=$ANDROMEDA_ROLE
   if [ -z "$host" ]; then
@@ -239,10 +261,16 @@ cmd_site_add() {
   ensure_settings_php "$root" "$product"
   ensure_sites_php "$web" "$host" "$product"
   ensure_local_php "$web/sites/$product/settings.local.php" "$dsn" "$hostpat" "$role"
-  ensure_db "$db" "$user" "$pass"
+  # Database create can fail (priv, credentials). Do not abort site-add;
+  # a pull will import the source database afterward.
+  if ! ensure_db "$db" "$user" "$pass"; then
+    echo "$PROG: database not ready for $product — continuing" >&2
+  fi
 
   bee=$(bee_bin)
-  if [ "$DRYRUN" -eq 1 ]; then
+  if [ "$no_install" -eq 1 ]; then
+    echo "skip install for $product — pull will supply code, content, and db"
+  elif [ "$DRYRUN" -eq 1 ]; then
     echo "+ $bee --root=$web --site=$product install --db-name=$db --db-user=$user --auto"
   else
     if [ -f "$web/sites/$product/.andromeda-installed" ]; then
@@ -281,6 +309,7 @@ cmd_site_add() {
       as_root touch "$web/sites/$product/.andromeda-installed"
       run_root chown "$OWNER:$GROUP" "$web/sites/$product/.andromeda-installed"
     else
+      echo "install $product with bee"
       run_root find "$root/config/$product/active" -mindepth 1 -delete 2>/dev/null || true
       as_root -u "$OWNER" "$bee" --root="$web" --site="$product" install \
         --db-name="$db" --db-user="$user" --db-pass="$pass" \
@@ -341,4 +370,33 @@ cmd_site_delete() {
   fi
   run_root rm -f "$dest"
   echo "deleted $platform/$product (platform left in place)"
+}
+
+# login-reset — generate a one-time login link for the site admin.
+# Uses Bee when available; falls back to a pointer at the secret file.
+cmd_site_login_reset() {
+  platform=${1:-}
+  product=${2:-}
+  if [ -z "$platform" ] || [ -z "$product" ]; then
+    echo "usage: $PROG login-reset site PLATFORM PRODUCT" >&2
+    exit 2
+  fi
+  resolve_site "$platform" "$product"
+  bee=$(bee_bin)
+  if [ -z "$bee" ] || [ ! -x "$bee" ]; then
+    echo "$PROG: bee not found — admin credentials are in $(secret_file "$platform" "$product")" >&2
+    exit 1
+  fi
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ $bee --root=$web --site=$product user-login admin"
+    return 0
+  fi
+  # Prefer user-login / uli if the installed Bee supports it.
+  if as_root -u "$OWNER" "$bee" --root="$web" --site="$product" help 2>/dev/null | grep -q "user-login\|uli"; then
+    as_root -u "$OWNER" "$bee" --root="$web" --site="$product" user-login admin 2>/dev/null || \
+      as_root -u "$OWNER" "$bee" --root="$web" --site="$product" uli admin
+  else
+    echo "Bee has no user-login/uli. Admin pass is in $(secret_file "$platform" "$product")"
+    echo "Or run: bee --root=$web --site=$product user-pass admin NEWPASS"
+  fi
 }

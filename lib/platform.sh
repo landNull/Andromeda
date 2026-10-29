@@ -33,9 +33,12 @@ cmd_repo_ensure() {
   echo "repo $name"
   if [ ! -d "$bare" ]; then
     echo "bare $bare"
-    mkdir -p /srv/git
+    priv=${PRIV:-/usr/local/sbin/andromeda-priv}
+    sudo -n "$priv" mkdir /srv/git 2>/dev/null || mkdir -p /srv/git
+    sudo -n "$priv" chown "$OWNER:$GROUP" /srv/git 2>/dev/null || true
+    sudo -n "$priv" chmod 2770 /srv/git 2>/dev/null || true
     git init --bare "$bare"
-    chown -R "$OWNER:$OWNER" "$bare" 2>/dev/null || true
+    sudo -n "$priv" chown-code "$bare" 2>/dev/null || true
   fi
   if [ ! -d "$work/.git" ]; then
     echo "checkout $work"
@@ -43,9 +46,9 @@ cmd_repo_ensure() {
     chown -R "$OWNER:$GROUP" "$work" 2>/dev/null || true
   fi
   for b in devel test live; do
-    git -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -C "$work" checkout -B "$b"
+    git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -c safe.directory='*' -C "$work" checkout -B "$b"
   done
-  git -C "$work" checkout devel
+  git -c safe.directory='*' -C "$work" checkout devel
   state=/srv/andromeda/state/platforms
   mkdir -p "$state"
   cat > "$state/$name.json" << JSON
@@ -53,7 +56,7 @@ cmd_repo_ensure() {
   "platform": "$name",
   "bare": "$bare",
   "checkout": "$work",
-  "remote": "deploy@10.8.0.1:$bare"
+  "remote": "10.8.0.1:$bare"
 }
 JSON
   echo "repo ready $name"
@@ -129,7 +132,14 @@ cmd_platform_add() {
 
   if [ "$DRYRUN" -eq 0 ] && [ ! -e "$dest/.git" ]; then
     as_root -u "$OWNER" git -C "$dest" init
-    as_root -u "$OWNER" git -C "$dest" checkout -B "$branch" 2>/dev/null || true
+    as_root -u "$OWNER" git -C "$dest" add -A 2>/dev/null || true
+    if ! as_root -u "$OWNER" git -C "$dest" rev-parse HEAD >/dev/null 2>&1; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "init platform $name" --allow-empty || true
+    fi
+    for b in devel test live; do
+      as_root -u "$OWNER" git -C "$dest" branch "$b" 2>/dev/null || true
+    done
+    as_root -u "$OWNER" git -C "$dest" checkout "$branch" 2>/dev/null || true
   fi
 
   echo "platform $name ready at $dest"
@@ -276,3 +286,54 @@ cmd_platform_remove() {
   echo "backup  $snap/tree.tgz"
 }
 
+
+# Platform lock — Aegir-style: prevent new site provisioning.
+# Stored as a flag file next to the platform json.
+
+platform_lock_file() {
+  name=$1
+  echo "/srv/andromeda/state/platforms/${name}.lock"
+}
+
+platform_is_locked() {
+  name=$1
+  [ -f "$(platform_lock_file "$name")" ]
+}
+
+cmd_platform_lock() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG lock platform NAME" >&2
+    exit 2
+  fi
+  dest=$PLATFORMS/$name
+  if [ ! -d "$dest" ]; then
+    echo "$PROG: platform $name not found" >&2
+    exit 1
+  fi
+  lock=$(platform_lock_file "$name")
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ touch $lock"
+    return 0
+  fi
+  mkdir -p "$(dirname "$lock")" 2>/dev/null || run_root mkdir -p "$(dirname "$lock")"
+  touch "$lock" 2>/dev/null || run_root touch "$lock"
+  echo "locked platform $name (no new sites)"
+}
+
+cmd_platform_unlock() {
+  name=${1:-}
+  name=$(slug "$name")
+  if [ -z "$name" ]; then
+    echo "usage: $PROG unlock platform NAME" >&2
+    exit 2
+  fi
+  lock=$(platform_lock_file "$name")
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ rm -f $lock"
+    return 0
+  fi
+  rm -f "$lock" 2>/dev/null || run_root rm -f "$lock"
+  echo "unlocked platform $name"
+}

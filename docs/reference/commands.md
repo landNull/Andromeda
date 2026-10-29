@@ -5,7 +5,10 @@ andro (Andromeda) accepts verb-first commands. Object-first forms remain as alia
 ## Preferred form
 
 ```
-andro pull site @bjorn:ecom/kl_test to @knarr:ecom/kl_devel
+andro pull site @bjorn:ecom/keslerlumber.live to @knarr:ecom/keslerlumber.devel
+andro push site ecom/keslerlumber.devel to ecom/keslerlumber.test
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live hostname keslerlumber.net
 andro add platform ecom
 andro add site ecom kl_devel
 andro heal site ecom kl_devel
@@ -21,6 +24,13 @@ andro check site ecom kl_devel
 andro disable site ecom kl_devel
 andro enable site ecom kl_devel
 andro delete site ecom kl_devel
+andro lock platform ecom
+andro unlock platform ecom
+andro verify site ecom kl_devel
+andro verify platform ecom
+andro verify all
+andro login-reset site ecom kl_devel
+andro install site ecom kl_devel          # alias of add site
 andro remove platform ecom
 andro upgrade platform ecom
 ```
@@ -82,4 +92,149 @@ Every reload runs `apache2ctl configtest` first. A failed configtest refuses the
 
 ## pull site
 
-`pull site` prefers `git pull --ff-only` for the platform code. If the dest is not a checkout, it rsyncs the web tree excluding runtime directories. Content directories are rsynced directly. The database is a Bee export on the source, an rsync of the dump, and a Bee import on the dest. `settings.local.php` is overwritten in one pass.
+`pull site` moves each piece with the tool that owns it.
+
+A second run heals a hand edit. The destination name in the command is the source of truth. A renamed directory with the same stem (or the product `sites.php` maps the host to) is moved into place, with its files and config. A wrong `sites.php` line for that host is rewritten. `settings.local.php` is written again from the template.
+
+
+| Piece | Tool |
+|---|---|
+| Code | git bundle, then checkout of the stage branch |
+| Images | rsync of image files only |
+| Environment | one write of `settings.local.php` (database array, trusted host, cache) |
+| Database | `bee db-export` on the source, `bee db-import` on the dest |
+| Configuration | source active JSON into dest staging, then `bee config-import` |
+
+The configuration step is the Backdrop path. JSON lands in staging. Bee applies it. Environment values stay in `settings.local.php` and are not in the JSON.
+
+## Aegir-aligned verbs
+
+Andromeda is not bound to the Drupal stack. These verbs exist where the Aegir meaning still fits:
+
+- `verify site|platform|all` — checks configuration, rebuilds vhosts (configtest gated), and enforces ownership on site directories. Safe, idempotent.
+- `lock platform NAME` / `unlock platform NAME` — prevents (or allows) new site provisioning on a platform. A locked platform refuses `add site` / `install site`.
+- `login-reset site PLATFORM PRODUCT` — asks Bee for a one-time admin login link when the installed Bee supports `user-login`/`uli`; otherwise points at the secret file.
+- `install site` — alias of `add site`. The Backdrop install path remains the same.
+
+Existing verbs already cover the rest of the Aegir set:
+
+| Aegir     | Andromeda                          |
+|-----------|------------------------------------|
+| verify    | `verify` (new)                     |
+| lock      | `lock platform` (new)              |
+| unlock    | `unlock platform` (new)            |
+| install   | `add site` / `install site`        |
+| disable   | `disable site`                     |
+| enable    | `enable site`                      |
+| backup    | `backup site`                      |
+| restore   | `restore site`                     |
+| clone     | `clone site`                       |
+| migrate   | `migrate site` (between platforms) / `migrate www` (from /var/www) |
+| delete    | `delete site` / `remove platform`  |
+| login-reset | `login-reset site` (new)         |
+
+## migrate
+
+Two commands. They do not overlap.
+
+`migrate www` (and the hyphen form `migrate-www`) is the only command that reads `/var/www`. It lists standalone Backdrop docroots and asks for one project name. `Kesler Lumber` becomes `kesler-lumber`. It then asks for the stage (`devel`, `test`, or `live`), defaulting to the host role. Most hosts do all three stages. `Kesler Lumber` plus `test` becomes `kesler-lumber.test`. Platform, site directory, config store, and database all use that name. The old `/var/www` folder is shown as context and is not a default. A hostname line can override the derived host (`kesler-lumber.com` for `.live`). It copies the tree into `/srv/platforms/<name>/web`, converts the hashed config store, and updates a chosen vhost. `migrate www heal` (or `migrate-www heal`) re-scans and repairs an already-migrated platform.
+
+`migrate site SRC_PLATFORM SRC_PRODUCT DEST_PLATFORM DEST_PRODUCT` moves a site that already lives under `/srv/platforms` from one platform to another. Both platforms must already exist. It reuses the clone path (backup, add, restore) and then deletes the source site. Pass `--keep` to leave the source in place. It never touches `/var/www`.
+
+```
+andro migrate www
+andro migrate-www
+andro migrate site ecom kl_test ecom kl_devel
+andro migrate site ecom kl_test otherplat kl_copy --keep
+```
+
+## pull and push
+
+Both accept the same ref grammar.
+
+Full form (canonical, works everywhere):
+
+```
+andro pull site @bjorn:ecom/keslerlumber.live to @knarr:ecom/keslerlumber.devel
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live
+```
+
+Short form (local only, both ends on this host):
+
+```
+andro push site ecom/keslerlumber.devel to ecom/keslerlumber.test
+```
+
+A bare `plat/site` means this host. Mixed forms are allowed.
+
+`to` and `+` are both accepted between the two refs.
+
+## hostname rule
+
+The site directory name encodes the stage. Hostname is derived from it:
+
+- `keslerlumber.devel` → hostname `keslerlumber.devel`
+- `keslerlumber.test` → hostname `keslerlumber.test`
+- `keslerlumber.live` → hostname `keslerlumber.com` (strip `.live`, append `.com`)
+
+Override with `hostname NAME` or `--host NAME`:
+
+```
+andro push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live hostname keslerlumber.net
+```
+
+`push` is the forward counterpart of `pull`: code, content, and database move. `promote` remains the git-only fast-forward on a target host.
+
+## platform git and stage branches
+
+The site directory suffix is the stage and the default git branch:
+
+- `keslerlumber.devel` → branch `devel`
+- `keslerlumber.test` → branch `test`
+- `keslerlumber.live` → branch `live`
+
+On the first local push between stages (for example `push site ecom/keslerlumber.devel to ecom/keslerlumber.test`), Andromeda creates the platform repo at `/srv/platforms/<plat>` if it does not exist, seeds the `devel`, `test`, and `live` branches, and checks out the destination stage. The same init runs on a local pull destination and on a remote push destination. `platform-add` also seeds the three branches when it creates a new platform.
+
+## push prefers git for code
+
+Local push between stages on the same platform (`push site ecom/keslerlumber.devel to ecom/keslerlumber.test`):
+
+1. Commit any changes on the source stage branch (`devel`).
+2. Check out the destination stage branch (`test`).
+3. Merge the source stage into it.
+4. Rsync site content (`files/`, `files_private/`, `config/`) and move the database with Bee. Those paths are gitignored.
+
+Remote push (`push site @knarr:ecom/keslerlumber.test to @bjorn:ecom/keslerlumber.live`):
+
+1. WireGuard comes up if either end is not local.
+2. Commit on the source stage, push that branch over ssh to the destination platform repo, and merge it into the destination stage (`live`) on the far side.
+3. If the git push fails, the web tree is rsynced as a fallback.
+4. Content and database move by rsync and Bee, as on a pull.
+5. Hostname for a `.live` site is `project.com` unless `hostname NAME` or `--host NAME` is given.
+
+## Stage from the site name
+
+On pull and push, the destination folder suffix is the stage unless `--role` is given:
+
+- `keslerlumber.devel` → role and branch `devel`, hostname `keslerlumber.devel`
+- `keslerlumber.test` → role and branch `test`, hostname `keslerlumber.test`
+- `keslerlumber.live` → role and branch `live`, hostname `keslerlumber.com`
+
+`hostname NAME` or `--host NAME` overrides the hostname. A failed `site-add` no longer aborts the pull; code, content, and the database still move. The web-tree rsync excludes `sites.php` so the destination host mapping survives.
+
+## Tunnel addresses
+
+SSH is only open on the WireGuard net. Named hosts resolve before ssh and rsync:
+
+- `bjorn` → `10.8.0.1`
+- `knarr` → `10.8.0.2`
+
+Override in `/etc/andromeda.conf` with `TUNNEL_BJORN` and `TUNNEL_KNARR`.
+
+SSH on the tunnel listens on port 7022. Override with `SSH_PORT`.
+
+Remote rsync and ssh run as the operator, using the operator's key. They do not run as `deploy`. Deploy is nologin and has no password. `BatchMode` is on, so a missing key fails instead of prompting.
+
+## What moves how
+
+Code moves by git over the tunnel (`ssh://10.8.0.1:7022/srv/platforms/<platform>`). Image files (jpg, jpeg, png, gif, webp, svg, ico, bmp) move by rsync. Everything else is git. The database moves by Bee.

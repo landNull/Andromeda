@@ -1,6 +1,11 @@
 # shellcheck shell=sh
-# Migrate a full Backdrop docroot from /var/www into a Andromeda platform.
-# The docroot lands at /srv/platforms/<name>/web, not under web/sites.
+# Two distinct migrate paths:
+#   migrate-www (or migrate www) — interactive move of a standalone Backdrop
+#     docroot from /var/www into a new platform under $PLATFORMS (/srv/platforms).
+#     This is the only command that reads /var/www.
+#   migrate site SRC DEST — move a site that already lives under $PLATFORMS
+#     from one platform to another. Never touches /var/www.
+# The docroot from migrate-www lands at /srv/platforms/<name>/web.
 
 is_docroot() {
   d=$1
@@ -9,33 +14,6 @@ is_docroot() {
   return 0
 }
 
-
-
-_write_default_vhost() {
-  plat=$1
-  web=$2
-  def=/etc/apache2/sites-available/000-default.conf
-  [ -f "$def" ] || return 0
-  echo "fix   000-default.conf -> $web"
-  sudo tee "$def" >/dev/null << EOF
-<VirtualHost *:80>
-  ServerName ${plat}.live
-  DocumentRoot $web
-  <Directory $web>
-    Options FollowSymLinks
-    AllowOverride All
-    Require all granted
-  </Directory>
-  <Directory $PLATFORMS/$plat/config>
-    Require all denied
-  </Directory>
-  <Directory $PLATFORMS/$plat/files_private>
-    Require all denied
-  </Directory>
-</VirtualHost>
-EOF
-  sudo a2ensite 000-default.conf >/dev/null 2>&1 || true
-}
 
 
 _map_site() {
@@ -48,7 +26,7 @@ _map_site() {
     echo "<?php" | sudo tee "$dest" >/dev/null
   fi
   if ! grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
-    echo "map   $host -> $product"
+    echo "Map     $host -> $product"
     echo "\$sites['$host'] = '$product';" | sudo tee -a "$dest" >/dev/null
   else
     echo "map   $host already set"
@@ -56,13 +34,13 @@ _map_site() {
   # Single-site installs keep settings.php at the web root. Copy it into the product
   # so the host map has a folder to land on.
   if [ -f "$web/settings.php" ] && [ ! -f "$web/sites/$product/settings.php" ]; then
-    echo "copy  settings.php -> sites/$product/"
+    echo "Copy    settings.php -> sites/$product/"
     sudo cp "$web/settings.php" "$web/sites/$product/settings.php"
   fi
   localphp=$web/sites/$product/settings.local.php
   if [ ! -f "$localphp" ]; then
     hostpat=$(printf '%s' "$host" | sed 's/\./\\\\./g')
-    echo "write trusted host in settings.local.php"
+    echo "Write   settings.local.php  trusted host $host"
     sudo tee "$localphp" >/dev/null << EOF
 <?php
 \$settings['trusted_host_patterns'] = array('^${hostpat}$');
@@ -225,20 +203,62 @@ cmd_migrate_www() {
     exit 2
   fi
 
-  printf "new platform name: "
-  read -r plat
+  # Platform, then site, then stage. The old folder is context only.
+  # Site is kesler-lumber.test. Host defaults to www.kesler-lumber.test.
+  # The form the user does not keep redirects to the form they keep.
+  srcbase=${src##*/}
+  plat=$(prompt_line "Platform name" "" \
+    "A platform holds one or more sites under /srv/platforms/<name>/web." "example: kesler-lumber")
   plat=$(slug "$plat")
   if [ -z "$plat" ]; then
     echo "$PROG: platform name required" >&2
     exit 2
   fi
+  product=$(prompt_line "Site" "$plat" \
+    "The directory under the platform. Hyphenated. Stage is next.
+/srv/platforms/$plat/web/sites/<name>")
+  product=$(slug "$product")
+  if [ -z "$product" ]; then
+    echo "$PROG: site name required" >&2
+    exit 2
+  fi
+  defrole=${ANDROMEDA_ROLE:-devel}
+  role=$(prompt_line "Stage [devel/test/live]" "$defrole" \
+    "devel, test, or live. Enter keeps the host role.")
+  role=$(printf '%s' "$role" | tr '[:upper:]' '[:lower:]' | sed 's/^[.]//')
+  case $role in
+    devel|test|live) ;;
+    *) echo "$PROG: stage must be devel, test, or live" >&2; exit 2 ;;
+  esac
+  product="${product}.${role}"
+  bare=$product
+  www="www.${product}"
+  echo "Hostname"
+  echo "  The one you do not pick redirects to the one you pick."
+  echo "  1) $bare"
+  echo "  2) $www"
+  printf "number [2]: "
+  read -r pick
+  pick=${pick:-2}
+  case $pick in
+    1) host=$bare; redirect=$www ;;
+    2) host=$www;  redirect=$bare ;;
+    *) echo "$PROG: pick 1 or 2" >&2; exit 2 ;;
+  esac
+  db=$(db_name "$product" "$role")
+  echo "source   $src  (was $srcbase)"
+  echo "platform $plat"
+  echo "site     /srv/platforms/$plat/web/sites/$product"
+  echo "host     $host"
+  echo "redirect $redirect -> $host"
+  echo "db       $db"
+  printf "Use these? [y/N] "
+  read -r ok
+  [ "$ok" = "y" ] || { echo "stopped"; return 0; }
 
   dest=$PLATFORMS/$plat
   web=$dest/web
-  echo "migrate $src -> $web"
-  printf "sudo to copy? [y/N] "
-  read -r ok
-  [ "$ok" = "y" ] || { echo "stopped"; return 0; }
+  echo "Migrate $src -> $web"
 
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ platform-add $plat"
@@ -260,68 +280,63 @@ cmd_migrate_www() {
   # Standalone installs keep config under files/config_HASH and modules in
   # the docroot. Move both into the platform store so the site matches a
   # native Andromeda site.
-  _convert_standalone "$dest" "$web" "$plat"
+  _convert_standalone "$dest" "$web" "$product"
 
-  echo "platform $plat"
-  echo "web root  $web"
+  echo "Platform $plat"
+  echo "Web root  $web"
 
   avail=/etc/apache2/sites-available
   if [ ! -d "$avail" ]; then
     echo "no $avail"
     return 0
   fi
-  echo "apache configs"
-  j=0
-  alist=""
-  for c in "$avail"/*.conf; do
-    [ -f "$c" ] || continue
-    j=$((j + 1))
-    base=${c##*/}
-    alist="$alist $j:$base"
-    echo "  $j) $base"
-  done
-  if [ "$j" -eq 0 ]; then
-    echo "no vhost to update"
-    return 0
-  fi
-  printf "vhost number: "
-  read -r vp
-  conf=""
-  for item in $alist; do
-    n=${item%%:*}
-    name=${item#*:}
-    if [ "$n" = "$vp" ]; then
-      conf=$avail/$name
-      break
+  conf=$avail/${product}.conf
+  echo "Write   $conf"
+  sudo tee "$conf" >/dev/null << EOF
+<VirtualHost *:80>
+  ServerName $host
+  DocumentRoot $web
+  <Directory $web>
+    Options FollowSymLinks
+    AllowOverride All
+    Require all granted
+  </Directory>
+  <Directory $PLATFORMS/$plat/config>
+    Require all denied
+  </Directory>
+  <Directory $PLATFORMS/$plat/files_private>
+    Require all denied
+  </Directory>
+</VirtualHost>
+
+<VirtualHost *:80>
+  ServerName $redirect
+  Redirect permanent / http://$host/
+</VirtualHost>
+EOF
+  echo "Enable  ${product}.conf"
+  sudo a2ensite "${product}.conf" >/dev/null 2>&1 || true
+  # Old edge-case confs stay in sites-available. Disable them.
+  for en in /etc/apache2/sites-enabled/*.conf; do
+    [ -f "$en" ] || continue
+    name=${en##*/}
+    [ "$name" = "${product}.conf" ] && continue
+    [ "$name" = "000-default.conf" ] && continue
+    if grep -q "/var/www\|ServerName ${srcbase}" "$en" 2>/dev/null; then
+      echo "Disable $name  (left in sites-available)"
+      echo "        remove it with: sudo rm $avail/$name"
+      sudo a2dissite "$name" >/dev/null 2>&1 || true
     fi
   done
-  if [ -z "$conf" ]; then
-    echo "no such vhost"
-    return 0
-  fi
-
-  printf "ServerName [$plat.live]: "
-  read -r host
-  host=${host:-$plat.live}
-
-  echo "edit $conf"
-  sudo sed -i "s|DocumentRoot .*|DocumentRoot $web|" "$conf"
-  if grep -q "^[[:space:]]*ServerName" "$conf"; then
-    sudo sed -i "s|^[[:space:]]*ServerName .*|  ServerName $host|" "$conf"
-  else
-    sudo sed -i "/<VirtualHost/a\  ServerName $host" "$conf"
-  fi
-  sudo a2ensite "${conf##*/}" >/dev/null 2>&1 || true
   _ensure_apache_mysql
-  echo "reload apache"
+  echo "Reload  Apache"
   if apache_reload; then
     reloaded=1
   else
     reloaded=0
   fi
 
-  _map_site "$web" "$host" "$plat"
-  _write_default_vhost "$plat" "$web"
+  _map_site "$web" "$host" "$product"
   mkdir -p /srv/andromeda/state/migrate
   : > /srv/andromeda/state/migrate/$plat
   _migrate_report "$plat" "$web" "$host" "$conf" "$reloaded"
@@ -403,4 +418,96 @@ _migrate_report() {
     printf '  \033[31m✘ done with failures\033[0m  see the lines above\n'
   fi
   echo
+}
+
+# migrate site — move a site between platforms under $PLATFORMS (/srv/platforms).
+# Does not touch /var/www. That path is migrate-www only.
+#
+# Default is a true move: the source site is deleted after the destination
+# is confirmed. Pass --keep to leave the source in place (copy).
+cmd_site_migrate() {
+  keep=0
+  host=""
+  pass=""
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --keep) keep=1; shift ;;
+      --host) host=$2; shift 2 ;;
+      --pass) pass=$2; shift 2 ;;
+      --) shift; break ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
+
+  src_p=${1:-}
+  src_s=${2:-}
+  dst_p=${3:-}
+  dst_s=${4:-}
+  if [ -z "$src_p" ] || [ -z "$src_s" ] || [ -z "$dst_p" ] || [ -z "$dst_s" ]; then
+    echo "usage: $PROG migrate site SRC_PLATFORM SRC_PRODUCT DEST_PLATFORM DEST_PRODUCT [--host HOST] [--keep]" >&2
+    echo "  both platforms must already exist under $PLATFORMS" >&2
+    exit 2
+  fi
+
+  # Both ends must resolve under $PLATFORMS. resolve_site exits if not.
+  resolve_site "$src_p" "$src_s"
+  src_root=$root
+  src_web=$web
+  src_platform=$platform
+  src_product=$product
+
+  # Destination platform must exist (we do not create it).
+  if [ ! -d "$PLATFORMS/$dst_p" ]; then
+    echo "$PROG: destination platform $dst_p does not exist under $PLATFORMS" >&2
+    echo "$PROG: add platform $dst_p first" >&2
+    exit 1
+  fi
+
+  if [ "$src_platform" = "$dst_p" ] && [ "$src_product" = "$dst_s" ]; then
+    echo "$PROG: source and destination are the same site" >&2
+    exit 2
+  fi
+
+  echo "migrate $src_platform/$src_product -> $dst_p/$dst_s"
+  if [ "$keep" -eq 1 ]; then
+    echo "  --keep: source will remain"
+  else
+    echo "  source will be deleted after destination is ready"
+  fi
+
+  # Reuse the clone path (backup + add + restore). It already constrains
+  # both ends to $PLATFORMS via resolve_site.
+  clone_args="$src_platform $src_product $dst_p $dst_s"
+  if [ -n "$host" ]; then
+    clone_args="$clone_args --host $host"
+  fi
+  if [ -n "$pass" ]; then
+    clone_args="$clone_args --pass $pass"
+  fi
+  # shellcheck disable=SC2086
+  cmd_site_clone $clone_args || {
+    echo "$PROG: clone step failed — source left untouched" >&2
+    exit 1
+  }
+
+  if [ "$keep" -eq 1 ]; then
+    echo "migrated (kept source) $src_platform/$src_product -> $dst_p/$dst_s"
+    return 0
+  fi
+
+  # True move: remove the source site. site-delete refuses on live without --force.
+  echo "removing source $src_platform/$src_product"
+  if [ "$ANDROMEDA_ROLE" = live ]; then
+    cmd_site_delete --force "$src_platform" "$src_product" || {
+      echo "$PROG: destination is ready but source delete failed — run delete site manually" >&2
+      return 1
+    }
+  else
+    cmd_site_delete "$src_platform" "$src_product" || {
+      echo "$PROG: destination is ready but source delete failed — run delete site manually" >&2
+      return 1
+    }
+  fi
+  echo "migrated $src_platform/$src_product -> $dst_p/$dst_s"
 }

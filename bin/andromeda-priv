@@ -27,7 +27,7 @@ fi
 path_ok() {
   p=$1
   case $p in
-    "$PLATFORMS"|"$PLATFORMS"/*|"$ANDROMEDA_ROOT"|"$ANDROMEDA_ROOT"/*) return 0 ;;
+    "$PLATFORMS"|"$PLATFORMS"/*|"$ANDROMEDA_ROOT"|"$ANDROMEDA_ROOT"/*|/srv/git|/srv/git/*) return 0 ;;
     *)
       echo "$PROG: refuse path $p" >&2
       return 1
@@ -71,6 +71,20 @@ case $cmd in
     [ $# -gt 0 ] || exit 2
     for p in "$@"; do path_ok "$p" || exit 1; done
     mkdir -p "$@"
+    ;;
+  # crdir: chown OWNER:GROUP path [path ...]
+  chown)
+    spec=$1
+    shift
+    printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_]+:[A-Za-z0-9_]+$' || exit 2
+    [ $# -gt 0 ] || exit 2
+    for p in "$@"; do path_ok "$p" || exit 1; done
+    chown "$spec" "$@"
+    ;;
+  setgid)
+    [ $# -gt 0 ] || exit 2
+    for p in "$@"; do path_ok "$p" || exit 1; done
+    chmod g+s "$@"
     ;;
   setacl)
     [ $# -gt 0 ] || exit 2
@@ -137,12 +151,26 @@ case $cmd in
     [ -f "$cnf" ] || { echo "$PROG: missing $cnf" >&2; exit 1; }
     pass=$(sed -n 's/^password=//p' "$cnf" | head -n 1)
     [ -n "$pass" ] || { echo "$PROG: no password= in $cnf" >&2; exit 1; }
-    mysql -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-    mysql -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';"
+    # Root connects by socket. A missing binary or a password-only root
+    # fails here. Print the real mysql line so the pull can show it.
+    mysql_bin=$(command -v mysql || true)
+    [ -z "$mysql_bin" ] && [ -x /usr/bin/mysql ] && mysql_bin=/usr/bin/mysql
+    [ -n "$mysql_bin" ] || { echo "$PROG: mysql not on PATH" >&2; exit 1; }
+    if ! "$mysql_bin" -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1; then
+      echo "$PROG: create database $db failed" >&2
+      exit 1
+    fi
+    if ! "$mysql_bin" -e "CREATE USER IF NOT EXISTS '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1; then
+      echo "$PROG: create user $user failed" >&2
+      exit 1
+    fi
     # IF NOT EXISTS leaves an old password from a previous site-add
-    mysql -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$pass';" || \
-      mysql -e "SET PASSWORD FOR '$user'@'localhost' = PASSWORD('$pass');"
-    mysql -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;"
+    "$mysql_bin" -e "ALTER USER '$user'@'localhost' IDENTIFIED BY '$pass';" 2>&1 || \
+      "$mysql_bin" -e "SET PASSWORD FOR '$user'@'localhost' = PASSWORD('$pass');" 2>&1 || true
+    if ! "$mysql_bin" -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;" 2>&1; then
+      echo "$PROG: grant on $db failed" >&2
+      exit 1
+    fi
     ;;
   mysql-drop)
     db=$1 user=$2
@@ -215,7 +243,7 @@ EOF
     chmod 0640 "$dest" 2>/dev/null || true
     ;;
   *)
-    echo "usage: $PROG chown-files|chown-code|chown-secret|chmod|mkdir|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
+    echo "usage: $PROG chown-files|chown-code|chown-secret|chown|chmod|mkdir|setgid|setacl|setacl-secret|apache-reload|a2ensite|vhost-write|settings-write|mysql-create|mysql-drop|tail-log" >&2
     exit 2
     ;;
 esac

@@ -108,6 +108,69 @@ branch_for_role() {
   esac
 }
 
+# stage_from_site PRODUCT
+# The suffix of the site directory is the stage and the default branch.
+# keslerlumber.devel → devel
+# keslerlumber.test  → test
+# keslerlumber.live  → live
+# No suffix → branch_for_role.
+stage_from_site() {
+  product=$1
+  case $product in
+    *.devel) printf '%s\n' devel ;;
+    *.test)  printf '%s\n' test ;;
+    *.live)  printf '%s\n' live ;;
+    *)       branch_for_role ;;
+  esac
+}
+
+# ensure_platform_git PLATFORM STAGE
+# Creates a local git repo on the platform if missing, seeds the three
+# stage branches, and checks out STAGE. Idempotent.
+ensure_platform_git() {
+  plat=$1
+  stage=$2
+  dest=$PLATFORMS/$plat
+  if [ ! -d "$dest" ]; then
+    echo "$PROG: platform $dest missing — cannot init git" >&2
+    return 1
+  fi
+  if [ -z "$stage" ]; then
+    stage=devel
+  fi
+  if [ ! -e "$dest/.git" ]; then
+    echo "git   init $dest"
+    if [ "${DRYRUN:-0}" -eq 1 ]; then
+      echo "+ git -C $dest init"
+      echo "+ seed branches devel test live"
+      echo "+ checkout $stage"
+      return 0
+    fi
+    as_root -u "$OWNER" git -C "$dest" init
+    write_gitignore "$dest/.gitignore"
+    # Empty repo has no HEAD yet. Create an initial commit so branches
+    # can be named, then seed the stage branches from it.
+    as_root -u "$OWNER" git -C "$dest" add -A 2>/dev/null || true
+    if ! as_root -u "$OWNER" git -C "$dest" rev-parse HEAD >/dev/null 2>&1; then
+      as_root -u "$OWNER" git -C "$dest" commit -m "init platform $plat" --allow-empty || true
+    fi
+    for b in devel test live; do
+      as_root -u "$OWNER" git -C "$dest" branch "$b" 2>/dev/null || true
+    done
+  fi
+  if [ "${DRYRUN:-0}" -eq 1 ]; then
+    echo "+ git -C $dest checkout $stage"
+    return 0
+  fi
+  if ! as_root -u "$OWNER" git -C "$dest" show-ref --verify --quiet "refs/heads/$stage"; then
+    echo "git   create branch $stage"
+    as_root -u "$OWNER" git -C "$dest" checkout -B "$stage" 2>/dev/null || true
+  else
+    as_root -u "$OWNER" git -C "$dest" checkout "$stage" 2>/dev/null || true
+  fi
+  echo "git   $plat on branch $stage"
+}
+
 is_tty() {
   [ -t 0 ] && [ -t 2 ]
 }
@@ -673,13 +736,102 @@ need_crdir() {
   fi
 }
 
+# hostname_for_site PRODUCT [OVERRIDE]
+# Directory name encodes the stage.
+# .live → strip the suffix and append .com (keslerlumber.live → keslerlumber.com)
+# everything else → the directory name is the hostname
+# (keslerlumber.devel, keslerlumber.test).
+# An explicit override wins.
+hostname_for_site() {
+  product=$1
+  override=${2:-}
+  if [ -n "$override" ]; then
+    printf '%s' "$override"
+    return 0
+  fi
+  case $product in
+    *.live)
+      printf '%s.com' "${product%.live}"
+      ;;
+    *)
+      printf '%s' "$product"
+      ;;
+  esac
+}
+
+# True when the host ref means this machine.
+is_local_host() {
+  h=${1:-}
+  case $h in
+    ""|local|localhost|127.0.0.1) return 0 ;;
+  esac
+  me=$(hostname 2>/dev/null || true)
+  short=$(hostname -s 2>/dev/null || true)
+  [ -n "$me" ] && [ "$h" = "$me" ] && return 0
+  [ -n "$short" ] && [ "$h" = "$short" ] && return 0
+  return 1
+}
+
+# tunnel_host NAME
+# SSH is only open on the WireGuard net. Named hosts resolve to their
+# tunnel address. Override in /etc/andromeda.conf:
+#   TUNNEL_BJORN=10.8.0.1
+#   TUNNEL_KNARR=10.8.0.2
+tunnel_host() {
+  name=$1
+  case $name in
+    bjorn) printf '%s\n' "${TUNNEL_BJORN:-10.8.0.1}" ;;
+    knarr) printf '%s\n' "${TUNNEL_KNARR:-10.8.0.2}" ;;
+    *)     printf '%s\n' "$name" ;;
+  esac
+}
+
+# ssh_port
+# WireGuard SSH listens on 7022. Override with SSH_PORT in
+# /etc/andromeda.conf.
+ssh_port() {
+  printf '%s\n' "${SSH_PORT:-7022}"
+}
+
+# ssh_cmd HOST CMD...
+# Opens SSH on the tunnel port as the operator. BatchMode so a missing
+# key fails instead of asking for deploy's password. Deploy is nologin
+# and has no password.
+ssh_cmd() {
+  ssh_target=$1
+  shift
+  ssh -p "$(ssh_port)" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$ssh_target" "$@"
+}
+
+# remote_rsync SRC DST
+# Rsync over the tunnel as the operator, so the operator's key is used.
+# Do not sudo -u deploy for this. Deploy cannot authenticate.
+remote_rsync() {
+  port=$(ssh_port)
+  # --omit-dir-times: the operator cannot utime deploy-owned directories.
+  # Exit 23 is "some attrs were not transferred". The files arrived.
+  rsync -a --delete --omit-dir-times \
+    -e "ssh -p $port -o BatchMode=yes -o StrictHostKeyChecking=accept-new" "$@"
+  rc=$?
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 23 ]; then
+    return 0
+  fi
+  return "$rc"
+}
+
 slug() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/^-*//;s/-*$//'
+  # Spaces and other marks become hyphens. Runs collapse.
+  # "Kesler Lumber" -> kesler-lumber. Underscores stay.
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9._-' '-' | sed 's/-\+/-/g;s/^-*//;s/-*$//'
 }
 
 db_name() {
   product=$1
   role=${2:-$ANDROMEDA_ROLE}
+  # keslerlumber.devel + role devel must not become keslerlumber_devel_devel
+  case $product in
+    *."$role") product=${product%."$role"} ;;
+  esac
   n="${DB_PREFIX}${product}_${role}"
   printf '%s' "$n" | tr -c 'a-z0-9_' '_' | cut -c1-64
 }
