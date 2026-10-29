@@ -333,6 +333,12 @@ pull_config() {
   echo "config active seed from staging"
   as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
   chown_files "$active" 2>/dev/null || true
+  n=$(find "$active" -name '*.json' 2>/dev/null | wc -l)
+  if [ "$n" -lt 10 ]; then
+    echo "config active seed failed — $n JSON files in $active" >&2
+  else
+    echo "config active seeded ($n files)"
+  fi
   echo "config andro bee import"
   if ! bee_site_cmd "$root/web" "$product" -y config-import; then
     echo "$PROG: andro bee config-import failed for $product" >&2

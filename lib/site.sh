@@ -36,25 +36,23 @@ ensure_settings_php() {
 <?php
 EOF
   fi
-  # Compute the relative path from the site directory to the store.
-  # A multi-site settings.php is two levels below the web root.
-  # A single-site settings.php is at the web root. realpath decides.
-  site_dir="$web/sites/$product"
-  rel_active=$(realpath --relative-to="$site_dir" "$root/config/$product/active" 2>/dev/null || echo "../../config/$product/active")
-  rel_staging=$(realpath --relative-to="$site_dir" "$root/config/$product/staging" 2>/dev/null || echo "../../config/$product/staging")
-  rel_private=$(realpath --relative-to="$site_dir" "$root/files_private/$product" 2>/dev/null || echo "../../files_private/$product")
-  rel_files=$(realpath --relative-to="$site_dir" "$root/files/$product" 2>/dev/null || echo "../../files/$product")
-  if ! grep -q "$rel_active" "$dest" 2>/dev/null; then
+  # Absolute paths. Backdrop docs support them. Relative paths
+  # resolve from the site directory and break when the depth changes.
+  abs_active="$root/config/$product/active"
+  abs_staging="$root/config/$product/staging"
+  abs_private="$root/files_private/$product"
+  abs_files="$root/files/$product"
+  if ! grep -q "$abs_active" "$dest" 2>/dev/null; then
     # Comment the template assignment so it cannot win over the Andromeda path.
     as_root sed -i "s|^\\(\$config_directories\\['active'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
     as_root sed -i "s|^\\(\$config_directories\\['staging'\\] *= *'files/config_\\)|// \\1|" "$dest" 2>/dev/null || true
     as_root tee -a "$dest" >/dev/null <<EOF
 
-\$config_directories['active']  = '$rel_active';
-\$config_directories['staging'] = '$rel_staging';
+\$config_directories['active']  = '$abs_active';
+\$config_directories['staging'] = '$abs_staging';
 \$config['system.core']['config_sync_clear_staging'] = 0;
-\$config['system.core']['file_private_path'] = '$rel_private';
-\$settings['file_public_path'] = '$rel_files';
+\$config['system.core']['file_private_path'] = '$abs_private';
+\$settings['file_public_path'] = '$abs_files';
 
 if (file_exists(__DIR__ . '/settings.local.php')) {
   include __DIR__ . '/settings.local.php';
