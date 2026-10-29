@@ -62,9 +62,18 @@ cmd_repo_ensure() {
       return 1
     fi
   fi
+  # An empty clone has no commit. checkout -B then creates an unborn
+  # branch, which is not a ref, and `checkout devel` fails. Seed one
+  # commit first, the way cmd_platform_add does. See docs/reference/repo-ensure.md.
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" rev-parse --verify HEAD >/dev/null 2>&1; then
+    if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" commit --allow-empty -m "init platform $name"; then
+      echo "$PROG: cannot seed $work as $OWNER" >&2
+      return 1
+    fi
+  fi
   for b in devel test live; do
     if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b"; then
-      if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" checkout -B "$b"; then
+      if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" branch "$b"; then
         echo "$PROG: cannot create branch $b as $OWNER" >&2
         echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
         return 1
@@ -75,6 +84,7 @@ cmd_repo_ensure() {
     echo "$PROG: cannot check out devel as $OWNER" >&2
     return 1
   fi
+  as_root -u "$OWNER" git -c safe.directory='*' -C "$work" push origin devel test live >/dev/null 2>&1 || true
   state=/srv/andromeda/state/platforms
   mkdir -p "$state"
   cat > "$state/$name.json" << JSON

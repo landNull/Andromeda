@@ -1,6 +1,6 @@
 # repo-ensure
 
-`andro repo-ensure NAME` creates the bare at `/srv/git/NAME.git` and the checkout at `/srv/platforms/NAME`. It seeds the `devel`, `test`, and `live` branches and writes `/srv/andromeda/state/platforms/NAME.json`.
+`andro repo-ensure NAME` creates the bare at `/srv/git/NAME.git` and the checkout at `/srv/platforms/NAME`. It seeds one empty commit, then the `devel`, `test`, and `live` branches, and writes `/srv/andromeda/state/platforms/NAME.json`. An empty clone has no commit, so a branch created before the seed is unborn and is not a ref.
 
 `andro add platform` calls it when no remote is given. `andro pull site` calls it before the code move.
 
