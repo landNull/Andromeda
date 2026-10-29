@@ -31,32 +31,14 @@ cmd_repo_ensure() {
   bare=/srv/git/$name.git
   work=$PLATFORMS/$name
   echo "repo $name"
-  # /srv/git is root-owned. The operator cannot create the bare repo
-  # until andromeda-priv hands the directory to OWNER:GROUP.
-  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
-  if [ ! -d /srv/git ]; then
-    echo "create /srv/git"
-    if ! sudo -n "$priv" mkdir /srv/git; then
-      echo "$PROG: cannot create /srv/git" >&2
-      echo "  andromeda-priv is missing or not in sudoers" >&2
-      echo "  sudo $priv mkdir /srv/git" >&2
-      return 1
-    fi
-  fi
-  if ! sudo -n "$priv" chown "$OWNER:$GROUP" /srv/git; then
-    echo "$PROG: cannot chown /srv/git to $OWNER:$GROUP" >&2
-    echo "  sudo $priv chown $OWNER:$GROUP /srv/git" >&2
-    return 1
-  fi
-  sudo -n "$priv" chmod 2770 /srv/git || true
   if [ ! -d "$bare" ]; then
     echo "bare $bare"
-    if ! git init --bare "$bare"; then
-      echo "$PROG: cannot create $bare" >&2
-      echo "  /srv/git is not writable by $(id -un)" >&2
-      return 1
-    fi
-    sudo -n "$priv" chown-code "$bare" || true
+    priv=${PRIV:-/usr/local/sbin/andromeda-priv}
+    sudo -n "$priv" mkdir /srv/git 2>/dev/null || mkdir -p /srv/git
+    sudo -n "$priv" chown "$OWNER:$GROUP" /srv/git 2>/dev/null || true
+    sudo -n "$priv" chmod 2770 /srv/git 2>/dev/null || true
+    git init --bare "$bare"
+    sudo -n "$priv" chown-code "$bare" 2>/dev/null || true
   fi
   if [ ! -d "$work/.git" ]; then
     echo "checkout $work"
@@ -104,7 +86,7 @@ cmd_platform_add() {
     branch=$(branch_for_role)
   fi
   if [ -z "$giturl" ] && [ -d /srv/git -o "$(id -u)" -eq 0 ]; then
-    cmd_repo_ensure "$name" || return 1
+    cmd_repo_ensure "$name"
     giturl=/srv/git/$name.git
   fi
   if [ -z "$giturl" ] && git_template_ok "${ANDROMEDA_GIT_TEMPLATE:-}"; then
