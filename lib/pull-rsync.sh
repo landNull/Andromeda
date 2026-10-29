@@ -327,16 +327,11 @@ pull_config() {
     return 0
   fi
   echo "config landed in $staging"
-  # Backdrop will not bootstrap an empty active. Staging has the
-  # full export. Seed active from it so the import can run.
-  # A lone system.core.json is not enough. Backdrop needs the full set.
-  # Seed from staging when active is sparse.
-  n=$(find "$active" -name '*.json' 2>/dev/null | wc -l)
-  if [ "$n" -lt 10 ]; then
-    echo "config active sparse ($n files) — seed from staging"
-    as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
-    chown_files "$active" 2>/dev/null || true
-  fi
+  # Backdrop will not bootstrap a thin active. Staging has the full
+  # export. Always seed as root so ownership does not block the copy.
+  echo "config active seed from staging"
+  run_root rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
+  chown_files "$active" 2>/dev/null || true
   echo "config andro bee import"
   if ! bee_site_cmd "$root/web" "$product" -y config-import; then
     echo "$PROG: andro bee config-import failed for $product" >&2
