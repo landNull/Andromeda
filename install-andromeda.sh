@@ -821,7 +821,7 @@ ship_tools() {
   install_tool "$BINDIR/d7-migrate" /usr/local/bin/d7-migrate 0755
   install_tool "$BINDIR/andromeda" /usr/local/bin/andromeda 0755
   run_root ln -sfn /usr/local/bin/andromeda /usr/local/bin/andro
-  install_tool "$BINDIR/andromeda-priv" /usr/local/sbin/andromeda-priv 0750
+  install_tool "$BINDIR/andromeda-priv" /usr/local/sbin/andromeda-priv 0755
   install_tool "$BINDIR/andromeda-menu" /usr/local/bin/andromeda-menu 0755
   if [ -f "$HERE/tui/andromeda_ui.py" ]; then
     run_root mkdir -p /usr/local/share/andromeda/tui

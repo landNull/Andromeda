@@ -34,9 +34,12 @@ DIR_MODE=${DIR_MODE:-0770}
 PRIV=${PRIV:-/usr/local/sbin/andromeda-priv}
 
 priv() {
-  if [ -x "$PRIV" ]; then
+  # The operator cannot execute a 0750 root helper. sudo can.
+  # Test that the file is there, then let sudo run it.
+  if [ -f "$PRIV" ]; then
     as_root "$PRIV" "$@"
   else
+    echo "$PROG: $PRIV missing" >&2
     return 1
   fi
 }
