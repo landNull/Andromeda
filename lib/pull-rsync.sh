@@ -79,8 +79,8 @@ pull_code() {
   # A migrated platform has only the init commit. Git has nothing.
   # Fall back to rsync of the web tree. Exclude the runtime stores
   # and the local settings: those move by their own paths.
-  if [ ! -f "$web/index.php" ]; then
-    echo "code  no index.php — rsync web tree from $remote"
+  if [ ! -d "$web/core" ]; then
+    echo "code  no core — rsync web tree from $remote"
     run_root mkdir -p "$web"
     remote_rsync \
       --exclude='sites/*/settings.local.php' \
@@ -261,6 +261,10 @@ pull_config() {
     echo "config none — no active directory for $src_s on $remote"
   else
     for src in $actives; do
+      # Skip an empty store. The real config is the one with the file.
+      if ! ssh_cmd "$remote" "test -f '$src/system.core.json'" 2>/dev/null; then
+        continue
+      fi
       echo "config active from $src"
       if remote_rsync "$remote:${src}/" "$active/"; then
         break
@@ -284,6 +288,9 @@ pull_config() {
     return 0
   fi
   for src in $srcs; do
+    if ! ssh_cmd "$remote" "find '$src' -name '*.json' -print -quit | grep -q ." 2>/dev/null; then
+      continue
+    fi
     echo "config from $src"
     if remote_rsync "$remote:${src}/" "$staging/"; then
       got=1
