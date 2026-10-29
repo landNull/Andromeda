@@ -141,8 +141,17 @@ cmd_platform_add() {
 
   dest=$PLATFORMS/$name
   if [ -e "$dest" ] && [ "$DRYRUN" -eq 0 ]; then
-    echo "$PROG: $dest already exists — not touching it"
-    echo "Add a product with: $PROG site-add $name PRODUCT"
+    if [ -d "$dest/web" ]; then
+      echo "$PROG: $dest already exists — not touching it"
+      echo "Add a product with: $PROG site-add $name PRODUCT"
+      return 0
+    fi
+    # repo-ensure seeded an empty checkout. It has no web/. Finish it.
+    echo "web missing — bee dl-core"
+    bee=$(bee_bin)
+    ( cd "$dest" && as_root -u "$OWNER" "$bee" dl-core web )
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$dest" add -A 2>/dev/null || true
+    as_root -u "$OWNER" git -c safe.directory='*' -C "$dest" commit -m "backdrop core" || true
     return 0
   fi
 

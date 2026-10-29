@@ -187,7 +187,7 @@ cmd_site_pull() {
   fi
 
   # 2. Platform. andro add platform.
-  if [ ! -d "$PLATFORMS/$dst_p" ]; then
+  if [ ! -d "$PLATFORMS/$dst_p" ] || [ ! -d "$PLATFORMS/$dst_p/web" ]; then
     echo "create platform $dst_p"
     cmd_platform_add "$dst_p" --no-prompt
   fi
