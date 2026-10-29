@@ -158,22 +158,32 @@ case $cmd in
     mysql_bin=$(command -v mysql || true)
     [ -z "$mysql_bin" ] && [ -x /usr/bin/mysql ] && mysql_bin=/usr/bin/mysql
     [ -n "$mysql_bin" ] || { echo "$PROG: mysql not on PATH" >&2; exit 1; }
-    if ! "$mysql_bin" -e "CREATE DATABASE IF NOT EXISTS \`$db\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>&1; then
-      echo "$PROG: create database $db failed" >&2
-      exit 1
+    # Write the SQL to a file. A double-quoted -e string lets the shell
+    # expand $ and backticks in the password before MySQL sees it.
+    sql=$(mktemp)
+    # MariaDB: GRANT ... IDENTIFIED BY creates the user or resets the
+    # password. CREATE USER IF NOT EXISTS does neither.
+    {
+      printf "CREATE DATABASE IF NOT EXISTS \`%s\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n" "$db"
+      printf "GRANT ALL ON \`%s\`.* TO '%s'@'localhost' IDENTIFIED BY '%s';\n" "$db" "$user" "$pass_sql"
+      printf "FLUSH PRIVILEGES;\n"
+    } > "$sql"
+    if ! "$mysql_bin" < "$sql" 2>&1; then
+      # MySQL 8 removed IDENTIFIED BY from GRANT. Drop and recreate.
+      {
+        printf "CREATE DATABASE IF NOT EXISTS \`%s\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;\n" "$db"
+        printf "DROP USER IF EXISTS '%s'@'localhost';\n" "$user"
+        printf "CREATE USER '%s'@'localhost' IDENTIFIED BY '%s';\n" "$user" "$pass_sql"
+        printf "GRANT ALL ON \`%s\`.* TO '%s'@'localhost';\n" "$db" "$user"
+        printf "FLUSH PRIVILEGES;\n"
+      } > "$sql"
+      if ! "$mysql_bin" < "$sql" 2>&1; then
+        echo "$PROG: create user $user failed" >&2
+        rm -f "$sql"
+        exit 1
+      fi
     fi
-    # CREATE USER IF NOT EXISTS does not change the password. A previous
-    # site-add leaves the old one, and bee is refused. Drop and recreate
-    # so the password always matches the secret.
-    "$mysql_bin" -e "DROP USER IF EXISTS '$user'@'localhost';" 2>&1 || true
-    if ! "$mysql_bin" -e "CREATE USER '$user'@'localhost' IDENTIFIED BY '$pass_sql';" 2>&1; then
-      echo "$PROG: create user $user failed" >&2
-      exit 1
-    fi
-    if ! "$mysql_bin" -e "GRANT ALL ON \`$db\`.* TO '$user'@'localhost'; FLUSH PRIVILEGES;" 2>&1; then
-      echo "$PROG: grant on $db failed" >&2
-      exit 1
-    fi
+    rm -f "$sql"
     ;;
   mysql-drop)
     db=$1 user=$2
