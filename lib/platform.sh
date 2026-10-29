@@ -62,9 +62,18 @@ cmd_repo_ensure() {
     fi
   fi
   for b in devel test live; do
-    git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -c safe.directory='*' -C "$work" checkout -B "$b"
+    if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b"; then
+      if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" checkout -B "$b"; then
+        echo "$PROG: cannot create branch $b as $OWNER" >&2
+        echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
+        return 1
+      fi
+    fi
   done
-  git -c safe.directory='*' -C "$work" checkout devel
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$work" checkout devel; then
+    echo "$PROG: cannot check out devel as $OWNER" >&2
+    return 1
+  fi
   state=/srv/andromeda/state/platforms
   mkdir -p "$state"
   cat > "$state/$name.json" << JSON
