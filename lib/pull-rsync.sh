@@ -76,6 +76,22 @@ pull_code() {
   fi
   as_root -u "$OWNER" git -c safe.directory='*' -C "$root" reset --hard "origin/$src_branch" || return 1
   echo "code  on branch $stage as $OWNER"
+  # A migrated platform has only the init commit. Git has nothing.
+  # Fall back to rsync of the web tree. Exclude the runtime stores
+  # and the local settings: those move by their own paths.
+  if [ ! -f "$web/index.php" ]; then
+    echo "code  no index.php — rsync web tree from $remote"
+    run_root mkdir -p "$web"
+    remote_rsync \
+      --exclude='sites/*/settings.local.php' \
+      --exclude='files/' \
+      --exclude='sites/*/files/' \
+      "$remote:/srv/platforms/$src_p/web/" "$web/" || {
+      echo "$PROG: web tree did not move" >&2
+      return 1
+    }
+    echo "code  web tree from $remote"
+  fi
 }
 
 # pull_content ROOT PRODUCT VPS SRC_PLATFORM SRC_SITE
@@ -136,12 +152,19 @@ pull_files() {
   stage=$(mktemp -d)
   got=0
   for src in \
-    "/srv/platforms/$src_p/files/$src_s/" \
-    "/srv/platforms/$src_p/web/sites/$src_s/files/" \
-    "/srv/platforms/$src_p/web/files/"
+    "/srv/platforms/$src_p/files/$src_s" \
+    "/srv/platforms/$src_p/web/sites/$src_s/files" \
+    "/srv/platforms/$src_p/web/files"
   do
-    if remote_rsync "$remote:$src" "$stage/"; then
+    # Probe first. A missing path makes rsync exit 23, which looks
+    # like success and stops the search. A migrated site has no
+    # platform store; the tree is under web/files.
+    if ! ssh_cmd "$remote" "test -d '$src'" 2>/dev/null; then
+      continue
+    fi
+    if remote_rsync "$remote:$src/" "$stage/"; then
       got=1
+      echo "files from $src"
       break
     fi
   done
@@ -157,12 +180,16 @@ pull_files() {
   stage=$(mktemp -d)
   got=0
   for src in \
-    "/srv/platforms/$src_p/files_private/$src_s/" \
-    "/srv/platforms/$src_p/web/sites/$src_s/files/private/" \
-    "/srv/platforms/$src_p/web/files/private/"
+    "/srv/platforms/$src_p/files_private/$src_s" \
+    "/srv/platforms/$src_p/web/sites/$src_s/files/private" \
+    "/srv/platforms/$src_p/web/files/private"
   do
-    if remote_rsync "$remote:$src" "$stage/"; then
+    if ! ssh_cmd "$remote" "test -d '$src'" 2>/dev/null; then
+      continue
+    fi
+    if remote_rsync "$remote:$src/" "$stage/"; then
       got=1
+      echo "private from $src"
       break
     fi
   done
@@ -226,11 +253,12 @@ pull_config() {
   # Active config is what makes the site boot. A migrated site has it
   # and may have no staging. Copy it first. See docs/reference/repo-ensure.md.
   echo "config active from $remote"
-  actives=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/active /srv/platforms/$src_p/files/$src_s/config_*/active /srv/platforms/$src_p/web/sites/$src_s/files/config_*/active /srv/platforms/$src_p/web/files/config_*/active; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  # find, not a glob. A glob in a quoted SSH command does not expand,
+  # so the for-loop always returns empty. Prefer the platform store,
+  # then the nested config a migrated site leaves under web/files.
+  actives=$(ssh_cmd "$remote" "find /srv/platforms/$src_p -type d -name active 2>/dev/null | grep -v /staging/" 2>/dev/null || true)
   if [ -z "$actives" ]; then
     echo "config none — no active directory for $src_s on $remote"
-    echo "config dirs on $remote:"
-    ssh_cmd "$remote" "find /srv/platforms/$src_p -type d -name active 2>/dev/null | head -20" 2>/dev/null || true
   else
     for src in $actives; do
       echo "config active from $src"
@@ -250,7 +278,7 @@ pull_config() {
     ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || true
   echo "config staging from $remote port $(ssh_port)"
   got=0
-  srcs=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/staging /srv/platforms/$src_p/files/$src_s/config_*/staging /srv/platforms/$src_p/web/sites/$src_s/files/config_*/staging /srv/platforms/$src_p/web/files/config_*/staging; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
+  srcs=$(ssh_cmd "$remote" "find /srv/platforms/$src_p -type d -name staging 2>/dev/null" 2>/dev/null || true)
   if [ -z "$srcs" ]; then
     echo "config none — no staging directory for $src_s on $remote"
     return 0
