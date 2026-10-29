@@ -118,16 +118,26 @@ write_secret() {
     echo "+ write $dest (0640)"
     return 0
   fi
-  # Secrets live under /srv/andromeda, which is root-owned.
-  # andromeda-priv writes them. A bare sudo cannot ask over SSH.
-  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
-  if ! sudo -n "$priv" secret-write "$platform" "$product" "$db" "$user" "$pass"; then
-    echo "$PROG: cannot write $dest" >&2
-    echo "  andromeda-priv is missing or not in sudoers" >&2
-    echo "  %${GROUP} ALL=(root) NOPASSWD: $priv" >&2
-    return 1
-  fi
-  echo "db pass written to $dest (not printed)"
+  run_root mkdir -p "$SECRETDIR/$platform"
+  # operator is in andromeda and must be able to stat the .cnf
+  run_root chown "$OWNER:andromeda" "$SECRETDIR" "$SECRETDIR/$platform"
+  run_root chmod 2750 "$SECRETDIR" "$SECRETDIR/$platform"
+  # tee, not sh -c cat: sudo does not forward a heredoc to sh -c
+  as_root tee "$dest" >/dev/null <<EOF
+# andromeda secret — do not commit
+db=$db
+user=$user
+pass=$pass
+host=localhost
+EOF
+  cnf=${dest}.cnf
+  as_root tee "$cnf" >/dev/null <<EOF
+[client]
+user=$user
+password=$pass
+host=localhost
+EOF
+  chown_secret "$dest" "$cnf"
 }
 
 read_secret_pass() {
