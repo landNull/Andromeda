@@ -328,9 +328,10 @@ pull_config() {
   fi
   echo "config landed in $staging"
   # Backdrop will not bootstrap a thin active. Staging has the full
-  # export. Always seed as root so ownership does not block the copy.
+  # export. Always seed. Copy as deploy, then chown_files sets the
+  # final ownership. Root is not needed.
   echo "config active seed from staging"
-  run_root rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
+  as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
   chown_files "$active" 2>/dev/null || true
   echo "config andro bee import"
   if ! bee_site_cmd "$root/web" "$product" -y config-import; then
