@@ -134,9 +134,15 @@ ensure_db() {
   fi
   echo "db    create $db"
   err=$(mktemp)
-  if ! priv mysql-create "$db" "$user" "$cnf" >"$err" 2>&1; then
-    echo "$PROG: mysql-create failed for $db" >&2
-    sed 's/^/    /' "$err" >&2
+  priv mysql-create "$db" "$user" "$cnf" >"$err" 2>&1
+  rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "$PROG: mysql-create failed for $db (rc $rc)" >&2
+    if [ -s "$err" ]; then
+      sed 's/^/    /' "$err" >&2
+    else
+      echo "    (priv returned $rc with no output — is /usr/local/sbin/andromeda-priv current?)" >&2
+    fi
     rm -f "$err"
     return 1
   fi

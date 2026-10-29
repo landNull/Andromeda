@@ -97,7 +97,8 @@ pull_content() {
     fi
   done
   if [ "$got" -eq 1 ]; then
-    rsync -a "$stage/" "$root/files/$product/" || true
+    # The files dir is www-data:www-admin 0770. The operator cannot write it.
+    as_root rsync -a "$stage/" "$root/files/$product/" || true
     echo "images landed in $root/files/$product"
   else
     echo "images none — no image tree for $src_s on $remote"
@@ -159,6 +160,8 @@ pull_config() {
   actives=$(ssh_cmd "$remote" "for d in /srv/platforms/$src_p/config/$src_s/active /srv/platforms/$src_p/files/$src_s/config_*/active /srv/platforms/$src_p/web/sites/$src_s/files/config_*/active /srv/platforms/$src_p/web/files/config_*/active; do [ -d \"\$d\" ] && echo \"\$d\"; done" 2>/dev/null || true)
   if [ -z "$actives" ]; then
     echo "config none — no active directory for $src_s on $remote"
+    echo "config dirs on $remote:"
+    ssh_cmd "$remote" "find /srv/platforms/$src_p -type d -name active 2>/dev/null | head -20" 2>/dev/null || true
   else
     for src in $actives; do
       echo "config active from $src"
