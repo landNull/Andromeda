@@ -31,9 +31,9 @@ cmd_repo_ensure() {
   bare=/srv/git/$name.git
   work=$PLATFORMS/$name
   echo "repo $name"
+  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
   if [ ! -d "$bare" ]; then
     echo "bare $bare"
-    priv=${PRIV:-/usr/local/sbin/andromeda-priv}
     sudo -n "$priv" mkdir /srv/git 2>/dev/null || mkdir -p /srv/git
     # Free-form chown is not in the installed helper. chown-code is.
     sudo -n "$priv" chown-code /srv/git 2>/dev/null || true
@@ -48,8 +48,18 @@ cmd_repo_ensure() {
   fi
   if [ ! -d "$work/.git" ]; then
     echo "checkout $work"
-    git clone "$bare" "$work"
-    chown -R "$OWNER:$GROUP" "$work" 2>/dev/null || true
+    # A failed clone leaves an empty directory. Remove it.
+    if [ -d "$work" ]; then
+      rmdir "$work" 2>/dev/null || true
+    fi
+    sudo -n "$priv" mkdir "$PLATFORMS" 2>/dev/null || mkdir -p "$PLATFORMS"
+    sudo -n "$priv" chown-code "$PLATFORMS" 2>/dev/null || true
+    if ! as_root -u "$OWNER" git -c safe.directory='*' clone "$bare" "$work"; then
+      echo "$PROG: cannot clone $bare as $OWNER" >&2
+      echo "$PROG: need NOPASSWD for $OWNER in /etc/sudoers.d/andromeda-deploy" >&2
+      echo "$PROG: %$GROUP ALL=($OWNER) NOPASSWD: /usr/bin/git" >&2
+      return 1
+    fi
   fi
   for b in devel test live; do
     git -c safe.directory='*' -C "$work" show-ref --verify --quiet "refs/heads/$b" || git -c safe.directory='*' -C "$work" checkout -B "$b"
