@@ -229,8 +229,15 @@ pull_db() {
   dump=$(mktemp)
   remote=$(tunnel_host "$vps")
   echo "db    andro bee export on $remote"
-  ssh_cmd "$remote" "andromeda bee $src_p $src_s db-export -" > "$dump" 2>/dev/null || \
-    ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export -" > "$dump" || true
+  # db-export to stdout ("-") is unreliable: bee still creates a "-.gz"
+  # temp file in the remote cwd, which fails when HOME/cwd is not writable
+  # (e.g. sudo -u deploy with a locked home). Export to a /tmp file, then
+  # stream it back decompressed.
+  rmt=/tmp/andromeda-db.$$.sql
+  if ssh_cmd "$remote" "andromeda bee $src_p $src_s db-export $rmt" 2>/dev/null || \
+     ssh_cmd "$remote" "bee --root=/srv/platforms/$src_p/web --site=$src_s db-export $rmt" 2>/dev/null; then
+    ssh_cmd "$remote" "zcat $rmt.gz 2>/dev/null || cat $rmt; rm -f $rmt $rmt.gz" > "$dump" 2>/dev/null || true
+  fi
   if [ -s "$dump" ]; then
     echo "db    andro bee import"
     site="$web/sites/$product"
@@ -239,7 +246,13 @@ pull_db() {
     fi
     run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
     run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
-    if ! bee_site_cmd "$web" "$product" db-import --mariadb-compatibility "$dump"; then
+    # No --mariadb-compatibility: that flag pipes the dump through
+    # `grep -vF '/*!999999\- ...'`, and grep switches to binary mode on
+    # dumps containing gzipped cache blobs, replacing the stream with
+    # "Binary file matches" and breaking the import. Plain db-import uses
+    # `mysql < dump`, which handles the MariaDB 11.8 sandbox-mode comment
+    # fine when the client is MariaDB (this stack is MariaDB-only).
+    if ! bee_site_cmd "$web" "$product" db-import "$dump"; then
       echo "$PROG: andro bee db-import failed for $product" >&2
     fi
   else

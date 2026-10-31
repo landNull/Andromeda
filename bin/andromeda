@@ -8,7 +8,15 @@ PROG=${0##*/}
 DRYRUN=0
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
-if [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" -eq 0 ]; then
+# proot (Termux/proot-distro on Android) fakes uid 0 for every process, so
+# the no-root guard must not fire there — running "as root" IS the operator.
+case "$(uname -r 2>/dev/null)" in
+  *PRoot*|*proot*) ANDROMEDA_PROOT=1 ;;
+  *) ANDROMEDA_PROOT=${ANDROMEDA_PROOT:-0} ;;
+esac
+export ANDROMEDA_PROOT
+
+if [ "${ANDROMEDA_PROOT:-0}" -ne 1 ] && { [ -n "${SUDO_USER:-}" ] || [ "$(id -u)" -eq 0 ]; }; then
   echo "$PROG: do not run this with sudo or as root." >&2
   echo "$PROG: log in as your operator account (or deploy) and run: $PROG …" >&2
   echo "$PROG: the wrapper calls sudo -n only for the few root steps." >&2

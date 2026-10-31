@@ -18,6 +18,25 @@ load_conf() {
 
 load_conf
 
+# proot (Termux / proot-distro on Android): the kernel string is faked and
+# uids are faked — we appear as root but hold no real capabilities, and every
+# process shares one real uid. ANDROMEDA_PROOT=1 relaxes the root-only guards.
+case "$(uname -r 2>/dev/null)" in
+  *PRoot*|*proot*) ANDROMEDA_PROOT=1 ;;
+  *) ANDROMEDA_PROOT=${ANDROMEDA_PROOT:-0} ;;
+esac
+export ANDROMEDA_PROOT
+
+# Under proot the termux `sudo` wrapper cannot work (no real root; it fails
+# with rc 126) and every process already is the faked root — run directly.
+sudo_n() {
+  if [ "${ANDROMEDA_PROOT:-0}" -eq 1 ]; then
+    "$@"
+  else
+    sudo -n "$@"
+  fi
+}
+
 ANDROMEDA_ROOT=${ANDROMEDA_ROOT:-/srv/andromeda}
 PLATFORMS=${PLATFORMS:-/srv/platforms}
 OWNER=${OWNER:-deploy}
@@ -76,22 +95,22 @@ APACHE_RELOAD=${APACHE_RELOAD:-/etc/init.d/apache2 reload}
 # Run apache2ctl configtest before any reload. Refuse the reload on failure.
 apache_reload() {
   if command -v apache2ctl >/dev/null 2>&1; then
-    if ! sudo -n apache2ctl configtest >/dev/null 2>&1; then
+    if ! sudo_n apache2ctl configtest >/dev/null 2>&1; then
       echo "apache: configtest failed — not reloading" >&2
       return 1
     fi
   elif command -v apachectl >/dev/null 2>&1; then
-    if ! sudo -n apachectl configtest >/dev/null 2>&1; then
+    if ! sudo_n apachectl configtest >/dev/null 2>&1; then
       echo "apache: configtest failed — not reloading" >&2
       return 1
     fi
   fi
   priv=${PRIV:-/usr/local/sbin/andromeda-priv}
   if [ -x "$priv" ]; then
-    sudo -n "$priv" apache-reload 2>/dev/null && return 0
+    sudo_n "$priv" apache-reload 2>/dev/null && return 0
   fi
   # shellcheck disable=SC2086
-  sudo -n $APACHE_RELOAD 2>/dev/null || true
+  sudo_n $APACHE_RELOAD 2>/dev/null || true
 }
 ANDROMEDA_ROLE=${ANDROMEDA_ROLE:-devel}
 # Git branch for this role. Override per role in /etc/andromeda.conf
@@ -555,6 +574,9 @@ in_group() {
 
 # Missing required groups -> return 1 and print usermod for self or admin.
 check_operator_groups() {
+  # Under proot uids/gids are faked (id shows host aid_* groups), so group
+  # membership checks are meaningless — skip them.
+  [ "${ANDROMEDA_PROOT:-0}" -eq 1 ] && return 0
   me=$(id -un)
   need="$GROUP andromeda"
   nice="adm $OWNER"
@@ -620,6 +642,12 @@ as_root() {
     return 1
   }
   if [ "$(id -u)" -eq 0 ]; then
+    # Under proot all processes share one real uid, so "-u user" is a no-op:
+    # drop it instead of trying to switch (proot fakes setuid but the real
+    # uid never changes, and `sudo -u` cannot work without real root).
+    if [ "${ANDROMEDA_PROOT:-0}" -eq 1 ] && [ "${1:-}" = "-u" ]; then
+      shift 2
+    fi
     "$@"
     return $?
   fi

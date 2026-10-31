@@ -28,6 +28,14 @@ wg_is_up() {
 }
 
 wg_up() {
+  # Under proot there is no /dev/net/tun and no CAP_NET_ADMIN, so a wg
+  # interface can never exist. Reach hosts directly over SSH instead:
+  # set TUNNEL_<HOST>=<public-host> and SSH_PORT in /etc/andromeda.conf.
+  if [ "${ANDROMEDA_PROOT:-0}" -eq 1 ]; then
+    echo "proot: wg impossible (no tun) — using direct SSH"
+    WG_STARTED=0
+    return 0
+  fi
   if wg_is_up; then
     echo "wg already up"
     WG_STARTED=0
