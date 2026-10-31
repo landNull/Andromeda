@@ -796,6 +796,11 @@ is_local_host() {
   case $h in
     ""|local|localhost|127.0.0.1) return 0 ;;
   esac
+  # Extra names that mean this machine (e.g. "a11" for the tablet).
+  # Set LOCAL_HOST_ALIASES="a11" in /etc/andromeda.conf.
+  for a in ${LOCAL_HOST_ALIASES:-}; do
+    [ -n "$a" ] && [ "$h" = "$a" ] && return 0
+  done
   me=$(hostname 2>/dev/null || true)
   short=$(hostname -s 2>/dev/null || true)
   [ -n "$me" ] && [ "$h" = "$me" ] && return 0

@@ -230,6 +230,13 @@ cmd_site_pull() {
   pull_files "$root" "$product" "$vps" "$src_p" "$src_s"
   pull_config "$root" "$product" "$vps" "$src_p" "$src_s"
   pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
+  # site-add only wrote the DSN-string settings.local.php and never links
+  # sites/<product>/files — without this the pulled site has no public
+  # files path and (on Backdrop 1.30+) no $database array. _write_local
+  # creates the files symlink and rewrites settings.local.php in one pass.
+  if is_local_host "$dst_h"; then
+    _write_local "$root" "$web" "$product" "$host" "$role"
+  fi
   cmd_site_heal "$dst_p" "$dst_s" || true
   echo "pull done  http://$host"
 }
