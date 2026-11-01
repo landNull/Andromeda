@@ -296,6 +296,14 @@ cmd_platform_remove() {
     exit 1
   fi
 
+  if [ "${DRYRUN:-0}" -eq 1 ]; then
+    echo "+ prompt: ARE YOU SURE YOU WANT TO DELETE $name?!? [y/N]"
+    echo "+ backup $dest -> /srv/andromeda/backups/$name/platform/<stamp>/tree.tgz"
+    echo "+ a2dissite + rm vhosts $name-{devel,test,live}; rm -rf $dest /srv/git/$name.git"
+    echo "+ rm state files; apache reload (databases and secrets are NOT dropped)"
+    return 0
+  fi
+
   printf "ARE YOU SURE YOU WANT TO DELETE %s?!? [y/N] " "$name"
   read -r ok
   [ "$ok" = "y" ] || { echo "stopped"; return 0; }
@@ -310,8 +318,8 @@ cmd_platform_remove() {
   echo "backup $name"
   stamp=$(date +%Y%m%d-%H%M%S)
   snap=/srv/andromeda/backups/$name/platform/$stamp
-  sudo mkdir -p "$snap"
-  sudo tar -C "$PLATFORMS" -czf "$snap/tree.tgz" "$name" || {
+  as_root mkdir -p "$snap"
+  as_root tar -C "$PLATFORMS" -czf "$snap/tree.tgz" "$name" || {
     echo "$PROG: backup failed, not removing" >&2
     exit 1
   }
@@ -319,13 +327,13 @@ cmd_platform_remove() {
 
   echo "remove $name"
   for role in devel test live; do
-    sudo a2dissite "$name-$role" >/dev/null 2>&1 || true
-    sudo rm -f "/etc/apache2/sites-available/$name-$role.conf"
+    as_root a2dissite "$name-$role" >/dev/null 2>&1 || true
+    as_root rm -f "/etc/apache2/sites-available/$name-$role.conf"
   done
-  sudo rm -rf "$dest"
-  sudo rm -rf "/srv/git/$name.git"
-  sudo rm -f "/srv/andromeda/state/platforms/$name.json"
-  sudo rm -f "/srv/andromeda/state/migrate/$name"
+  as_root rm -rf "$dest"
+  as_root rm -rf "/srv/git/$name.git"
+  as_root rm -f "/srv/andromeda/state/platforms/$name.json"
+  as_root rm -f "/srv/andromeda/state/migrate/$name"
   apache_reload || true
   echo "removed $name"
   echo "backup  $snap/tree.tgz"
