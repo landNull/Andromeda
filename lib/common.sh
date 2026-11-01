@@ -836,6 +836,11 @@ is_local_host() {
   short=$(hostname -s 2>/dev/null || true)
   [ -n "$me" ] && [ "$h" = "$me" ] && return 0
   [ -n "$short" ] && [ "$h" = "$short" ] && return 0
+  # knarr's hostname is starhq. Treat the alias as this machine.
+  if [ "$h" = "knarr" ]; then
+    case $me in starhq|starhq.*|knarr) return 0 ;; esac
+    case $short in starhq|knarr) return 0 ;; esac
+  fi
   return 1
 }
 
