@@ -85,6 +85,9 @@ $PROG 0.4.0 — manage Backdrop platforms and sites from the shell
           (Aegir/BOA replacement, no PHP panel)
 
   Do not type "sudo $PROG" — refused (exit 2). Use -n before mutating commands.
+  -v / --verbose  name the tool on each step and print extra detail.
+                  A failed pull writes a stamp and refuses the same pull
+                  until the stamp is removed.
 
   Preferred (verb first, reads as a sentence):
   $PROG pull site @host:plat/site to @host:plat/site
