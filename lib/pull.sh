@@ -138,6 +138,7 @@ cmd_site_pull() {
   while [ $# -gt 0 ]; do
     case $1 in
       --role) role=$2; role_set=1; shift 2 ;;
+      -v|--verbose) VERBOSE=1; export VERBOSE; shift ;;
       --) shift; break ;;
       -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
       *) break ;;
@@ -283,6 +284,7 @@ cmd_site_push() {
   while [ $# -gt 0 ]; do
     case $1 in
       --role) role=$2; role_set=1; shift 2 ;;
+      -v|--verbose) VERBOSE=1; export VERBOSE; shift ;;
       --) shift; break ;;
       -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
       *) break ;;
