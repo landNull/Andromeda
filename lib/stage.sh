@@ -1,0 +1,177 @@
+# shellcheck shell=sh
+# ensure stage — idempotent skeleton for a Backdrop stage.
+# Tools: git worktree, crdir, andromeda-priv, _write_local.
+# Creates the dirs, the settings array, the sites.php line, and the
+# stage worktree. Does not invent config JSON.
+
+# stage_tree PLATFORM ROLE
+# devel uses the main checkout. test and live get a worktree.
+stage_tree() {
+  plat=$1
+  role=$2
+  if [ "$role" = "devel" ] || [ -z "$role" ]; then
+    printf '%s\n' "$PLATFORMS/$plat"
+    return 0
+  fi
+  printf '%s\n' "$PLATFORMS/${plat}-${role}"
+}
+
+# ensure_worktree PLATFORM ROLE
+# Main checkout stays on devel. Other stages are worktrees of it.
+ensure_worktree() {
+  plat=$1
+  role=$2
+  main=$PLATFORMS/$plat
+  tree=$(stage_tree "$plat" "$role")
+  if [ ! -e "$main/.git" ]; then
+    echo "$PROG: $main has no git repo — run repo-ensure first" >&2
+    return 1
+  fi
+  if [ "$role" = "devel" ]; then
+    echo "worktree devel $main"
+    return 0
+  fi
+  if [ -e "$tree/.git" ]; then
+    echo "worktree $role $tree"
+    return 0
+  fi
+  echo "worktree add $role $tree"
+  if ! as_root -u "$OWNER" git -c safe.directory='*' -C "$main" \
+      worktree add -B "$role" "$tree" "$role"; then
+    echo "$PROG: worktree add failed for $role" >&2
+    return 1
+  fi
+  return 0
+}
+
+# stage_security ROOT WEB PRODUCT
+# Checks that do not change files. Prints FAIL lines. Returns 1 on any fail.
+stage_security() {
+  root=$1
+  web=$2
+  product=$3
+  role=$4
+  fail=0
+  localphp=$web/sites/$product/settings.local.php
+  private=$root/files_private/$product
+  active=$root/config/$product/active
+
+  # Config and private files stay outside the docroot.
+  case $active in
+    "$web"/*) echo "FAIL  config active is inside the docroot: $active" >&2; fail=1 ;;
+  esac
+  case $private in
+    "$web"/*) echo "FAIL  files_private is inside the docroot: $private" >&2; fail=1 ;;
+  esac
+
+  if [ -f "$localphp" ]; then
+    mode=$(stat -c '%a' "$localphp" 2>/dev/null || stat -f '%OLp' "$localphp" 2>/dev/null || echo "")
+    case $mode in
+      640|0640|600|0600) ;;
+      "") ;;
+      *) echo "FAIL  $localphp mode $mode — want 0640" >&2; fail=1 ;;
+    esac
+    if ! grep -q 'trusted_host_patterns' "$localphp"; then
+      echo "FAIL  trusted_host_patterns missing in $localphp" >&2
+      fail=1
+    fi
+    if [ "$role" != "live" ] && ! grep -q "cache.*= *FALSE" "$localphp"; then
+      echo "FAIL  cache is not FALSE on $role" >&2
+      fail=1
+    fi
+  else
+    echo "FAIL  missing $localphp" >&2
+    fail=1
+  fi
+
+  # No world-writable runtime dirs.
+  for d in "$root/files/$product" "$private" "$active"; do
+    [ -d "$d" ] || continue
+    mode=$(stat -c '%a' "$d" 2>/dev/null || echo "")
+    case $mode in
+      *7) echo "FAIL  $d is world-writable ($mode)" >&2; fail=1 ;;
+    esac
+  done
+
+  # Private dir gets a deny file even though it is outside the docroot.
+  if [ -d "$private" ] && [ ! -f "$private/.htaccess" ]; then
+    echo "note  no .htaccess in $private — writing deny"
+    printf '%s\n' 'Require all denied' 'Deny from all' | as_root tee "$private/.htaccess" >/dev/null || true
+  fi
+
+  [ "$fail" -eq 0 ]
+}
+
+# cmd_ensure_stage PLATFORM PRODUCT
+# Idempotent. Safe to call at the start of pull and push.
+cmd_ensure_stage() {
+  role=${ANDROMEDA_ROLE:-}
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --role) role=$2; shift 2 ;;
+      -v|--verbose) VERBOSE=1; export VERBOSE; shift ;;
+      --) shift; break ;;
+      -*) echo "$PROG: unknown flag $1" >&2; exit 2 ;;
+      *) break ;;
+    esac
+  done
+  plat=${1:-}
+  product=${2:-}
+  plat=$(slug "$plat")
+  product=$(slug "$product")
+  if [ -z "$plat" ] || [ -z "$product" ]; then
+    echo "usage: $PROG ensure stage PLATFORM PRODUCT [--role devel|test|live]" >&2
+    exit 2
+  fi
+  if [ -z "$role" ]; then
+    role=$(stage_from_site "$product")
+  fi
+  host=$(hostname_for_site "$product" "")
+  platform=$plat
+  echo "ensure stage $plat/$product ($role)"
+
+  if [ ! -d "$PLATFORMS/$plat/.git" ] && [ ! -f "$PLATFORMS/$plat/.git" ]; then
+    echo "repo missing — repo-ensure $plat"
+    cmd_repo_ensure "$plat" || return 1
+  fi
+  ensure_worktree "$plat" "$role" || return 1
+
+  root=$(stage_tree "$plat" "$role")
+  web=$root/web
+  run_root mkdir -p "$web/sites/$product" || true
+
+  cr=$(need_crdir)
+  if [ "$DRYRUN" -eq 1 ]; then
+    echo "+ worktree $role at $root"
+    echo "+ dirs files files_private config/active config/staging"
+    echo "+ settings.local.php array + sites.php + files symlink"
+    echo "+ security checks"
+    return 0
+  fi
+  "$cr" -s -o "$DAEMON" -g "$GROUP" \
+    "$root/files/$product" \
+    "$root/files_private/$product" \
+    "$root/config/$product/active" || true
+  "$cr" -o "$OWNER" -g "$GROUP" \
+    "$root/config/$product/staging" || true
+
+  # Settings array, symlink, sites.php. _write_local is the one template.
+  # A first pull has no secret yet. site-add writes it. Do not fail here.
+  pass=$(read_secret_pass "$platform" "$product" || true)
+  if [ -n "$pass" ]; then
+    _write_local "$root" "$web" "$product" "$host" "$role" || true
+    ensure_sites_php "$web" "$host" "$product" || true
+    stage_security "$root" "$web" "$product" "$role" || {
+      echo "$PROG: stage $plat/$product failed security checks" >&2
+      return 1
+    }
+  else
+    echo "note  no secret yet — settings written after site-add"
+  fi
+  if [ ! -f "$root/config/$product/active/system.core.json" ]; then
+    echo "note  no system.core.json in active — stage skeleton is ready, config comes from pull"
+  else
+    echo "config active ready"
+  fi
+  echo "stage ready $plat/$product ($role) at $root"
+}
