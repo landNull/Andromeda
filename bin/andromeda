@@ -215,6 +215,7 @@ EOF
 while [ $# -gt 0 ]; do
   case $1 in
     -n) DRYRUN=1; shift ;;
+    -v|--verbose) VERBOSE=1; export VERBOSE; shift ;;
     -h|--help)
       topic=${2:-}
       if [ -n "$topic" ]; then
