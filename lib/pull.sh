@@ -343,7 +343,12 @@ _write_local() {
     echo "\$config_directories['active']  = '$cfgactive';"
     echo "\$config_directories['staging'] = '$cfgstaging';"
     echo "\$settings['file_public_path'] = 'sites/$product/files';"
-    echo "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');"
+    pats="'^${hostpat}\$'"
+    if [ "${ANDROMEDA_PROOT:-0}" -eq 1 ]; then
+      # single-host dev box (proot tablet): loopback names reach this site too
+      pats="$pats, '^localhost\$', '^127.0.0.1\$'"
+    fi
+    echo "\$settings['trusted_host_patterns'] = array($pats);"
     if [ "$role" != "live" ]; then
       echo "\$settings['cache'] = FALSE;"
     fi

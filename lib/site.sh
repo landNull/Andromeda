@@ -82,12 +82,24 @@ EOF
   if grep -q "sites\['$host'\]" "$dest" 2>/dev/null; then
     if ! grep -q "sites\['$host'\] = '$product'" "$dest" 2>/dev/null; then
       echo "heal  sites.php $host -> $product"
-      as_root sed -i "s|\\$sites\['$host'\] = '.*';|\\$sites['$host'] = '$product';|" "$dest" || true
+      as_root sed -i "s|.*sites\['$host'\].*|\$sites['$host'] = '$product';|" "$dest" || true
     fi
   else
     as_root tee -a "$dest" >/dev/null <<EOF
 \$sites['$host'] = '$product';
 EOF
+  fi
+  # Single-host dev box (proot tablet): also map loopback names so
+  # http://localhost/ and http://127.0.0.1/ reach this site instead of
+  # falling through to the uninstalled default site (install.php).
+  if [ "${ANDROMEDA_PROOT:-0}" -eq 1 ]; then
+    for lh in localhost 127.0.0.1; do
+      if ! grep -q "sites\\['$lh'\\]" "$dest" 2>/dev/null; then
+        as_root tee -a "$dest" >/dev/null <<EOF
+\$sites['$lh'] = '$product';
+EOF
+      fi
+    done
   fi
   run_root chown "$OWNER:$GROUP" "$dest"
 }
