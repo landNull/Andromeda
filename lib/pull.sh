@@ -160,22 +160,39 @@ cmd_site_pull() {
   fi
   host=$(hostname_for_site "$dst_s" "$OVERRIDE_HOST")
 
+  # Same failure twice is a loop. Refuse until the stamp is cleared.
+  sig=$(printf '%s:%s:%s:%s' "$vps" "$src_p" "$src_s" "$dst_p/$dst_s" | tr '/ ' '__')
+  stamp="$ANDROMEDA_ROOT/state/pull-fail-$sig"
+  PULL_STAMP=$stamp
+  export PULL_STAMP
+  if [ -f "$stamp" ]; then
+    echo "$PROG: last pull of this site failed at the same step." >&2
+    echo "$PROG: $(cat "$stamp" 2>/dev/null)" >&2
+    echo "$PROG: fix that, then remove $stamp and pull again." >&2
+    exit 1
+  fi
   echo "pull @$vps:$src_p/$src_s + @$dst_h:$dst_p/$dst_s ($role)"
   echo "hostname $host"
   echo "from /srv/platforms/$src_p/web/sites/$src_s  on $vps"
   echo "to   /srv/platforms/$dst_p/web/sites/$dst_s"
+  vnote "verbose on — each step names the tool and stops on the first hard failure"
   # Tunnel. Existing tool.
-  wg_up || return 1
+  step 1 "WireGuard"
+  wg_up || fail_step 1 "WireGuard did not come up"
   trap wg_down EXIT
   remote=$(tunnel_host "$vps")
   echo "tunnel $remote port $(ssh_port)"
+  vnote "tunnel_host $vps -> $remote"
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ git bundle from $remote:/srv/platforms/$src_p, checkout $role"
     echo "+ andro add platform $dst_p   (if missing)"
     echo "+ andro add site $dst_p $dst_s --host $host"
+    echo "+ andromeda-priv mysql-create"
     echo "+ rsync files, private"
-    echo "+ rsync config active"
+    echo "+ rsync config active + bee config-import"
     echo "+ andro bee db-export on $remote, db-import here"
+    echo "+ _write_local (Backdrop 1.30 array)"
+    echo "+ andro heal site"
     return 0
   fi
 
@@ -183,62 +200,79 @@ cmd_site_pull() {
   . "$LIBDIR/pull-rsync.sh"
 
   # Platform first. pull_code fetches into its repo.
+  step 2 "platform"
   if [ ! -d "$PLATFORMS/$dst_p" ] || [ ! -d "$PLATFORMS/$dst_p/web" ]; then
     echo "create platform $dst_p"
-    cmd_platform_add "$dst_p" --no-prompt
+    cmd_platform_add "$dst_p" --no-prompt || fail_step 2 "platform-add failed for $dst_p"
+  else
+    echo "platform $dst_p already present"
+    vnote "using $PLATFORMS/$dst_p"
   fi
   root=$PLATFORMS/$dst_p
   web=$root/web
 
   # Code by git. A bundle, because the source repo is owned by deploy.
   # settings.local.php is gitignored, so the reset does not touch it.
-  pull_code "$root" "$web" "$vps" "$src_p" || {
-    echo "$PROG: code did not move" >&2
-    exit 1
-  }
+  step 3 "code (git bundle)"
+  pull_code "$root" "$web" "$vps" "$src_p" || fail_step 3 "code did not move"
 
   # Site skeleton. Writes settings.local.php, the sites.php line, and
   # the empty stores. --no-install: Bee does not run yet.
-  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install || {
-    echo "$PROG: site-add failed" >&2
-    exit 1
-  }
+  step 4 "site skeleton (site-add --no-install)"
+  ANDROMEDA_ROLE=$role cmd_site_add "$dst_p" "$dst_s" --host "$host" --no-install || \
+    fail_step 4 "site-add failed"
   resolve_site "$dst_p" "$dst_s"
 
   # Database user. andromeda-priv mysql-create. Bee cannot create a user.
+  step 5 "database user (andromeda-priv mysql-create)"
   db=$(db_name "$product" "$role")
   user=$(printf '%s' "$db" | cut -c1-32)
   pass=$(read_secret_pass "$platform" "$product" || true)
+  vnote "db=$db user=$user secret=$(secret_file "$platform" "$product")"
   if [ -z "$pass" ]; then
-    echo "$PROG: no secret for $platform/$product" >&2
-    exit 1
+    fail_step 5 "no secret for $platform/$product"
   fi
   if ! ensure_db "$db" "$user" "$pass"; then
-    echo "$PROG: database user not created — Bee will not run" >&2
-    exit 1
+    fail_step 5 "database user not created — Bee will not run"
   fi
   cnf=$(secret_file "$platform" "$product").cnf
   echo "db    login test $user"
   if ! mysql --defaults-extra-file="$cnf" -e "SELECT 1" >/dev/null 2>&1; then
-    echo "$PROG: $user cannot log in — Bee will not run" >&2
     mysql --defaults-extra-file="$cnf" -e "SELECT 1" >&2 || true
-    exit 1
+    fail_step 5 "$user cannot log in — Bee will not run"
   fi
   echo "db    $user can log in"
 
   # Content by rsync. Config by rsync. Database by Bee.
-  pull_files "$root" "$product" "$vps" "$src_p" "$src_s"
-  pull_config "$root" "$product" "$vps" "$src_p" "$src_s"
-  pull_db "$web" "$product" "$vps" "$src_p" "$src_s"
+  step 6 "user content (rsync)"
+  pull_files "$root" "$product" "$vps" "$src_p" "$src_s" || fail_step 6 "files did not move"
+
+  step 7 "config (rsync + Bee config-import)"
+  pull_config "$root" "$product" "$vps" "$src_p" "$src_s" || fail_step 7 "config did not import"
+
+  step 8 "database (Bee db-export / db-import)"
+  pull_db "$web" "$product" "$vps" "$src_p" "$src_s" || fail_step 8 "database did not import"
+
   # site-add only wrote the DSN-string settings.local.php and never links
   # sites/<product>/files — without this the pulled site has no public
   # files path and (on Backdrop 1.30+) no $database array. _write_local
   # creates the files symlink and rewrites settings.local.php in one pass.
+  step 9 "settings.local.php (Backdrop 1.30 array)"
   if is_local_host "$dst_h"; then
-    _write_local "$root" "$web" "$product" "$host" "$role"
+    _write_local "$root" "$web" "$product" "$host" "$role" || \
+      fail_step 9 "settings.local.php was not written"
+  else
+    echo "dest is remote — settings written on the far side"
   fi
+
+  step 10 "heal"
   cmd_site_heal "$dst_p" "$dst_s" || true
+
+  step 11 "done"
   echo "pull done  http://$host"
+  if [ -n "${RUN_LOG:-}" ]; then
+    echo "log   $RUN_LOG"
+  fi
 }
 
 # Push a site. Local or remote source, onto a destination (local or remote).
