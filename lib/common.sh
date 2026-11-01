@@ -628,6 +628,37 @@ ok() { printf '  ok    %s\n' "$1"; }
 bad() { printf '  FAIL  %s\n' "$1"; }
 note() { printf '  note  %s\n' "$1"; }
 
+# Verbose. Set by -v / --verbose or ANDROMEDA_VERBOSE=1.
+VERBOSE=${VERBOSE:-${ANDROMEDA_VERBOSE:-0}}
+vnote() {
+  [ "${VERBOSE:-0}" -eq 1 ] || return 0
+  printf '  ·     %s\n' "$1"
+}
+
+# Numbered step banner. step N "title"
+step() {
+  printf '\n── %s. %s ──\n' "$1" "$2"
+}
+
+# Hard stop. Names the step, the reason, and refuses a blind retry.
+# fail_step STEP REASON
+fail_step() {
+  stepn=$1
+  why=$2
+  printf '\nSTOP  step %s failed: %s\n' "$stepn" "$why" >&2
+  printf 'STOP  do not run this pull again until that is fixed.\n' >&2
+  if [ -n "${RUN_LOG:-}" ]; then
+    printf 'STOP  log: %s\n' "$RUN_LOG" >&2
+  fi
+  # Stamp the failure so a second identical pull is refused.
+  if [ -n "${PULL_STAMP:-}" ]; then
+    mkdir -p "$(dirname "$PULL_STAMP")" 2>/dev/null || true
+    printf 'step %s: %s\n' "$stepn" "$why" > "$PULL_STAMP" 2>/dev/null || true
+    printf 'STOP  stamp: %s\n' "$PULL_STAMP" >&2
+  fi
+  exit 1
+}
+
 # Root only when needed. Prefer sudo -n (NOPASSWD).
 # Capcom mode (ANDROMEDA_SPEAK or ANDROMEDA_JSON) never prompts.
 # deploy is a system account: never authenticate as deploy.
