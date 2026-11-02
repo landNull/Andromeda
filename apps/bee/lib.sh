@@ -109,7 +109,7 @@ cmd_theme() {
     list) bee_site_cmd "$web" "$product" themes ;;
     enable)
       [ -n "$name" ] || { echo "$PROG: theme enable needs a name" >&2; return 2; }
-      bee_yes --root="$web" --site="$product" theme-enable "$name" || return 1
+      bee_yes --root="$web" --site="$product" enable "$name" || return 1
       ;;
     default)
       [ -n "$name" ] || { echo "$PROG: theme default needs a name" >&2; return 2; }
@@ -145,7 +145,7 @@ cmd_run() {
 bee_verb_map() {
   case "$1 $2" in
     "list themes")        printf '%s\n' themes ;;
-    "enable theme")       printf '%s\n' theme-enable ;;
+    "enable theme")       printf '%s\n' enable ;;
     "disable theme")      printf '%s\n' theme-disable ;;
     "default theme")      printf '%s\n' theme-default ;;
     "list modules")       printf '%s\n' modules ;;

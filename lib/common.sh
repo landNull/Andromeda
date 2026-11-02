@@ -893,12 +893,12 @@ remote_rsync() {
 
 slug() {
   # Canonical product name is the domain stem.
-  # Lowercase. Strip underscores and spaces. Keep a real hyphen.
+  # Lowercase. Strip underscores, spaces, and hyphens.
   # KeslerLumber -> keslerlumber
   # kesler_lumber -> keslerlumber
+  # kesler-lumber -> keslerlumber
   # Kesler Lumber -> keslerlumber
-  # my-site -> my-site
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '_ ' | tr -c 'a-z0-9.-' '-' | sed 's/-\+/-/g;s/^-*//;s/-*$//'
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '_ -' | tr -c 'a-z0-9.' '-' | sed 's/-\+/-/g;s/^-*//;s/-*$//'
 }
 
 db_name() {
@@ -937,6 +937,23 @@ resolve_site() {
   if [ ! -d "$root" ]; then
     echo "$PROG: no platform $root" >&2
     exit 1
+  fi
+  # The site dir may still have a hyphen. Match on the stripped name.
+  if [ ! -d "$web/sites/$product" ]; then
+    _want=$(printf '%s' "$product" | tr -d '-')
+    _found=
+    for _d in "$web/sites"/*; do
+      [ -d "$_d" ] || continue
+      _base=$(basename "$_d")
+      _flat=$(printf '%s' "$_base" | tr -d '-')
+      if [ "$_flat" = "$_want" ]; then
+        _found=$_base
+        break
+      fi
+    done
+    if [ -n "$_found" ]; then
+      product=$_found
+    fi
   fi
   if [ ! -d "$web" ]; then
     echo "$PROG: $web missing" >&2
