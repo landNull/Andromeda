@@ -113,6 +113,11 @@ cache_clear_report() {
   log=$(mktemp)
   if bee_site_cmd "$web" "$product" cc all >"$log" 2>&1; then
     cat "$log"
+    if grep -q 'ConfigStorageException\|Failed to write' "$log"; then
+      echo "$PROG: cache clear could not write config" >&2
+      rm -f "$log"
+      return 1
+    fi
     rm -f "$log"
     return 0
   fi

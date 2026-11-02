@@ -381,9 +381,20 @@ pull_config() {
     return 1
   }
   echo "config andro bee import"
-  if ! bee_site_cmd "$root/web" "$product" -y config-import; then
+  clog=$(mktemp)
+  if ! bee_site_cmd "$root/web" "$product" -y config-import >"$clog" 2>&1; then
+    cat "$clog" >&2
+    rm -f "$clog"
     echo "$PROG: andro bee config-import failed for $product" >&2
+    return 1
   fi
+  cat "$clog"
+  if grep -q 'Permission denied\|not installed' "$clog"; then
+    rm -f "$clog"
+    echo "$PROG: config-import could not read settings or the site is not installed" >&2
+    return 1
+  fi
+  rm -f "$clog"
   # Cache clear runs after the database import. Clearing now boots against
   # an empty system table and dies on missing classes.
 }
