@@ -39,6 +39,15 @@ cmd_bee() {
   # andromeda bee PLATFORM --root-only [bee-args]
   platform=${1:-}
   shift || true
+  # @host:plat/site or plat/site, the same form pull and push use.
+  if printf '%s' "$platform" | grep -q '/'; then
+    parse_one_ref "$platform" || {
+      echo "usage: $PROG bee @host:plat/site [bee-verb...]" >&2
+      return 2
+    }
+    platform=$REF_PLAT
+    set -- "$REF_SITE" "$@"
+  fi
   if [ -z "$platform" ]; then
     echo "usage: $PROG bee PLATFORM PRODUCT [bee-verb...]" >&2
     echo "       $PROG bee PLATFORM --root-only [bee-verb...]" >&2

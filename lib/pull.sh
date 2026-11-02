@@ -68,6 +68,27 @@ parse_site_refs() {
 }
 
 
+
+# parse_one_ref REF
+# @host:plat/site or plat/site. Sets REF_HOST REF_PLAT REF_SITE.
+parse_one_ref() {
+  ref=${1:-}
+  REF_HOST="" REF_PLAT="" REF_SITE=""
+  [ -n "$ref" ] || return 1
+  if printf '%s' "$ref" | grep -q '^@'; then
+    ref=${ref#@}
+    REF_HOST=${ref%%:*}
+    rest=${ref#*:}
+    REF_PLAT=${rest%%/*}
+    REF_SITE=${rest##*/}
+  else
+    REF_HOST=local
+    REF_PLAT=${ref%%/*}
+    REF_SITE=${ref##*/}
+  fi
+  [ -n "$REF_PLAT" ] && [ -n "$REF_SITE" ] && [ "$REF_PLAT" != "$REF_SITE" ]
+}
+
 # heal_renamed_site WEB ROOT PRODUCT HOST
 # The destination name in the command is the source of truth.
 # A hand rename (keslerlumber.test, or the old product) is moved into place.
