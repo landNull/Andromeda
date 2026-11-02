@@ -13,7 +13,7 @@ if ! command -v note >/dev/null 2>&1; then
   bad()  { printf '  FAIL  %s\n' "$1"; }
 fi
 if ! command -v slug >/dev/null 2>&1; then
-  slug() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9.-' '-' | sed 's/^-*//;s/-*$//'; }
+  slug() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '_ ' | tr -c 'a-z0-9.-' '-' | sed 's/-\+/-/g;s/^-*//;s/-*$//'; }
 fi
 if ! command -v stamp >/dev/null 2>&1; then
   stamp() { date +%Y%m%d-%H%M%S; }
