@@ -187,6 +187,13 @@ cmd_platform_add() {
     as_root -u "$OWNER" git -C "$dest" checkout "$branch" 2>/dev/null || true
   fi
 
+  # Worktrees so each stage has its own tree. No product yet.
+  if [ "$DRYRUN" -eq 0 ] && [ -e "$dest/.git" ]; then
+    for r in test live; do
+      ensure_worktree "$name" "$r" || true
+    done
+  fi
+
   echo "platform $name ready at $dest"
   echo "next: $PROG site-add $name <product> [--host host.example]"
 }
