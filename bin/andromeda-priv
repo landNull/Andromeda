@@ -76,7 +76,7 @@ case $cmd in
   chown)
     spec=$1
     shift
-    if ! printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_]+:[A-Za-z0-9_]+$'; then
+    if ! printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9_-]*:[A-Za-z0-9_][A-Za-z0-9_-]*$'; then
       echo "$PROG: refuse chown spec $spec" >&2
       exit 2
     fi
