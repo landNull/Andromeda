@@ -289,13 +289,15 @@ print "blog layout set\n";
 }
 
 
-# andromeda theme color @ref #hex
-# Sets the Tabler primary color. Writes tabler.settings.
+# andromeda theme primary @ref NAME|#hex
+# Sets the Tabler primary color. Accepts Tabler names or hex.
+# Names: blue azure indigo purple pink red orange yellow lime green teal cyan
 cmd_theme_color() {
   ref=${1:-}
-  color=${2:-}
-  if [ -z "$ref" ] || [ -z "$color" ]; then
-    echo "usage: $PROG theme color @host:plat/site #hex" >&2
+  name=${2:-}
+  if [ -z "$ref" ] || [ -z "$name" ]; then
+    echo "usage: $PROG theme primary @host:plat/site NAME|#hex" >&2
+    echo "names: blue azure indigo purple pink red orange yellow lime green teal cyan" >&2
     return 2
   fi
   parse_one_ref "$ref" || {
@@ -303,8 +305,70 @@ cmd_theme_color() {
     return 2
   }
   resolve_site "$REF_PLAT" "$REF_SITE"
+  case $name in
+    blue)    color="#066fd1" ;;
+    azure)   color="#4299e1" ;;
+    indigo)  color="#4263eb" ;;
+    purple)  color="#ae3ec9" ;;
+    pink)    color="#d6336c" ;;
+    red)     color="#d63939" ;;
+    orange)  color="#f76707" ;;
+    yellow)  color="#f59f00" ;;
+    lime)    color="#74b816" ;;
+    green)   color="#2fb344" ;;
+    teal)    color="#0ca678" ;;
+    cyan)    color="#17a2b8" ;;
+    \#*)    color="$name" ;;
+    *) echo "$PROG: unknown color $name" >&2; return 2 ;;
+  esac
   bee_yes --root="$web" --site="$product" config-set tabler.settings tabler_primary "$color" || return 1
   bee_yes --root="$web" --site="$product" cache-clear all || return 1
-  echo "set primary color to $color"
+  echo "set primary to $name ($color)"
+}
+
+
+# andromeda theme set @ref key value
+# Sets a Tabler design token. Keys: mode, primary, base, radius, layout, navbar, navbar-theme.
+cmd_theme_set() {
+  ref=${1:-}
+  key=${2:-}
+  value=${3:-}
+  if [ -z "$ref" ] || [ -z "$key" ] || [ -z "$value" ]; then
+    echo "usage: $PROG theme set @host:plat/site key value" >&2
+    echo "keys: mode primary base radius layout navbar navbar-theme" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  case $key in
+    mode) setting=tabler_mode ;;
+    primary) setting=tabler_primary ;;
+    base) setting=tabler_base ;;
+    radius) setting=tabler_radius ;;
+    layout) setting=tabler_layout ;;
+    navbar) setting=tabler_navbar ;;
+    navbar-theme) setting=tabler_navbar_theme ;;
+    *) echo "$PROG: unknown key $key" >&2; return 2 ;;
+  esac
+  bee_yes --root="$web" --site="$product" config-set tabler.settings "$setting" "$value" || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+  echo "set $key to $value"
+}
+
+# andromeda theme list
+# Prints the design tokens a designer can set.
+cmd_theme_list() {
+  cat <<EOF
+mode          auto | light | dark
+primary       blue | azure | indigo | purple | pink | red | orange | yellow | lime | green | teal | cyan
+base          gray | slate | zinc | neutral | stone
+radius        0 | 0.5 | 1 | 1.5
+layout        default | fluid | boxed
+navbar        vertical | horizontal
+navbar-theme  dark | primary
+EOF
 }
 

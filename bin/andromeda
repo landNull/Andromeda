@@ -276,7 +276,9 @@ case $cmd in
       place)   case $obj in blocks) cmd=place-blocks; shift ;; esac ;;
       theme)   case $obj in
         blog) cmd=theme-blog; shift ;;
-        color) cmd=theme-color; shift ;;
+        primary) cmd=theme-color; shift ;;
+        set) cmd=theme-set; shift ;;
+        list) cmd=theme-list; shift ;;
       esac ;;
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
@@ -428,6 +430,8 @@ dispatch() {
     place-blocks) cmd_place_blocks "$@" ;;
     theme-blog) cmd_theme_blog "$@" ;;
     theme-color) cmd_theme_color "$@" ;;
+    theme-set) cmd_theme_set "$@" ;;
+    theme-list) cmd_theme_list "$@" ;;
     run) cmd_run "$@" ;;
     d7|d7-migrate) cmd_d7 "$@" ;;
     d7-prep) cmd_d7 prep "$@" ;;
