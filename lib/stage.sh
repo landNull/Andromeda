@@ -132,6 +132,62 @@ stage_security() {
   [ "$fail" -eq 0 ]
 }
 
+
+# stage_health
+# Verify the blueprint after crdir. deploy must own and be able to
+# write every skeleton path. Prints OK or FAIL per path. Returns 1
+# on any miss. Does not change files.
+stage_health() {
+  fail=0
+  echo "health skeleton $STAGE_OWNER:$STAGE_GROUP"
+  for d in "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" "$STAGE_STAGING" "$STAGE_SITE"; do
+    if [ ! -d "$d" ]; then
+      echo "FAIL  missing $d" >&2
+      fail=1
+      continue
+    fi
+    own=$(stat -c '%U:%G' "$d" 2>/dev/null || echo "?:?")
+    mode=$(stat -c '%a' "$d" 2>/dev/null || echo "")
+    if [ "$own" != "$STAGE_OWNER:$STAGE_GROUP" ]; then
+      echo "FAIL  $d owner $own — want $STAGE_OWNER:$STAGE_GROUP" >&2
+      fail=1
+    fi
+    case $mode in
+      2770|2775) ;;
+      *) echo "FAIL  $d mode $mode — want 2770 (0770 setgid)" >&2; fail=1 ;;
+    esac
+    if ! as_root -u "$STAGE_OWNER" test -w "$d"; then
+      echo "FAIL  $STAGE_OWNER cannot write $d" >&2
+      fail=1
+    else
+      echo "OK    $d $own $mode"
+    fi
+  done
+  case $STAGE_ACTIVE in
+    "$STAGE_WEB"/*) echo "FAIL  config active is inside the docroot" >&2; fail=1 ;;
+  esac
+  case $STAGE_PRIVATE in
+    "$STAGE_WEB"/*) echo "FAIL  files_private is inside the docroot" >&2; fail=1 ;;
+  esac
+  if [ -f "$STAGE_LOCALPHP" ]; then
+    own=$(stat -c '%U:%G' "$STAGE_LOCALPHP" 2>/dev/null || echo "?:?")
+    mode=$(stat -c '%a' "$STAGE_LOCALPHP" 2>/dev/null || echo "")
+    if [ "$own" != "$STAGE_OWNER:$STAGE_GROUP" ]; then
+      echo "FAIL  $STAGE_LOCALPHP owner $own" >&2
+      fail=1
+    fi
+    case $mode in
+      640|0640) echo "OK    $STAGE_LOCALPHP $own $mode" ;;
+      *) echo "FAIL  $STAGE_LOCALPHP mode $mode — want 0640" >&2; fail=1 ;;
+    esac
+    if ! as_root -u "$STAGE_OWNER" test -r "$STAGE_LOCALPHP"; then
+      echo "FAIL  $STAGE_OWNER cannot read $STAGE_LOCALPHP" >&2
+      fail=1
+    fi
+  fi
+  [ "$fail" -eq 0 ]
+}
+
 # cmd_ensure_stage PLATFORM PRODUCT
 # Idempotent. Safe to call at the start of pull and push.
 cmd_ensure_stage() {
@@ -185,6 +241,10 @@ cmd_ensure_stage() {
   as_root -u "$OWNER" "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
     "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
     "$STAGE_STAGING" "$STAGE_SITE" || return 1
+  stage_health || {
+    echo "$PROG: skeleton health failed — pull stopped" >&2
+    return 1
+  }
 
   # Settings array, symlink, sites.php. _write_local is the one template.
   # A first pull has no secret yet. site-add writes it. Do not fail here.
@@ -192,6 +252,10 @@ cmd_ensure_stage() {
   if [ -n "$pass" ]; then
     _write_local "$root" "$web" "$product" "$host" "$role" || return 1
     ensure_sites_php "$web" "$host" "$product" || return 1
+    stage_health || {
+      echo "$PROG: skeleton health failed after settings" >&2
+      return 1
+    }
     stage_security "$root" "$web" "$product" "$role" || {
       echo "$PROG: stage $plat/$product failed security checks" >&2
       return 1
