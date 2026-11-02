@@ -215,8 +215,9 @@ cmd_site_pull() {
     echo "platform $dst_p already present"
     vnote "using $PLATFORMS/$dst_p"
   fi
-  root=$(stage_tree "$dst_p" "$role")
-  web=$root/web
+  stage_paths "$dst_p" "$dst_s" "$role"
+  root=$STAGE_ROOT
+  web=$STAGE_WEB
   vnote "stage tree $root"
 
   # Code by git. A bundle, because the source repo is owned by deploy.
@@ -336,6 +337,12 @@ cmd_site_push() {
 
   # shellcheck disable=SC1091
   . "$LIBDIR/pull-rsync.sh"
+  # Dest skeleton before any file moves.
+  if is_local_host "$dst_h"; then
+    cmd_ensure_stage "$dst_p" "$dst_s" --role "$role" || return 1
+    stage_paths "$dst_p" "$dst_s" "$role"
+    echo "dest  $STAGE_ROOT ready"
+  fi
   push_site "$src_h" "$src_p" "$src_s" "$dst_h" "$dst_p" "$dst_s" "$host" "$role"
   echo "push done  http://$host"
 }
