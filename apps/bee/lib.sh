@@ -288,3 +288,23 @@ print "blog layout set\n";
   echo "blog layout: site name, menu, content, search, recent"
 }
 
+
+# andromeda theme color @ref #hex
+# Sets the Tabler primary color. Writes tabler.settings.
+cmd_theme_color() {
+  ref=${1:-}
+  color=${2:-}
+  if [ -z "$ref" ] || [ -z "$color" ]; then
+    echo "usage: $PROG theme color @host:plat/site #hex" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  bee_yes --root="$web" --site="$product" config-set tabler.settings tabler_primary "$color" || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+  echo "set primary color to $color"
+}
+
