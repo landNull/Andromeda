@@ -64,6 +64,7 @@ export LIBDIR
 . "$LIBDIR/clone.sh"
 . "$LIBDIR/pull.sh"
 . "$LIBDIR/stage.sh"
+. "$LIBDIR/modules.sh"
 . "$LIBDIR/heal.sh"
 . "$LIBDIR/test.sh"
 . "$LIBDIR/wg.sh"
