@@ -88,7 +88,11 @@ cmd_site_check() {
   fi
 
   fail=0
-  echo "check $platform/$product host=$host"
+  role=$(stage_from_site "$product")
+  stage_paths "$platform" "$product" "$role"
+  root=$STAGE_ROOT
+  web=$STAGE_WEB
+  echo "check $platform/$product host=$host tree=$root"
   bee=$(bee_bin)
 
   if [ "$DRYRUN" -eq 1 ]; then
