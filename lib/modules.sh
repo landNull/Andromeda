@@ -36,12 +36,12 @@ roots = [
 always = {"system"}
 
 def find_dir(name):
+    # A module is NAME/NAME.module, or NAME.module loose in another
+    # directory (Ubercart keeps test_gateway.module in tests/).
     for root in roots:
         if not os.path.isdir(root):
             continue
         for dirpath, dirnames, filenames in os.walk(root):
-            if os.path.basename(dirpath) != name:
-                continue
             if f"{name}.module" in filenames or f"{name}.info" in filenames:
                 return dirpath
     return None
