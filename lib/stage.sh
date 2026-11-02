@@ -171,11 +171,11 @@ cmd_ensure_stage() {
   "$cr" -s -o "$DAEMON" -g "$GROUP" \
     "$root/files/$product" \
     "$root/files_private/$product" \
-    "$root/config/$product/active" || true
+    "$root/config/$product/active" || return 1
   "$cr" -o "$OWNER" -g "$GROUP" \
-    "$root/config/$product/staging" || true
+    "$root/config/$product/staging" || return 1
   "$cr" -s -o "$DAEMON" -g "$GROUP" -m 0770 \
-    "$web/sites/$product" || true
+    "$web/sites/$product" || return 1
 
   # Settings array, symlink, sites.php. _write_local is the one template.
   # A first pull has no secret yet. site-add writes it. Do not fail here.

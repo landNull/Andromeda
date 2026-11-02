@@ -239,10 +239,15 @@ for d in "$@"; do
   elif [ ! -d "$d" ]; then
     run mkdir -p "$d"
   fi
-  run chown "$owner:$group" "$d" || {
+  err=$(mktemp)
+  if ! run chown "$owner:$group" "$d" >"$err" 2>&1; then
     echo "$PROG: chown failed for $d" >&2
+    cat "$err" >&2
+    echo "$PROG: priv is /usr/local/sbin/andromeda-priv. If the line above says usage, the installed priv is old. Run ./install-andromeda.sh --tools." >&2
+    rm -f "$err"
     exit 1
-  }
+  fi
+  rm -f "$err"
   run chmod "$mode" "$d" || {
     echo "$PROG: chmod failed for $d" >&2
     exit 1
