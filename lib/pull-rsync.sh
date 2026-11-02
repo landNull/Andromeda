@@ -210,11 +210,12 @@ pull_files() {
     echo '- js/' >> "$filt"
     echo '- config_*/' >> "$filt"
     echo '- *' >> "$filt"
-    as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times --delete \
-      --filter="merge $filt" \
-      -e "ssh -p $(ssh_port) -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
-      "$remote:$src/" "$dest/" || { rm -f "$filt"; return 1; }
-    rm -f "$filt"
+    # Remote rsync is the operator. deploy has no key. See memory.
+    stage=$(mktemp -d)
+    chmod 0755 "$stage"
+    remote_rsync --filter="merge $filt" "$remote:$src/" "$stage/" || { rm -rf "$stage" "$filt"; return 1; }
+    as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times --delete "$stage/" "$dest/" || { rm -rf "$stage" "$filt"; return 1; }
+    rm -rf "$stage" "$filt"
     count=$(find "$dest" -type f 2>/dev/null | wc -l | tr -d ' ')
     echo "files landed in $dest ($count files)"
   fi
@@ -240,9 +241,11 @@ pull_files() {
     echo "private none"
   else
     echo "private from $src"
-    as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times \
-      -e "ssh -p $(ssh_port) -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
-      "$remote:$src/" "$root/files_private/$product/" || return 1
+    stage=$(mktemp -d)
+    chmod 0755 "$stage"
+    remote_rsync "$remote:$src/" "$stage/" || { rm -rf "$stage"; return 1; }
+    as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times "$stage/" "$root/files_private/$product/" || { rm -rf "$stage"; return 1; }
+    rm -rf "$stage"
     echo "private landed in $root/files_private/$product"
   fi
 
