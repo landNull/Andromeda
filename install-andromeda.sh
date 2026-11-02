@@ -43,6 +43,7 @@ else
 fi
 DRYRUN=0
 DO_CSF=0
+TOOLS_ONLY=0
 LOCALHOST=0
 ROLE=devel
 OWNER=deploy
@@ -101,13 +102,15 @@ USERS
   they already have. Put deploy's forge key in $STARDUST/home/.ssh.
 
 HOW TO RUN IT
-  $PROG [-n] [-lh|--localhost] [-F] [-m devel|test|live] [-u owner] [-a admin] [-H human] [-g group]
+  $PROG [-n] [-lh|--localhost] [-F] [--tools] [-m devel|test|live] [-u owner] [-a admin] [-H human] [-g group]
   $PROG -h
 
   Run as a sudo-capable account. Do not type "sudo $PROG".
 
 FLAGS
   -n         Dry run. Print the plan with a leading + and change nothing.
+  --tools    Refresh bin and lib in place. Does not touch packages,
+             Apache, MariaDB, sites, or platforms. Safe over a live host.
   -lh, --localhost
              Local dev box only (127.0.0.1). Skips CSF, WireGuard
              policy, and certbot. Installs dnsmasq (*.devel → 127.0.0.1).
@@ -1437,6 +1440,9 @@ for arg in "$@"; do
     --human=*)
       HUMAN=${arg#--human=}
       ;;
+    --tools)
+      TOOLS_ONLY=1
+      ;;
     *)
       NEWARGS="$NEWARGS $arg"
       ;;
@@ -1610,6 +1616,15 @@ rename_stardust() {
 
 detect_os
 rename_stardust
+
+# Refresh the installed scripts. install -m overwrites. Platforms,
+# databases, and Apache config are not touched.
+if [ "${TOOLS_ONLY:-0}" -eq 1 ]; then
+  echo "tools only — refreshing bin and lib in place"
+  ship_tools
+  echo "done."
+  exit 0
+fi
 
 ensure_gh() {
   # Prefer an already-installed gh. Install only when missing.
@@ -1812,6 +1827,7 @@ if [ "$ran" -eq 0 ]; then
   exit 1
 fi
 
+ship_tools
 install_charm
 
 write_wg_sudoers
