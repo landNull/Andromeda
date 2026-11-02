@@ -120,3 +120,21 @@ cmd_theme() {
   esac
 }
 
+
+# andromeda run @host:plat/site VERB [args]
+# One door for every Bee command. The user does not type bee.
+cmd_run() {
+  ref=${1:-}
+  shift || true
+  if [ -z "$ref" ] || [ $# -eq 0 ]; then
+    echo "usage: $PROG run @host:plat/site VERB [args]" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  bee_yes --root="$web" --site="$product" "$@"
+}
+

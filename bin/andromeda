@@ -408,6 +408,7 @@ dispatch() {
     cron-all) cmd_cron_all ;;
     bee) cmd_bee "$@" ;;
     theme) cmd_theme "$@" ;;
+    run) cmd_run "$@" ;;
     d7|d7-migrate) cmd_d7 "$@" ;;
     d7-prep) cmd_d7 prep "$@" ;;
     d7-assess) cmd_d7 assess "$@" ;;
