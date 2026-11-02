@@ -181,7 +181,7 @@ cmd_ensure_stage() {
   # A first pull has no secret yet. site-add writes it. Do not fail here.
   pass=$(read_secret_pass "$platform" "$product" || true)
   if [ -n "$pass" ]; then
-    _write_local "$root" "$web" "$product" "$host" "$role" || true
+    _write_local "$root" "$web" "$product" "$host" "$role" || return 1
     ensure_sites_php "$web" "$host" "$product" || true
     stage_security "$root" "$web" "$product" "$role" || {
       echo "$PROG: stage $plat/$product failed security checks" >&2

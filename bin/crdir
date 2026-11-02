@@ -239,19 +239,25 @@ for d in "$@"; do
   elif [ ! -d "$d" ]; then
     run mkdir -p "$d"
   fi
-  run chown "$owner:$group" "$d"
-  run chmod "$mode" "$d"
+  run chown "$owner:$group" "$d" || {
+    echo "$PROG: chown failed for $d" >&2
+    exit 1
+  }
+  run chmod "$mode" "$d" || {
+    echo "$PROG: chmod failed for $d" >&2
+    exit 1
+  }
   if [ "$SETGID" -eq 1 ] && [ -d "$d" ]; then
-    run chmod g+s "$d"
+    run chmod g+s "$d" || true
   fi
-  # Access ACL now, default ACL on directories so new files inherit.
-  # deploy, www-admin, and www-data can all use the path.
-  run setacl "$d"
+  # setfacl is from the acl package. Missing priv verb or missing
+  # setfacl must not undo a good chown. Owner and mode are the contract.
+  run setacl "$d" || echo "$PROG: setacl skipped for $d (acl package or priv verb)" >&2
   # Existing children too. A file written before crdir keeps the old owner.
   if [ -d "$d" ]; then
     find "$d" -mindepth 1 -print 2>/dev/null | while IFS= read -r child; do
       run chown "$owner:$group" "$child"
-      run setacl "$child"
+      run setacl "$child" || true
     done
   fi
 done

@@ -416,7 +416,11 @@ _write_local() {
     "$cr" -o "$OWNER" -g "$GROUP" -m 0640 "$localphp" || return 1
     if ! as_root -u "$OWNER" test -r "$localphp"; then
       echo "$PROG: $OWNER cannot read $localphp" >&2
-      ls -l "$localphp" >&2 || true
+      if command -v namei >/dev/null 2>&1; then
+        namei -l "$localphp" >&2 || true
+      else
+        ls -ld "$(dirname "$localphp")" "$localphp" >&2 || true
+      fi
       return 1
     fi
     echo "write $localphp (role $role)"
