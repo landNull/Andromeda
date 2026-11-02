@@ -212,8 +212,8 @@ cmd_apply_theme() {
   bee_yes --root="$web" --site="$product" config-set system.core theme_default "$name" || return 1
   bee_yes --root="$web" --site="$product" config-set layout.layout.default layout_template "$name" || return 1
   bee_yes --root="$web" --site="$product" config-set layout.layout.home layout_template "$name" || true
-  bee_yes --root="$web" --site="$product" config-set layout.layout.admin_default layout_template "$name" || true
   bee_yes --root="$web" --site="$product" cache-clear all || return 1
-  echo "applied $name to system.core, default, home, and admin layouts"
+  echo "applied $name to system.core, default, and home"
+  echo "admin left alone — theme layouts are only visible when that theme is active"
 }
 
