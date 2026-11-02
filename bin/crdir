@@ -237,8 +237,10 @@ echo "$PROG -o $owner -g $group -m $mode${SETGID:+ -s} $*"
 # if /etc/sudoers.d/andromeda-deploy is missing. Probe before chown.
 if [ "$DRYRUN" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
   priv=${PRIV:-/usr/local/sbin/andromeda-priv}
-  probe=$(sudo -n "$priv" 2>&1)
-  prc=$?
+  # set -e exits the shell on a failing command substitution in dash.
+  # The || keeps the failure in prc so we can print it.
+  probe=$(sudo -n "$priv" 2>&1) || prc=$?
+  prc=${prc:-0}
   # exit 2 is the usage line: priv ran. Anything else is sudo.
   if [ "$prc" -ne 2 ]; then
     echo "$PROG: sudo -n $priv failed (exit $prc)" >&2
