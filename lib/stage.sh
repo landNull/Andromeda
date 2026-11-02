@@ -16,6 +16,26 @@ stage_tree() {
   printf '%s\n' "$PLATFORMS/${plat}-${role}"
 }
 
+# stage_paths PLATFORM PRODUCT ROLE
+# Blueprint. Sets the paths every stage needs. Other functions read these
+# instead of rebuilding the layout.
+stage_paths() {
+  plat=$1
+  product=$2
+  role=$3
+  STAGE_ROOT=$(stage_tree "$plat" "$role")
+  STAGE_WEB=$STAGE_ROOT/web
+  STAGE_SITE=$STAGE_WEB/sites/$product
+  STAGE_FILES=$STAGE_ROOT/files/$product
+  STAGE_PRIVATE=$STAGE_ROOT/files_private/$product
+  STAGE_ACTIVE=$STAGE_ROOT/config/$product/active
+  STAGE_STAGING=$STAGE_ROOT/config/$product/staging
+  STAGE_LOCALPHP=$STAGE_SITE/settings.local.php
+  STAGE_SYMLINK=$STAGE_SITE/files
+  export STAGE_ROOT STAGE_WEB STAGE_SITE STAGE_FILES STAGE_PRIVATE
+  export STAGE_ACTIVE STAGE_STAGING STAGE_LOCALPHP STAGE_SYMLINK
+}
+
 # ensure_worktree PLATFORM ROLE
 # Main checkout stays on devel. Other stages are worktrees of it.
 ensure_worktree() {
@@ -135,10 +155,10 @@ cmd_ensure_stage() {
     cmd_repo_ensure "$plat" || return 1
   fi
   ensure_worktree "$plat" "$role" || return 1
-
-  root=$(stage_tree "$plat" "$role")
-  web=$root/web
-  run_root mkdir -p "$web/sites/$product" || true
+  stage_paths "$plat" "$product" "$role"
+  root=$STAGE_ROOT
+  web=$STAGE_WEB
+  run_root mkdir -p "$STAGE_SITE" || true
 
   cr=$(need_crdir)
   if [ "$DRYRUN" -eq 1 ]; then
