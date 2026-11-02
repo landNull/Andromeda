@@ -149,7 +149,7 @@ bee_verb_map() {
     "disable theme")      printf '%s\n' theme-disable ;;
     "default theme")      printf '%s\n' theme-default ;;
     "list modules")       printf '%s\n' modules ;;
-    "enable module")      printf '%s\n' module-enable ;;
+    "enable module")      printf '%s\n' enable ;;
     "disable module")     printf '%s\n' module-disable ;;
     "clear cache")        printf '%s\n' cache-clear ;;
     "update database")    printf '%s\n' updb ;;
