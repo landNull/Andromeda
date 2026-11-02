@@ -291,8 +291,8 @@ cmd_migrate_www() {
   sudo cp -a "$src"/. "$web"/
   # code is deploy:www-admin. files are www-data:www-admin. ACL rides on both.
   chown_code "$web" || sudo chown -R "$OWNER:$GROUP" "$web"
-  [ -d "$dest/files" ] && chown_files "$dest/files" || true
-  [ -d "$dest/files_private" ] && chown_files "$dest/files_private" || true
+  stage_paths "$plat" "$product" "$role"
+  stage_apply || return 1
 
   # Standalone installs keep config under files/config_HASH and modules in
   # the docroot. Move both into the platform store so the site matches a

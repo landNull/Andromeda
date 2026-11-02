@@ -102,7 +102,8 @@ cmd_site_clone() {
     as_root tar -C "$root/config/$product" -xzf "$snap/config-active.tar.gz"
     run_root chown -R "$OWNER:$GROUP" "$root/config/$product" 2>/dev/null || true
   fi
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+  stage_paths "$dst_p" "$dst_s" "$(stage_from_site "$dst_s")"
+  stage_apply || return 1
 
   localphp=$web/sites/$product/settings.local.php
   hostpat=$(printf '%s' "$host" | sed 's/[][\.*^$+?(){}|\/]/\\\\&/g')

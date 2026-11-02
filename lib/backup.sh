@@ -152,12 +152,8 @@ cmd_site_restore() {
 
   as_root -u "$OWNER" "$bee" --root="$web" --site="$product" db-import "$dump"
 
-  cr=$(need_crdir)
-  # crdir calls sudo itself; run as the operator, not deploy
-  "$cr" -s -o "$OWNER" -g "$GROUP" \
-    "$root/files/$product" \
-    "$root/files_private/$product" \
-    "$root/config/$product/active"
+  stage_paths "$platform" "$product" "$role"
+  stage_apply || return 1
 
   if [ -d "$from/files" ]; then
     echo "rsync files -> $root/files/$product"

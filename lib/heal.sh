@@ -277,13 +277,8 @@ cmd_verify_site() {
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ crdir ownership $root/files/$product ..."
   else
-    cr=$(need_crdir)
-    "$cr" -s -o "$DAEMON" -g "$GROUP" \
-      "$root/files/$product" \
-      "$root/files_private/$product" \
-      "$root/config/$product/active" 2>/dev/null || true
-    "$cr" -o "$OWNER" -g "$GROUP" \
-      "$root/config/$product/staging" 2>/dev/null || true
+    stage_paths "$platform" "$product" "$role"
+    stage_apply || return 1
   fi
   echo "  permissions enforced"
 }

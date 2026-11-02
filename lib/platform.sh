@@ -281,7 +281,8 @@ cmd_platform_upgrade() {
       fail=1
     }
     mm_set "$web" "$product" 0
-    chown_files "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active" 2>/dev/null || true
+    stage_paths "$name" "$product" "$(stage_from_site "$product")"
+    stage_apply || return 1
   done
   if [ "$fail" -ne 0 ]; then
     exit 1
