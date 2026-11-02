@@ -677,6 +677,20 @@ ensure_user() {
 }
 
 
+write_deploy_sudoers() {
+  dest=/etc/sudoers.d/andromeda-deploy
+  body="# Andromeda — priv helper
+# deploy is the service account. Humans are in group ${GROUP}.
+Defaults:${OWNER} !requiretty
+Defaults:%${GROUP} !requiretty
+${OWNER} ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
+${OWNER} ALL=(root) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/a2enmod
+%${GROUP} ALL=(root) NOPASSWD: /usr/local/sbin/andromeda-priv
+%${GROUP} ALL=(${OWNER}) NOPASSWD: /usr/local/bin/bee, /usr/bin/git, /usr/bin/rsync, /usr/local/bin/crdir
+"
+  write_sudoers "$dest" "$body"
+}
+
 write_wg_sudoers() {
   dest=/etc/sudoers.d/andromeda-wg
   # Real paths plus the common locations. sudoers matches the path exactly.
@@ -1622,6 +1636,9 @@ rename_stardust
 if [ "${TOOLS_ONLY:-0}" -eq 1 ]; then
   echo "tools only — refreshing bin and lib in place"
   ship_tools
+  # The tools call andromeda-priv. Without this file, crdir chown
+  # fails and the pull stops at step 2.
+  write_deploy_sudoers
   echo "done."
   exit 0
 fi
@@ -1830,6 +1847,7 @@ fi
 ship_tools
 install_charm
 
+write_deploy_sudoers
 write_wg_sudoers
 echo "done."
 

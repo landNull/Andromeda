@@ -76,10 +76,16 @@ case $cmd in
   chown)
     spec=$1
     shift
-    printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_]+:[A-Za-z0-9_]+$' || exit 2
+    if ! printf '%s' "$spec" | grep -Eq '^[A-Za-z0-9_]+:[A-Za-z0-9_]+$'; then
+      echo "$PROG: refuse chown spec $spec" >&2
+      exit 2
+    fi
     [ $# -gt 0 ] || exit 2
     for p in "$@"; do path_ok "$p" || exit 1; done
-    chown "$spec" "$@"
+    if ! chown "$spec" "$@"; then
+      echo "$PROG: chown $spec failed" >&2
+      exit 1
+    fi
     ;;
   setgid)
     [ $# -gt 0 ] || exit 2

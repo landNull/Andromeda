@@ -233,6 +233,22 @@ done
 
 echo "$PROG -o $owner -g $group -m $mode${SETGID:+ -s} $*"
 
+# Memory: crdir uses sudo -n andromeda-priv. The group is not enough
+# if /etc/sudoers.d/andromeda-deploy is missing. Probe before chown.
+if [ "$DRYRUN" -eq 0 ] && [ "$(id -u)" -ne 0 ]; then
+  priv=${PRIV:-/usr/local/sbin/andromeda-priv}
+  probe=$(sudo -n "$priv" 2>&1)
+  prc=$?
+  # exit 2 is the usage line: priv ran. Anything else is sudo.
+  if [ "$prc" -ne 2 ]; then
+    echo "$PROG: sudo -n $priv failed (exit $prc)" >&2
+    [ -n "$probe" ] && echo "$probe" >&2
+    echo "$PROG: need /etc/sudoers.d/andromeda-deploy — %www-admin NOPASSWD andromeda-priv" >&2
+    echo "$PROG: run ./install-andromeda.sh --tools" >&2
+    exit 1
+  fi
+fi
+
 for d in "$@"; do
   if [ -f "$d" ]; then
     : # a file. do not mkdir.
