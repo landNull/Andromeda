@@ -179,30 +179,41 @@ pull_files() {
     echo "files none — no files tree for $src_s on $remote"
   else
     echo "files from $src"
-    # Backdrop default_allowed_extensions from
-    # core/modules/file/config/file.settings.json on landNull/backdrop.
+    # Read the source site. A field can add extensions the core
+    # default does not have. Fall back to the core file.settings.json.
     # file_unsafe_extensions is never copied.
+    raw=$(ssh_cmd "$remote" "
+      cfg=/srv/platforms/$src_p/config/$src_s/active/file.settings.json
+      core=/srv/platforms/$src_p/web/core/modules/file/config/file.settings.json
+      [ -f \"\$cfg\" ] && cat \"\$cfg\"
+      [ -f \"\$core\" ] && cat \"\$core\"
+      find /srv/platforms/$src_p/config/$src_s/active -name 'field.instance.*.json' -exec cat {} + 2>/dev/null
+    " 2>/dev/null || true)
+    exts=$(printf '%s' "$raw" | grep -oE '"(default_allowed_extensions|file_extensions)": "[^"]*"' | sed 's/.*: "//; s/"$//' | tr ' ' '\n' | tr 'A-Z' 'a-z' | sort -u)
+    if [ -z "$exts" ]; then
+      exts=$(printf '%s\n' jpg jpeg gif png txt doc docx xls xlsx pdf ppt pptx pps ppsx odt ods odp mp3 mov mp4 m4a m4v mpeg avi ogg oga ogv weba webp webm svg)
+      echo "files extensions: core default"
+    else
+      echo "files extensions: $(printf '%s' "$exts" | tr '\n' ' ')"
+    fi
+    filt=$(mktemp)
+    echo '+ */' > "$filt"
+    for e in $exts; do
+      case $e in
+        asp|cgi|ctp|htaccess|inc|js|module|phar|php|phtml|pht|phps|pl|py) continue ;;
+      esac
+      echo "+ *.$e" >> "$filt"
+      echo "+ *.$(printf '%s' "$e" | tr 'a-z' 'A-Z')" >> "$filt"
+    done
+    echo '- css/' >> "$filt"
+    echo '- js/' >> "$filt"
+    echo '- config_*/' >> "$filt"
+    echo '- *' >> "$filt"
     as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times --delete \
-      --include='*/' \
-      --include='*.[jJ][pP][gG]' --include='*.[jJ][pP][eE][gG]' \
-      --include='*.[gG][iI][fF]' --include='*.[pP][nN][gG]' \
-      --include='*.[tT][xX][tT]' --include='*.[dD][oO][cC]' --include='*.[dD][oO][cC][xX]' \
-      --include='*.[xX][lL][sS]' --include='*.[xX][lL][sS][xX]' --include='*.[pP][dD][fF]' \
-      --include='*.[pP][pP][tT]' --include='*.[pP][pP][tT][xX]' \
-      --include='*.[pP][pP][sS]' --include='*.[pP][pP][sS][xX]' \
-      --include='*.[oO][dD][tT]' --include='*.[oO][dD][sS]' --include='*.[oO][dD][pP]' \
-      --include='*.[mM][pP]3' --include='*.[mM][oO][vV]' --include='*.[mM][pP]4' \
-      --include='*.[mM]4[aA]' --include='*.[mM]4[vV]' \
-      --include='*.[mM][pP][eE][gG]' --include='*.[aA][vV][iI]' \
-      --include='*.[oO][gG][gG]' --include='*.[oO][gG][aA]' --include='*.[oO][gG][vV]' \
-      --include='*.[wW][eE][bB][aA]' --include='*.[wW][eE][bB][pP]' --include='*.[wW][eE][bB][mM]' \
-      --include='*.[sS][vV][gG]' \
-      --exclude='*.asp' --exclude='*.cgi' --exclude='*.php' --exclude='*.phtml' \
-      --exclude='*.phar' --exclude='*.inc' --exclude='*.module' --exclude='*.js' \
-      --exclude='css/' --exclude='js/' --exclude='config_*/' \
-      --exclude='*' \
+      --filter="merge $filt" \
       -e "ssh -p $(ssh_port) -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
-      "$remote:$src/" "$dest/" || return 1
+      "$remote:$src/" "$dest/" || { rm -f "$filt"; return 1; }
+    rm -f "$filt"
     count=$(find "$dest" -type f 2>/dev/null | wc -l | tr -d ' ')
     echo "files landed in $dest ($count files)"
   fi
