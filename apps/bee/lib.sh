@@ -196,7 +196,8 @@ cmd_bee_verb() {
 
 # andromeda apply theme @ref [name]
 # Sets the default theme and the default layout template.
-# Writes the config files. Does not touch admin layouts.
+# Copies the layout template from the theme (if present) into layouts/$name/
+# so the admin theme can see it. Writes the config files.
 cmd_apply_theme() {
   ref=${1:-}
   name=${2:-tabler}
@@ -209,13 +210,31 @@ cmd_apply_theme() {
     return 2
   }
   resolve_site "$REF_PLAT" "$REF_SITE"
+
+  # Install layout template from theme if it ships one.
+  # Theme may live in web/themes/$name or sites/$product/themes/$name.
+  src=
+  for cand in "$web/themes/$name/layouts/$name" "$web/sites/$product/themes/$name/layouts/$name"; do
+    if [ -d "$cand" ]; then
+      src=$cand
+      break
+    fi
+  done
+  if [ -n "$src" ]; then
+    dest=$web/layouts/$name
+    mkdir -p "$dest"
+    cp -a "$src/." "$dest/"
+    echo "installed layout from $src to $dest"
+  else
+    echo "note: no layouts/$name in theme; place it manually in layouts/$name/"
+  fi
+
   bee_yes --root="$web" --site="$product" config-set system.core theme_default "$name" || return 1
   bee_yes --root="$web" --site="$product" config-set layout.layout.default layout_template "$name" || return 1
   bee_yes --root="$web" --site="$product" config-set layout.layout.home layout_template "$name" || true
   bee_yes --root="$web" --site="$product" config-set layout.layout.admin_default layout_template "$name" || true
   bee_yes --root="$web" --site="$product" cache-clear all || return 1
   echo "applied $name to system.core, default, home, and admin"
-  echo "note: the $name layout must live in layouts/$name/ so admin can see it"
 }
 
 
