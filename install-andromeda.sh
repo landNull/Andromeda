@@ -54,7 +54,7 @@ PLATFORMS=/srv/platforms
 STARDUST=/srv/andromeda
 CONF=""
 CSF_ALLOW="10.8.0.0/24 192.168.1.0/24"
-BEE_SRC=https://github.com/backdrop-contrib/bee.git
+BEE_SRC=https://github.com/landNull/bee.git
 BEE_DST=/usr/local/src/bee
 BEE_BIN=/usr/local/bin/bee
 
