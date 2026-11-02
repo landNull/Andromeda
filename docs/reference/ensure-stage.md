@@ -26,3 +26,12 @@ It does not write config JSON. A missing `system.core.json` is a note. Config ar
 
 - [commands](commands.md)
 - [repo-ensure](repo-ensure.md)
+
+## Who calls it
+
+- `pull site` calls it on a local destination before code moves.
+- `push site` calls it on a local destination before files move.
+- `site-add` calls it after the vhost, so the dest is ready to receive files.
+- `platform-add` creates the test and live worktrees. No product yet, so it stops there.
+
+`stage_paths` is the blueprint. Pull and push read `STAGE_ROOT`, `STAGE_WEB`, `STAGE_FILES`, `STAGE_PRIVATE`, `STAGE_ACTIVE`, `STAGE_STAGING`, `STAGE_LOCALPHP`, and `STAGE_SYMLINK` instead of rebuilding the layout.
