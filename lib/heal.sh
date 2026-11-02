@@ -74,6 +74,9 @@ cmd_site_heal() {
   product=${product#\'}; product=${product%\'}
   product=${product#\"}; product=${product%\"}
   resolve_site "$platform" "$product"
+  role=$(stage_from_site "$product")
+  cmd_ensure_stage "$platform" "$product" --role "$role" || true
+  resolve_site "$platform" "$product"
   host=$(guess_host "$product")
   echo "heal $platform/$product"; echo "settings"; echo "trusted host"
   echo "settings"
