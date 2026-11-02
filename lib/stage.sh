@@ -32,8 +32,15 @@ stage_paths() {
   STAGE_STAGING=$STAGE_ROOT/config/$product/staging
   STAGE_LOCALPHP=$STAGE_SITE/settings.local.php
   STAGE_SYMLINK=$STAGE_SITE/files
+  # Owner and mode are part of the blueprint. deploy writes the
+  # skeleton. www-data is in www-admin, so Apache can still use it.
+  STAGE_OWNER=${OWNER:-deploy}
+  STAGE_GROUP=${GROUP:-www-admin}
+  STAGE_MODE_DIR=0770
+  STAGE_MODE_FILE=0640
   export STAGE_ROOT STAGE_WEB STAGE_SITE STAGE_FILES STAGE_PRIVATE
   export STAGE_ACTIVE STAGE_STAGING STAGE_LOCALPHP STAGE_SYMLINK
+  export STAGE_OWNER STAGE_GROUP STAGE_MODE_DIR STAGE_MODE_FILE
 }
 
 # ensure_worktree PLATFORM ROLE
@@ -168,14 +175,12 @@ cmd_ensure_stage() {
     echo "+ security checks"
     return 0
   fi
-  "$cr" -s -o "$DAEMON" -g "$GROUP" \
-    "$root/files/$product" \
-    "$root/files_private/$product" \
-    "$root/config/$product/active" || return 1
-  "$cr" -o "$OWNER" -g "$GROUP" \
-    "$root/config/$product/staging" || return 1
-  "$cr" -s -o "$DAEMON" -g "$GROUP" -m 0770 \
-    "$web/sites/$product" || return 1
+  # Blueprint: deploy owns every skeleton path. Group www-admin.
+  # setgid so a file deploy writes stays in the group. Apache is
+  # in that group.
+  "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
+    "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
+    "$STAGE_STAGING" "$STAGE_SITE" || return 1
 
   # Settings array, symlink, sites.php. _write_local is the one template.
   # A first pull has no secret yet. site-add writes it. Do not fail here.

@@ -408,12 +408,9 @@ _write_local() {
     echo "heal  settings.local.php (hand edit replaced)"
   fi
   if as_root mv -f "$tmp" "$localphp"; then
-    # Bee runs as deploy. The file must be readable by deploy before
-    # crdir, and still readable after. A failed crdir is not ignored.
-    as_root chown "$OWNER:$GROUP" "$localphp" || return 1
-    as_root chmod 0640 "$localphp" || return 1
+    # Blueprint owner is deploy. Write the result as deploy.
     cr=$(need_crdir)
-    "$cr" -o "$OWNER" -g "$GROUP" -m 0640 "$localphp" || return 1
+    "$cr" -o "${STAGE_OWNER:-$OWNER}" -g "${STAGE_GROUP:-$GROUP}" -m "${STAGE_MODE_FILE:-0640}" "$localphp" || return 1
     if ! as_root -u "$OWNER" test -r "$localphp"; then
       echo "$PROG: $OWNER cannot read $localphp" >&2
       if command -v namei >/dev/null 2>&1; then
