@@ -184,14 +184,19 @@ pull_files() {
     # file_unsafe_extensions is never copied.
     as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times --delete \
       --include='*/' \
-      --include='*.jpg' --include='*.jpeg' --include='*.gif' --include='*.png' \
-      --include='*.txt' --include='*.doc' --include='*.docx' \
-      --include='*.xls' --include='*.xlsx' --include='*.pdf' \
-      --include='*.ppt' --include='*.pptx' --include='*.pps' --include='*.ppsx' \
-      --include='*.odt' --include='*.ods' --include='*.odp' \
-      --include='*.mp3' --include='*.mov' --include='*.mp4' --include='*.m4a' --include='*.m4v' \
-      --include='*.mpeg' --include='*.avi' --include='*.ogg' --include='*.oga' --include='*.ogv' \
-      --include='*.weba' --include='*.webp' --include='*.webm' --include='*.svg' \
+      --include='*.[jJ][pP][gG]' --include='*.[jJ][pP][eE][gG]' \
+      --include='*.[gG][iI][fF]' --include='*.[pP][nN][gG]' \
+      --include='*.[tT][xX][tT]' --include='*.[dD][oO][cC]' --include='*.[dD][oO][cC][xX]' \
+      --include='*.[xX][lL][sS]' --include='*.[xX][lL][sS][xX]' --include='*.[pP][dD][fF]' \
+      --include='*.[pP][pP][tT]' --include='*.[pP][pP][tT][xX]' \
+      --include='*.[pP][pP][sS]' --include='*.[pP][pP][sS][xX]' \
+      --include='*.[oO][dD][tT]' --include='*.[oO][dD][sS]' --include='*.[oO][dD][pP]' \
+      --include='*.[mM][pP]3' --include='*.[mM][oO][vV]' --include='*.[mM][pP]4' \
+      --include='*.[mM]4[aA]' --include='*.[mM]4[vV]' \
+      --include='*.[mM][pP][eE][gG]' --include='*.[aA][vV][iI]' \
+      --include='*.[oO][gG][gG]' --include='*.[oO][gG][aA]' --include='*.[oO][gG][vV]' \
+      --include='*.[wW][eE][bB][aA]' --include='*.[wW][eE][bB][pP]' --include='*.[wW][eE][bB][mM]' \
+      --include='*.[sS][vV][gG]' \
       --exclude='*.asp' --exclude='*.cgi' --exclude='*.php' --exclude='*.phtml' \
       --exclude='*.phar' --exclude='*.inc' --exclude='*.module' --exclude='*.js' \
       --exclude='css/' --exclude='js/' --exclude='config_*/' \
