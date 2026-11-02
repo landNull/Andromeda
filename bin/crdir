@@ -276,11 +276,16 @@ for d in "$@"; do
   # setfacl is from the acl package. Missing priv verb or missing
   # setfacl must not undo a good chown. Owner and mode are the contract.
   run setacl "$d" || echo "$PROG: setacl skipped for $d (acl package or priv verb)" >&2
+  # setfacl rewrites the mask. Put the requested mode back.
+  run chmod "$mode" "$d" || true
   # Existing children too. A file written before crdir keeps the old owner.
   if [ -d "$d" ]; then
     find "$d" -mindepth 1 -print 2>/dev/null | while IFS= read -r child; do
       run chown "$owner:$group" "$child"
       run setacl "$child" || true
+      if [ -f "$child" ]; then
+        run chmod 0640 "$child" || true
+      fi
     done
   fi
 done

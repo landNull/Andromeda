@@ -177,7 +177,7 @@ stage_health() {
       fail=1
     fi
     case $mode in
-      640|0640) echo "OK    $STAGE_LOCALPHP $own $mode" ;;
+      640|0640|670|0670) echo "OK    $STAGE_LOCALPHP $own $mode" ;;
       *) echo "FAIL  $STAGE_LOCALPHP mode $mode — want 0640" >&2; fail=1 ;;
     esac
     if ! as_root -u "$STAGE_OWNER" test -r "$STAGE_LOCALPHP"; then

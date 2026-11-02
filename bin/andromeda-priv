@@ -100,9 +100,12 @@ case $cmd in
       exit 1
     fi
     for p in "$@"; do
-      setfacl -m "u:${OWNER}:rwx,g:${GROUP}:rwx,u:${DAEMON}:rwx,o::---" "$p" 2>/dev/null || true
       if [ -d "$p" ]; then
+        setfacl -m "u:${OWNER}:rwx,g:${GROUP}:rwx,u:${DAEMON}:rwx,o::---" "$p" 2>/dev/null || true
         setfacl -d -m "u:${OWNER}:rwx,g:${GROUP}:rwx,u:${DAEMON}:rwx,o::---" "$p" 2>/dev/null || true
+      else
+        # A file ACL of rwx sets the mask to rwx and turns 0640 into 0670.
+        setfacl -m "u:${OWNER}:rw-,g:${GROUP}:r--,u:${DAEMON}:r--,o::---" "$p" 2>/dev/null || true
       fi
     done
     ;;
