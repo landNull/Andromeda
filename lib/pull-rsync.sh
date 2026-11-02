@@ -197,6 +197,7 @@ pull_files() {
       echo "files extensions: $(printf '%s' "$exts" | tr '\n' ' ')"
     fi
     filt=$(mktemp)
+    chmod 0644 "$filt"
     echo '+ */' > "$filt"
     for e in $exts; do
       case $e in
