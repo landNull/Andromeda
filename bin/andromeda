@@ -246,7 +246,7 @@ set -- $_rest
 # verb-first: pull site, add platform, heal site, list sites, promote platform
 # object-first forms (site pull, platform add) remain as aliases
 case $cmd in
-  pull|push|add|heal|list|promote|ensure|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset|migrate)
+  pull|push|add|heal|list|promote|ensure|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset|migrate|default|clear|update|import|export|get|set|status|maintenance)
     obj=${1:-}
     case $cmd in
       pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
@@ -254,15 +254,24 @@ case $cmd in
       push)    case $obj in site) cmd=site-push; shift ;; esac ;;
       add)     case $obj in platform) cmd=platform-add; shift ;; site) cmd=site-add; shift ;; esac ;;
       heal)    case $obj in site) cmd=site-heal; shift ;; all) cmd=heal-all; shift ;; esac ;;
-      list)    case $obj in site|sites) cmd=site-list; shift ;; platform|platforms) cmd=platform-list; shift ;; esac ;;
+      list)    case $obj in site|sites) cmd=site-list; shift ;; platform|platforms) cmd=platform-list; shift ;; themes|modules) cmd=bee-verb; set -- list "$@" ;; esac ;;
       promote) case $obj in platform) cmd=promote; shift ;; esac ;;
       backup)  case $obj in site) cmd=site-backup; shift ;; all) cmd=backup-all; shift ;; esac ;;
       restore) case $obj in site) cmd=site-restore; shift ;; esac ;;
       clone)   case $obj in site) cmd=site-clone; shift ;; esac ;;
       debug)   case $obj in site) cmd=site-debug; shift ;; esac ;;
       check)   case $obj in site) cmd=site-check; shift ;; esac ;;
-      disable) case $obj in site) cmd=site-disable; shift ;; esac ;;
-      enable)  case $obj in site) cmd=site-enable; shift ;; esac ;;
+      disable) case $obj in site) cmd=site-disable; shift ;; theme|module) cmd=bee-verb; set -- disable "$@" ;; esac ;;
+      enable)  case $obj in site) cmd=site-enable; shift ;; theme|module) cmd=bee-verb; set -- enable "$@" ;; esac ;;
+      default) case $obj in theme) cmd=bee-verb; set -- default "$@" ;; esac ;;
+      clear)   case $obj in cache) cmd=bee-verb; set -- clear "$@" ;; esac ;;
+      update)  case $obj in database) cmd=bee-verb; set -- update "$@" ;; esac ;;
+      import)  case $obj in config|database) cmd=bee-verb; set -- import "$@" ;; esac ;;
+      export)  case $obj in config|database) cmd=bee-verb; set -- export "$@" ;; esac ;;
+      get)     case $obj in config) cmd=bee-verb; set -- get "$@" ;; esac ;;
+      set)     case $obj in config) cmd=bee-verb; set -- set "$@" ;; esac ;;
+      status)  case $obj in site) cmd=bee-verb; set -- status "$@" ;; esac ;;
+      maintenance) case $obj in site) cmd=bee-verb; set -- maintenance "$@" ;; esac ;;
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
@@ -408,6 +417,7 @@ dispatch() {
     cron-all) cmd_cron_all ;;
     bee) cmd_bee "$@" ;;
     theme) cmd_theme "$@" ;;
+    bee-verb) cmd_bee_verb "$@" ;;
     run) cmd_run "$@" ;;
     d7|d7-migrate) cmd_d7 "$@" ;;
     d7-prep) cmd_d7 prep "$@" ;;

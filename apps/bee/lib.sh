@@ -138,3 +138,58 @@ cmd_run() {
   bee_yes --root="$web" --site="$product" "$@"
 }
 
+
+# andromeda VERB NOUN @ref [args]
+# enable theme, list themes, clear cache, update database, and the rest.
+# The map is the Bee verb. The user does not type bee.
+bee_verb_map() {
+  case "$1 $2" in
+    "list themes")        printf '%s\n' themes ;;
+    "enable theme")       printf '%s\n' theme-enable ;;
+    "disable theme")      printf '%s\n' theme-disable ;;
+    "default theme")      printf '%s\n' theme-default ;;
+    "list modules")       printf '%s\n' modules ;;
+    "enable module")      printf '%s\n' module-enable ;;
+    "disable module")     printf '%s\n' module-disable ;;
+    "clear cache")        printf '%s\n' cache-clear ;;
+    "update database")    printf '%s\n' updb ;;
+    "import config")      printf '%s\n' config-import ;;
+    "export config")      printf '%s\n' config-export ;;
+    "get config")         printf '%s\n' config-get ;;
+    "set config")         printf '%s\n' config-set ;;
+    "status site")        printf '%s\n' status ;;
+    "cron site")          printf '%s\n' cron ;;
+    "maintenance site")   printf '%s\n' maintenance-mode ;;
+    "export database")    printf '%s\n' db-export ;;
+    "import database")    printf '%s\n' db-import ;;
+    *) return 1 ;;
+  esac
+}
+
+# Called when the first word is a Bee verb and the second is its noun.
+cmd_bee_verb() {
+  verb=$1
+  noun=$2
+  shift 2
+  bee=$(bee_verb_map "$verb" "$noun") || return 1
+  ref=${1:-}
+  shift || true
+  if [ -z "$ref" ]; then
+    echo "usage: $PROG $verb $noun @host:plat/site [args]" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  case $bee in
+    cache-clear|updb|config-import)
+      bee_yes --root="$web" --site="$product" "$bee" all "$@" ||       bee_yes --root="$web" --site="$product" "$bee" "$@"
+      ;;
+    *)
+      bee_yes --root="$web" --site="$product" "$bee" "$@"
+      ;;
+  esac
+}
+
