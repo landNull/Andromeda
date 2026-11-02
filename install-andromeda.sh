@@ -678,6 +678,11 @@ ensure_user() {
 
 
 write_deploy_sudoers() {
+  detect_group
+  if [ -z "$GROUP" ] || [ -z "$OWNER" ]; then
+    echo "$PROG: refuse sudoers write — OWNER or GROUP empty" >&2
+    return 1
+  fi
   dest=/etc/sudoers.d/andromeda-deploy
   body="# Andromeda — priv helper
 # deploy is the service account. Humans are in group ${GROUP}.
