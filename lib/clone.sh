@@ -53,6 +53,9 @@ cmd_site_clone() {
   # restore files+db onto dest (overwrites empty bee install DB)
   cmd=${cmd:-site-clone}
   resolve_site "$dst_p" "$dst_s"
+  stage_paths "$dst_p" "$dst_s" "$(stage_from_site "$dst_s")"
+  root=$STAGE_ROOT
+  web=$STAGE_WEB
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ restore $snap into $root product=$product"
     return 0
