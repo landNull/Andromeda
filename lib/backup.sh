@@ -22,9 +22,10 @@ cmd_site_backup() {
   # then missed the sites.php line.
   platform=$(printf '%s' "$raw_plat" | tr '[:upper:]' '[:lower:]')
   product=$(printf '%s' "$raw_prod" | tr '[:upper:]' '[:lower:]')
-  root=$PLATFORMS/$platform
-  web=$root/web
-  role=$ANDROMEDA_ROLE
+  role=$(stage_from_site "$product")
+  stage_paths "$platform" "$product" "$role"
+  root=$STAGE_ROOT
+  web=$STAGE_WEB
   dest=$(backup_dir "$platform" "$product" "$role")/$(stamp)
   bee=$(bee_bin)
 
@@ -141,6 +142,8 @@ cmd_site_restore() {
   fi
 
   bee=$(bee_bin)
+  cmd_ensure_stage "$platform" "$product" --role "$role" || true
+  resolve_site "$platform" "$product"
   if [ "$DRYRUN" -eq 1 ]; then
     echo "+ restore $from -> $root product=$product"
     echo "+ $bee --root=$web --site=$product db-import $dump"
