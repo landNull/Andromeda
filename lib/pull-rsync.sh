@@ -255,6 +255,14 @@ pull_db() {
     if ! bee_site_cmd "$web" "$product" db-import "$dump"; then
       echo "$PROG: andro bee db-import failed for $product" >&2
     fi
+    # Database is in. Reconcile again, then clear caches. Retry once if a
+    # module class is missing.
+    root=$(dirname "$web")
+    active="$root/config/$product/active"
+    echo "modules  reconcile"
+    reconcile_modules "$web" "$active"
+    echo "cache clear"
+    cache_clear_safe "$web" "$product" "$active" ||       echo "$PROG: cache clear failed for $product" >&2
   else
     echo "db    none"
   fi
@@ -352,13 +360,15 @@ pull_config() {
   else
     echo "config active seeded ($n files)"
   fi
+  # Drop enabled modules whose code is not on disk. Covers core and contrib.
+  echo "modules  reconcile"
+  reconcile_modules "$root/web" "$active"
   echo "config andro bee import"
   if ! bee_site_cmd "$root/web" "$product" -y config-import; then
     echo "$PROG: andro bee config-import failed for $product" >&2
   fi
-  # Clear caches so the new config and database are visible.
-  echo "cache clear"
-  bee_site_cmd "$root/web" "$product" cc all 2>/dev/null || true
+  # Cache clear runs after the database import. Clearing now boots against
+  # an empty system table and dies on missing classes.
 }
 
 # Local variants — same host, no ssh. Used when the source ref is bare or local.
