@@ -916,8 +916,20 @@ resolve_site() {
     echo "usage: $PROG $cmd PLATFORM PRODUCT" >&2
     exit 2
   fi
-  root=$PLATFORMS/$platform
-  web=$root/web
+  # Blueprint. test and live live in a worktree, not the main checkout.
+  role=$(stage_from_site "$product")
+  if command -v stage_paths >/dev/null 2>&1; then
+    stage_paths "$platform" "$product" "$role"
+    root=$STAGE_ROOT
+    web=$STAGE_WEB
+  else
+    root=$PLATFORMS/$platform
+    web=$root/web
+  fi
+  if [ ! -d "$root" ]; then
+    root=$PLATFORMS/$platform
+    web=$root/web
+  fi
   if [ ! -d "$root" ]; then
     echo "$PROG: no platform $root" >&2
     exit 1
