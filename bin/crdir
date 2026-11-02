@@ -130,6 +130,10 @@ as_root() {
         sudo -n "$priv" chmod "$@"
       fi
       ;;
+    setacl)
+      shift
+      sudo -n "$priv" setacl "$@"
+      ;;
     *)
       echo "crdir: refuse $1" >&2
       return 1
@@ -224,10 +228,7 @@ for d in "$@"; do
     echo "$PROG: empty path" >&2
     exit 1
   fi
-  if [ -e "$d" ] && [ ! -d "$d" ]; then
-    echo "$PROG: exists and is not a directory: $d" >&2
-    exit 1
-  fi
+  # Files are allowed. settings.local.php is one.
 done
 
 echo "$PROG -o $owner -g $group -m $mode${SETGID:+ -s} $*"
@@ -238,9 +239,12 @@ for d in "$@"; do
   fi
   run chown "$owner:$group" "$d"
   run chmod "$mode" "$d"
-  if [ "$SETGID" -eq 1 ]; then
+  if [ "$SETGID" -eq 1 ] && [ -d "$d" ]; then
     run chmod g+s "$d"
   fi
+  # Access ACL now, default ACL on directories so new files inherit.
+  # deploy, www-admin, and www-data can all use the path.
+  run setacl "$d"
 done
 
 if [ "$DRYRUN" -eq 0 ]; then

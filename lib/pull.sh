@@ -408,14 +408,10 @@ _write_local() {
     echo "heal  settings.local.php (hand edit replaced)"
   fi
   if as_root mv -f "$tmp" "$localphp"; then
-    # Written as the operator. Bee runs as deploy, Apache as www-data.
-    # crdir does not touch this file. Hand it to deploy:www-admin 0640.
-    as_root chown "$OWNER:$GROUP" "$localphp"
-    as_root chmod 0640 "$localphp"
-    if command -v setfacl >/dev/null 2>&1; then
-      as_root setfacl -m "u:${DAEMON}:r" "$localphp" || true
-    fi
-    echo "write $localphp (role $role) owner $OWNER:$GROUP"
+    # crdir owns the result: owner, group, mode, ACL.
+    cr=$(need_crdir)
+    "$cr" -o "$OWNER" -g "$GROUP" -m 0640 "$localphp" || true
+    echo "write $localphp (role $role)"
   else
     rm -f "$tmp"
     return 1
