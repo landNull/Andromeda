@@ -211,7 +211,9 @@ cmd_apply_theme() {
   resolve_site "$REF_PLAT" "$REF_SITE"
   bee_yes --root="$web" --site="$product" config-set system.core theme_default "$name" || return 1
   bee_yes --root="$web" --site="$product" config-set layout.layout.default layout_template "$name" || return 1
+  bee_yes --root="$web" --site="$product" config-set layout.layout.home layout_template "$name" || true
   bee_yes --root="$web" --site="$product" cache-clear all || return 1
-  echo "applied $name to system.core and layout.layout.default"
+  echo "applied $name to system.core, layout.layout.default, layout.layout.home"
+  echo "admin layout left alone"
 }
 
