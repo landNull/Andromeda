@@ -407,6 +407,7 @@ dispatch() {
     backup-all) cmd_backup_all ;;
     cron-all) cmd_cron_all ;;
     bee) cmd_bee "$@" ;;
+    theme) cmd_theme "$@" ;;
     d7|d7-migrate) cmd_d7 "$@" ;;
     d7-prep) cmd_d7 prep "$@" ;;
     d7-assess) cmd_d7 assess "$@" ;;

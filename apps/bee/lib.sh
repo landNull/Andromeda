@@ -85,3 +85,38 @@ cmd_bee() {
   fi
   bee_site_cmd "$web" "$product" "$@"
 }
+
+# andromeda theme list|enable|default REF [NAME]
+# Bee stays inside. The user names the site and the theme.
+cmd_theme() {
+  act=${1:-}
+  shift || true
+  ref=${1:-}
+  shift || true
+  name=${1:-}
+  if [ -z "$act" ] || [ -z "$ref" ]; then
+    echo "usage: $PROG theme list @host:plat/site" >&2
+    echo "       $PROG theme enable @host:plat/site THEME" >&2
+    echo "       $PROG theme default @host:plat/site THEME" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  case $act in
+    list) bee_site_cmd "$web" "$product" themes ;;
+    enable)
+      [ -n "$name" ] || { echo "$PROG: theme enable needs a name" >&2; return 2; }
+      bee_yes --root="$web" --site="$product" theme-enable "$name" || return 1
+      ;;
+    default)
+      [ -n "$name" ] || { echo "$PROG: theme default needs a name" >&2; return 2; }
+      bee_yes --root="$web" --site="$product" theme-default "$name" || return 1
+      bee_yes --root="$web" --site="$product" cache-clear all || return 1
+      ;;
+    *) echo "$PROG: theme $act — use list, enable, or default" >&2; return 2 ;;
+  esac
+}
+
