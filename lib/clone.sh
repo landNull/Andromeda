@@ -111,5 +111,7 @@ cmd_site_clone() {
   if [ -f "$localphp" ] && ! grep -q "trusted_host_patterns" "$localphp" 2>/dev/null; then
     printf '%s\n' "\$settings['trusted_host_patterns'] = array('^${hostpat}\$');" | as_root tee -a "$localphp" >/dev/null || true
   fi
+  stage_paths "$dst_p" "$dst_s" "$(stage_from_site "$dst_s")"
+  stage_public_path "$web" "$dst_s" || return 1
   echo "clone done  http://$host"
 }

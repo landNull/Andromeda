@@ -195,6 +195,18 @@ stage_apply() {
   fi
 }
 
+
+# stage_public_path
+# Backdrop builds the file URL from system.core, not from settings.
+# Call this after a command has a site and a config store.
+stage_public_path() {
+  web=$1
+  product=$2
+  [ -f "$STAGE_ACTIVE/system.core.json" ] || return 0
+  bee_yes --root="$web" --site="$product" config-set system.core file_public_path "sites/$product/files" || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+}
+
 # stage_health
 # Verify the blueprint after crdir. deploy must own and be able to
 # write every skeleton path. Prints OK or FAIL per path. Returns 1
@@ -327,5 +339,6 @@ cmd_ensure_stage() {
   else
     echo "config active ready"
   fi
+  stage_public_path "$web" "$product" || return 1
   echo "stage ready $plat/$product ($role) at $root"
 }

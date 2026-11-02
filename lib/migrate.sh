@@ -293,6 +293,7 @@ cmd_migrate_www() {
   chown_code "$web" || sudo chown -R "$OWNER:$GROUP" "$web"
   stage_paths "$plat" "$product" "$role"
   stage_apply || return 1
+  stage_public_path "$web" "$product" || return 1
 
   # Standalone installs keep config under files/config_HASH and modules in
   # the docroot. Move both into the platform store so the site matches a

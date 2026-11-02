@@ -343,6 +343,8 @@ cmd_site_add() {
   if [ "$DRYRUN" -eq 0 ]; then
     cmd_ensure_stage "$platform" "$product" --role "$role" || true
   fi
+  stage_paths "$platform" "$product" "$role"
+  stage_public_path "$web" "$product" || return 1
   echo "site $product on $platform -> http://$host  db=$db"
 }
 

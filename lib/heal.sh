@@ -105,6 +105,8 @@ cmd_site_heal() {
   sudo -n "$priv" mkdir "$root/files/$product" "$root/files_private/$product" "$root/config/$product/active" 2>/dev/null || true
   sudo -n "$priv" chown-files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
   apache_reload || echo "apache: reload skipped"
+  stage_paths "$platform" "$product" "$role"
+  stage_public_path "$web" "$product" || return 1
   echo "heal done $platform/$product"
 }
 

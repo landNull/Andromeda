@@ -425,10 +425,8 @@ _write_local() {
   # Backdrop builds the file URL from system.core, not from settings.
   # A pulled site keeps the source value "files", so the page asks for
   # /files/... and gets a 404. Set it to the site path.
-  if [ -f "$cfgactive/system.core.json" ]; then
-    bee_yes --root="$web" --site="$product" config-set system.core file_public_path "sites/$product/files" || return 1
-    bee_yes --root="$web" --site="$product" cache-clear all || return 1
-  fi
+  stage_paths "$platform" "$product" "$role"
+  stage_public_path "$web" "$product" || return 1
   else
     rm -f "$tmp"
     return 1
