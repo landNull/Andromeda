@@ -410,7 +410,7 @@ _write_local() {
   if as_root mv -f "$tmp" "$localphp"; then
     # Blueprint owner is deploy. Write the result as deploy.
     cr=$(need_crdir)
-    "$cr" -o "${STAGE_OWNER:-$OWNER}" -g "${STAGE_GROUP:-$GROUP}" -m "${STAGE_MODE_FILE:-0640}" "$localphp" || return 1
+    as_root -u "$OWNER" "$cr" -o "${STAGE_OWNER:-$OWNER}" -g "${STAGE_GROUP:-$GROUP}" -m "${STAGE_MODE_FILE:-0640}" "$localphp" || return 1
     if ! as_root -u "$OWNER" test -r "$localphp"; then
       echo "$PROG: $OWNER cannot read $localphp" >&2
       if command -v namei >/dev/null 2>&1; then

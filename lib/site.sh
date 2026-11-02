@@ -270,17 +270,16 @@ cmd_site_add() {
     echo "+ $cr -s -o $DAEMON -g $GROUP $root/files/$product $root/files_private/$product $root/config/$product/active"
     echo "+ $cr -o $OWNER -g $GROUP $root/config/$product/staging"
   else
-    # crdir calls sudo itself; run as the operator, not deploy
-    "$cr" -s -o "$DAEMON" -g "$GROUP" \
+    echo "skeleton as $OWNER"
+    as_root -u "$OWNER" "$cr" -s -o "$OWNER" -g "$GROUP" -m 0770 \
       "$root/files/$product" \
       "$root/files_private/$product" \
-      "$root/config/$product/active"
-    "$cr" -o "$OWNER" -g "$GROUP" \
-      "$root/config/$product/staging"
+      "$root/config/$product/active" \
+      "$root/config/$product/staging" || return 1
   fi
 
   ensure_settings_php "$root" "$product"
-  ensure_sites_php "$web" "$host" "$product"
+  ensure_sites_php "$web" "$host" "$product" || return 1
   ensure_local_php "$web/sites/$product/settings.local.php" "$dsn" "$hostpat" "$role"
   # Database create can fail (priv, credentials). Do not abort site-add;
   # a pull will import the source database afterward.

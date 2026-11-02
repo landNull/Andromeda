@@ -123,7 +123,10 @@ stage_security() {
   # Private dir gets a deny file even though it is outside the docroot.
   if [ -d "$private" ] && [ ! -f "$private/.htaccess" ]; then
     echo "note  no .htaccess in $private — writing deny"
-    printf '%s\n' 'Require all denied' 'Deny from all' | as_root tee "$private/.htaccess" >/dev/null || true
+    printf '%s\n' 'Require all denied' 'Deny from all' | as_root -u "$OWNER" tee "$private/.htaccess" >/dev/null || {
+      echo "$PROG: cannot write $private/.htaccess as $OWNER" >&2
+      fail=1
+    }
   fi
 
   [ "$fail" -eq 0 ]
@@ -165,7 +168,7 @@ cmd_ensure_stage() {
   stage_paths "$plat" "$product" "$role"
   root=$STAGE_ROOT
   web=$STAGE_WEB
-  run_root mkdir -p "$STAGE_SITE" || true
+  as_root -u "$OWNER" mkdir -p "$STAGE_SITE" || return 1
 
   cr=$(need_crdir)
   if [ "$DRYRUN" -eq 1 ]; then
@@ -178,7 +181,8 @@ cmd_ensure_stage() {
   # Blueprint: deploy owns every skeleton path. Group www-admin.
   # setgid so a file deploy writes stays in the group. Apache is
   # in that group.
-  "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
+  echo "skeleton as $OWNER"
+  as_root -u "$OWNER" "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
     "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
     "$STAGE_STAGING" "$STAGE_SITE" || return 1
 
@@ -187,7 +191,7 @@ cmd_ensure_stage() {
   pass=$(read_secret_pass "$platform" "$product" || true)
   if [ -n "$pass" ]; then
     _write_local "$root" "$web" "$product" "$host" "$role" || return 1
-    ensure_sites_php "$web" "$host" "$product" || true
+    ensure_sites_php "$web" "$host" "$product" || return 1
     stage_security "$root" "$web" "$product" "$role" || {
       echo "$PROG: stage $plat/$product failed security checks" >&2
       return 1
