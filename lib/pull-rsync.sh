@@ -179,9 +179,23 @@ pull_files() {
     echo "files none — no files tree for $src_s on $remote"
   else
     echo "files from $src"
+    # Backdrop default_allowed_extensions from
+    # core/modules/file/config/file.settings.json on landNull/backdrop.
+    # file_unsafe_extensions is never copied.
     as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times --delete \
-      --exclude='*.php' --exclude='*.PHP' \
+      --include='*/' \
+      --include='*.jpg' --include='*.jpeg' --include='*.gif' --include='*.png' \
+      --include='*.txt' --include='*.doc' --include='*.docx' \
+      --include='*.xls' --include='*.xlsx' --include='*.pdf' \
+      --include='*.ppt' --include='*.pptx' --include='*.pps' --include='*.ppsx' \
+      --include='*.odt' --include='*.ods' --include='*.odp' \
+      --include='*.mp3' --include='*.mov' --include='*.mp4' --include='*.m4a' --include='*.m4v' \
+      --include='*.mpeg' --include='*.avi' --include='*.ogg' --include='*.oga' --include='*.ogv' \
+      --include='*.weba' --include='*.webp' --include='*.webm' --include='*.svg' \
+      --exclude='*.asp' --exclude='*.cgi' --exclude='*.php' --exclude='*.phtml' \
+      --exclude='*.phar' --exclude='*.inc' --exclude='*.module' --exclude='*.js' \
       --exclude='css/' --exclude='js/' --exclude='config_*/' \
+      --exclude='*' \
       -e "ssh -p $(ssh_port) -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
       "$remote:$src/" "$dest/" || return 1
     count=$(find "$dest" -type f 2>/dev/null | wc -l | tr -d ' ')
