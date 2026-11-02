@@ -29,7 +29,11 @@ roots = [
     os.path.join(web, "core", "modules"),
     os.path.join(web, "modules"),
     os.path.join(web, "sites"),
+    os.path.join(web, "core", "profiles"),
+    os.path.join(web, "profiles"),
 ]
+# system is required. It is not listed as a toggle in system.extensions.
+always = {"system"}
 
 def find_dir(name):
     for root in roots:
@@ -63,12 +67,17 @@ missing_code = []
 missing_deps = []
 ok = []
 for name in enabled:
+    if name in always:
+        ok.append(name)
+        continue
     d = find_dir(name)
     if not d:
         missing_code.append(name)
         continue
     ok.append(name)
     for dep in deps_of(name, d):
+        if dep in always:
+            continue
         if dep not in mods or not mods.get(dep):
             missing_deps.append(f"{name} needs {dep} (not enabled)")
         elif not find_dir(dep):
