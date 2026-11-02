@@ -1,71 +1,37 @@
 # shellcheck shell=sh
-# Module reconcile. Works for every module, including core.
-# An enabled module whose code is not on disk is disabled in
-# system.extensions.json so bootstrap and cache clear can finish.
-# system is never disabled.
+# Module preflight. Production gate, not a silent disable.
+# Backdrop boots from system.extensions.json plus the system table.
+# An enabled module must have its code on disk and its .info
+# dependencies present and enabled. If either fails, stop and report.
+# Never disable a module to make the pull look successful.
 
-# module_on_disk WEB NAME
-# True when NAME.module or NAME.info exists under core, modules, or sites.
-module_on_disk() {
-  web=$1
-  name=$2
-  found=$(find "$web/core/modules" "$web/modules" "$web/sites" \
-    -path "*/${name}/${name}.module" -o -path "*/${name}/${name}.info" \
-    2>/dev/null | head -n 1)
-  [ -n "$found" ]
-}
-
-# disable_module_in_config ACTIVE NAME
-# Sets modules.NAME to false in system.extensions.json. Never touches system.
-disable_module_in_config() {
-  active=$1
-  name=$2
-  file=$active/system.extensions.json
-  [ "$name" = "system" ] && return 1
-  [ -f "$file" ] || return 1
-  python3 - "$file" "$name" << 'PY'
-import json, sys
-path, name = sys.argv[1], sys.argv[2]
-if name == "system":
-    sys.exit(1)
-with open(path) as f:
-    data = json.load(f)
-mods = data.get("modules") or {}
-if name not in mods:
-    sys.exit(1)
-mods[name] = False
-data["modules"] = mods
-with open(path, "w") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-print(name)
-PY
-}
-
-# reconcile_modules WEB ACTIVE
-# Disables every enabled module whose code is missing. Prints each name.
-reconcile_modules() {
+# module_preflight WEB ACTIVE
+# Returns 1 and prints a report when the site cannot boot cleanly.
+module_preflight() {
   web=$1
   active=$2
   file=$active/system.extensions.json
+  report=$active/../module-preflight.txt
   if [ ! -f "$file" ]; then
-    echo "modules  no system.extensions.json — skip"
-    return 0
+    echo "modules  no system.extensions.json — cannot verify" >&2
+    return 1
   fi
-  missing=$(python3 - "$file" "$web" << 'PY'
+  python3 - "$file" "$web" "$report" << 'PY'
 import json, os, sys
-path, web = sys.argv[1], sys.argv[2]
-keep = {"system"}
+path, web, report = sys.argv[1], sys.argv[2], sys.argv[3]
+keep_required = {"system"}
 with open(path) as f:
     data = json.load(f)
 mods = data.get("modules") or {}
-disabled = []
+enabled = sorted(n for n, on in mods.items() if on)
+
 roots = [
     os.path.join(web, "core", "modules"),
     os.path.join(web, "modules"),
     os.path.join(web, "sites"),
 ]
-def on_disk(name):
+
+def find_dir(name):
     for root in roots:
         if not os.path.isdir(root):
             continue
@@ -73,33 +39,65 @@ def on_disk(name):
             if os.path.basename(dirpath) != name:
                 continue
             if f"{name}.module" in filenames or f"{name}.info" in filenames:
-                return True
-    return False
-for name, on in list(mods.items()):
-    if not on or name in keep:
+                return dirpath
+    return None
+
+def deps_of(name, dirpath):
+    info = os.path.join(dirpath, f"{name}.info")
+    out = []
+    if not os.path.isfile(info):
+        return out
+    for line in open(info, errors="replace"):
+        line = line.strip()
+        if not line.startswith("dependencies[]"):
+            continue
+        # dependencies[] = ubercart
+        val = line.split("=", 1)[-1].strip().strip('"').strip("'")
+        # Backdrop allows dependencies[] = module (>=1.0)
+        val = val.split()[0] if val else ""
+        if val:
+            out.append(val)
+    return out
+
+missing_code = []
+missing_deps = []
+ok = []
+for name in enabled:
+    d = find_dir(name)
+    if not d:
+        missing_code.append(name)
         continue
-    if not on_disk(name):
-        mods[name] = False
-        disabled.append(name)
-if disabled:
-    data["modules"] = mods
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
-print(" ".join(disabled))
+    ok.append(name)
+    for dep in deps_of(name, d):
+        if dep not in mods or not mods.get(dep):
+            missing_deps.append(f"{name} needs {dep} (not enabled)")
+        elif not find_dir(dep):
+            missing_deps.append(f"{name} needs {dep} (code missing)")
+
+lines = []
+lines.append(f"enabled {len(enabled)}")
+lines.append(f"on disk {len(ok)}")
+if missing_code:
+    lines.append("FAIL code missing:")
+    lines.extend(f"  {n}" for n in missing_code)
+if missing_deps:
+    lines.append("FAIL dependencies:")
+    lines.extend(f"  {n}" for n in missing_deps)
+if not missing_code and not missing_deps:
+    lines.append("ok all enabled modules are on disk and dependencies are met")
+text = "\n".join(lines) + "\n"
+os.makedirs(os.path.dirname(report), exist_ok=True)
+with open(report, "w") as f:
+    f.write(text)
+print(text, end="")
+sys.exit(1 if missing_code or missing_deps else 0)
 PY
-)
-  if [ -n "$missing" ]; then
-    echo "modules  disabled (code missing): $missing"
-  else
-    echo "modules  all enabled modules are on disk"
-  fi
 }
 
-# cache_clear_safe WEB PRODUCT ACTIVE
-# Runs bee cc all. On a missing class or a fatal in a module file, disables
-# that module and retries once. Covers contrib and core.
-cache_clear_safe() {
+# cache_clear_report WEB PRODUCT ACTIVE
+# Runs bee cc all. On failure, writes which module and class broke it.
+# Does not disable anything. Returns 1 so the pull stops.
+cache_clear_report() {
   web=$1
   product=$2
   active=$3
@@ -110,17 +108,15 @@ cache_clear_safe() {
     return 0
   fi
   cat "$log" >&2
-  # Path in the error names the module: .../modules/NAME/... or .../core/modules/NAME/...
   mod=$(grep -oE '(core/modules|modules|sites/[^/]+/modules)/[A-Za-z0-9_]+/' "$log" | head -n 1 | awk -F/ '{print $(NF-1)}')
-  if [ -z "$mod" ]; then
-    mod=$(grep -oE 'Class [A-Za-z0-9_]+ does not exist' "$log" | head -n 1 | awk '{print $2}')
-  fi
+  cls=$(grep -oE 'Class [A-Za-z0-9_]+ does not exist' "$log" | head -n 1 | awk '{print $2}')
+  report=$active/../module-preflight.txt
+  {
+    echo "FAIL cache clear"
+    [ -n "$mod" ] && echo "  module $mod"
+    [ -n "$cls" ] && echo "  class  $cls"
+    echo "  the module was not disabled. Fix the code or the dependency, then pull again."
+  } | tee -a "$report" >&2
   rm -f "$log"
-  if [ -z "$mod" ] || [ "$mod" = "system" ]; then
-    echo "modules  cache clear failed — no module to disable" >&2
-    return 1
-  fi
-  echo "modules  cache clear failed in $mod — disabling and retrying"
-  disable_module_in_config "$active" "$mod" || return 1
-  bee_site_cmd "$web" "$product" cc all
+  return 1
 }
