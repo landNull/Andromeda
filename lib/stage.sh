@@ -193,6 +193,24 @@ stage_apply() {
     as_root -u "$STAGE_OWNER" "$cr" -D -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_FILE" \
       "$STAGE_LOCALPHP" || return 1
   fi
+  # Config files are 0640. That mode forces the ACL mask to r--.
+  # Backdrop writes config at runtime as www-data. Fix the mask.
+  stage_mask_config
+}
+
+# stage_mask_config
+# File mode 0640 sets the ACL mask to r--. ACL entries that grant
+# write are then effective r--. www-data cannot write config.
+# Set the mask to rwx on the config trees so the ACL write sticks.
+stage_mask_config() {
+  if ! command -v setfacl >/dev/null 2>&1; then
+    return 0
+  fi
+  for d in "$STAGE_ACTIVE" "$STAGE_STAGING"; do
+    [ -d "$d" ] || continue
+    as_root setfacl -R -m m::rwx "$d" || true
+    as_root setfacl -R -d -m m::rwx "$d" || true
+  done
 }
 
 
