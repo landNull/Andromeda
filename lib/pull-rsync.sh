@@ -246,15 +246,20 @@ pull_db() {
     fi
     run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
     run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
-    # No --mariadb-compatibility: that flag pipes the dump through
-    # `grep -vF '/*!999999\- ...'`, and grep switches to binary mode on
-    # dumps containing gzipped cache blobs, replacing the stream with
-    # "Binary file matches" and breaking the import. Plain db-import uses
-    # `mysql < dump`, which handles the MariaDB 11.8 sandbox-mode comment
-    # fine when the client is MariaDB (this stack is MariaDB-only).
-    if ! bee_site_cmd "$web" "$product" db-import "$dump"; then
-      echo "$PROG: andro bee db-import failed for $product" >&2
+    # Bee db-import greps a private temp file and dies with
+    # "grep: /tmp/tmp.XXX: Permission denied". Use the tools Bee uses:
+    # sed to drop the MariaDB 11 sandbox line (Bee issue #384), then the
+    # mysql client Andromeda already uses for the login test.
+    echo "db    mysql import"
+    cnf=$(secret_file "$platform" "$product").cnf
+    db=$(db_name "$product" "$(stage_from_site "$product")")
+    sed -i '1{/^\/\*!999999\\- enable the sandbox mode \*\//d;}' "$dump" 2>/dev/null || true
+    chmod 0640 "$dump" 2>/dev/null || true
+    if ! mysql --defaults-extra-file="$cnf" "$db" < "$dump"; then
+      echo "$PROG: mysql import failed for $product" >&2
+      return 1
     fi
+    echo "db    imported into $db"
     # Database is in. Schema first, then caches. A missing class stops
     # the pull with a report. Nothing is disabled.
     root=$(dirname "$web")
@@ -441,8 +446,13 @@ pull_db_local() {
   echo "db    andro bee export local"
   bee_site_cmd "/srv/platforms/$src_p/web" "$src_s" db-export "$dump" 2>/dev/null || true
   if [ -s "$dump" ]; then
-    echo "db    andro bee import"
-    bee_site_cmd "$web" "$product" db-import --mariadb-compatibility "$dump" || true
+    echo "db    mysql import"
+    cnf=$(secret_file "$platform" "$product").cnf
+    db=$(db_name "$product" "$(stage_from_site "$product")")
+    sed -i '1{/^\/\*!999999\\- enable the sandbox mode \*\//d;}' "$dump" 2>/dev/null || true
+    chmod 0640 "$dump" 2>/dev/null || true
+    mysql --defaults-extra-file="$cnf" "$db" < "$dump" || true
+    echo "db    imported into $db"
   else
     echo "db    none"
   fi
