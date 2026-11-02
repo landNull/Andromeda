@@ -272,7 +272,7 @@ case $cmd in
       set)     case $obj in config) cmd=bee-verb; set -- set "$@" ;; esac ;;
       status)  case $obj in site) cmd=bee-verb; set -- status "$@" ;; esac ;;
       maintenance) case $obj in site) cmd=bee-verb; set -- maintenance "$@" ;; esac ;;
-      apply)   case $obj in theme) cmd=apply-theme; shift 2 ;; esac ;;
+      apply)   case $obj in theme) cmd=apply-theme; shift ;; esac ;;
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
