@@ -234,7 +234,9 @@ done
 echo "$PROG -o $owner -g $group -m $mode${SETGID:+ -s} $*"
 
 for d in "$@"; do
-  if [ ! -d "$d" ]; then
+  if [ -f "$d" ]; then
+    : # a file. do not mkdir.
+  elif [ ! -d "$d" ]; then
     run mkdir -p "$d"
   fi
   run chown "$owner:$group" "$d"
@@ -245,6 +247,13 @@ for d in "$@"; do
   # Access ACL now, default ACL on directories so new files inherit.
   # deploy, www-admin, and www-data can all use the path.
   run setacl "$d"
+  # Existing children too. A file written before crdir keeps the old owner.
+  if [ -d "$d" ]; then
+    find "$d" -mindepth 1 -print 2>/dev/null | while IFS= read -r child; do
+      run chown "$owner:$group" "$child"
+      run setacl "$child"
+    done
+  fi
 done
 
 if [ "$DRYRUN" -eq 0 ]; then
