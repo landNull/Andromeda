@@ -134,18 +134,63 @@ stage_security() {
 
 
 
+# stage_skel
+# The Debian model. /etc/skel is a real tree, copied once when a home
+# is created. It is not walked again. Ours lives at
+# $ANDROMEDA_ROOT/skel/stage and holds the empty pad: files,
+# files_private, config/active, config/staging, a site dir, the
+# private deny file, and a settings.local.php stub.
+stage_skel() {
+  printf '%s\n' "$ANDROMEDA_ROOT/skel/stage"
+}
+
+stage_skel_ensure() {
+  skel=$(stage_skel)
+  [ -d "$skel/files" ] && return 0
+  echo "skel  build $skel"
+  cr=$(need_crdir)
+  as_root -u "$STAGE_OWNER" "$cr" -sD -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
+    "$skel/files" "$skel/files_private" "$skel/config/active" \
+    "$skel/config/staging" "$skel/site" || return 1
+  printf '%s\n' 'Require all denied' 'Deny from all' | \
+    as_root -u "$STAGE_OWNER" tee "$skel/files_private/.htaccess" >/dev/null
+  printf '%s\n' '<?php' '// stub. pull writes the real array.' | \
+    as_root -u "$STAGE_OWNER" tee "$skel/site/settings.local.php" >/dev/null
+  as_root -u "$STAGE_OWNER" "$cr" -D -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_FILE" \
+    "$skel/site/settings.local.php" || return 1
+}
+
 # stage_apply
-# The one landing pad. Reads the blueprint and makes the tree match it.
-# deploy runs crdir. Call this before a function writes, and again after
-# it lands files, so no caller keeps its own mode.
+# New pad: copy the skel once (cp -a keeps mode and ACL), one chown.
+# Existing pad: fix the directory nodes only. Do not walk the files
+# a pull just landed. That walk is what made deploy slow.
 stage_apply() {
   cr=$(need_crdir)
-  echo "skeleton as $STAGE_OWNER"
-  as_root -u "$STAGE_OWNER" "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
+  stage_skel_ensure || return 1
+  if [ ! -d "$STAGE_SITE" ]; then
+    echo "skel  copy $(stage_skel) -> $STAGE_SITE"
+    as_root -u "$STAGE_OWNER" cp -a "$(stage_skel)/site/." "$STAGE_SITE" || return 1
+  fi
+  for pair in \
+    "$(stage_skel)/files:$STAGE_FILES" \
+    "$(stage_skel)/files_private:$STAGE_PRIVATE" \
+    "$(stage_skel)/config/active:$STAGE_ACTIVE" \
+    "$(stage_skel)/config/staging:$STAGE_STAGING"
+  do
+    src=${pair%%:*}
+    dst=${pair#*:}
+    if [ ! -d "$dst" ]; then
+      echo "skel  copy $src -> $dst"
+      as_root -u "$STAGE_OWNER" mkdir -p "$(dirname "$dst")" || return 1
+      as_root -u "$STAGE_OWNER" cp -a "$src" "$dst" || return 1
+    fi
+  done
+  echo "skeleton as $STAGE_OWNER (dirs only)"
+  as_root -u "$STAGE_OWNER" "$cr" -sD -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
     "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
     "$STAGE_STAGING" "$STAGE_SITE" || return 1
   if [ -f "$STAGE_LOCALPHP" ]; then
-    as_root -u "$STAGE_OWNER" "$cr" -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_FILE" \
+    as_root -u "$STAGE_OWNER" "$cr" -D -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_FILE" \
       "$STAGE_LOCALPHP" || return 1
   fi
 }

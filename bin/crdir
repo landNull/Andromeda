@@ -13,6 +13,7 @@ set -eu
 PROG=${0##*/}
 DRYRUN=0
 SETGID=0
+DIRS_ONLY=0
 owner=""
 group=""
 mode=""
@@ -163,13 +164,14 @@ for arg in "$@"; do
   esac
 done
 
-while getopts 'no:g:m:sh' opt; do
+while getopts 'no:g:m:sDh' opt; do
   case $opt in
     n) DRYRUN=1 ;;
     o) owner=$OPTARG; flag_o=1 ;;
     g) group=$OPTARG; flag_g=1 ;;
     m) mode=$OPTARG; flag_m=1 ;;
     s) SETGID=1 ;;
+    D) DIRS_ONLY=1 ;;
     h) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -279,7 +281,7 @@ for d in "$@"; do
   # setfacl rewrites the mask. Put the requested mode back.
   run chmod "$mode" "$d" || true
   # Existing children too. A file written before crdir keeps the old owner.
-  if [ -d "$d" ]; then
+  if [ "$DIRS_ONLY" -eq 0 ] && [ -d "$d" ]; then
     find "$d" -mindepth 1 -print 2>/dev/null | while IFS= read -r child; do
       run chown "$owner:$group" "$child"
       run setacl "$child" || true
