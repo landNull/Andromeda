@@ -1,0 +1,5 @@
+# short host platform
+# @short expands to @host:platform/short
+kesler-lumber.devel knarr ecom
+kesler-lumber.test bjorn ecom
+kesler-lumber.live bjorn ecom

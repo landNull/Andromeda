@@ -31,11 +31,11 @@ parse_site_refs() {
   done
   # shellcheck disable=SC2086
   set -- $args
-  left=${1:-}
+  left=$(expand_ref "${1:-}")
   if [ "${2:-}" = "+" ] || [ "${2:-}" = "to" ]; then
-    right=${3:-}
+    right=$(expand_ref "${3:-}")
   else
-    right=${2:-}
+    right=$(expand_ref "${2:-}")
   fi
   if [ -z "$left" ] || [ -z "$right" ]; then
     return 1
@@ -69,10 +69,33 @@ parse_site_refs() {
 
 
 
+
+# expand_ref REF
+# @kesler-lumber.devel becomes @knarr:ecom/kesler-lumber.devel
+# when config/refs has that line. A full ref is returned unchanged.
+expand_ref() {
+  ref=${1:-}
+  case $ref in
+    @*:*) printf '%s\n' "$ref"; return 0 ;;
+  esac
+  short=${ref#@}
+  map=""
+  for cand in "$ANDROMEDA_ROOT/config/refs" "$HOME/Apps/Andromeda/config/refs"; do
+    if [ -f "$cand" ]; then map=$cand; break; fi
+  done
+  [ -n "$map" ] || { printf '%s\n' "$ref"; return 0; }
+  hit=$(awk -v s="$short" '$1 == s { print "@"$2":"$3"/"$1; exit }' "$map")
+  if [ -n "$hit" ]; then
+    printf '%s\n' "$hit"
+  else
+    printf '%s\n' "$ref"
+  fi
+}
+
 # parse_one_ref REF
 # @host:plat/site or plat/site. Sets REF_HOST REF_PLAT REF_SITE.
 parse_one_ref() {
-  ref=${1:-}
+  ref=$(expand_ref "${1:-}")
   REF_HOST="" REF_PLAT="" REF_SITE=""
   [ -n "$ref" ] || return 1
   if printf '%s' "$ref" | grep -q '^@'; then
