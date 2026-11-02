@@ -344,6 +344,10 @@ cmd_site_add() {
   fi
 
   ensure_vhost "$platform" "$host" "$web" "$root" "$role"
+  # Skeleton is the blueprint. Make the dest ready to receive files.
+  if [ "$DRYRUN" -eq 0 ]; then
+    cmd_ensure_stage "$platform" "$product" --role "$role" || true
+  fi
   echo "site $product on $platform -> http://$host  db=$db"
 }
 
