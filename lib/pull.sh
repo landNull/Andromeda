@@ -408,9 +408,17 @@ _write_local() {
     echo "heal  settings.local.php (hand edit replaced)"
   fi
   if as_root mv -f "$tmp" "$localphp"; then
-    # crdir owns the result: owner, group, mode, ACL.
+    # Bee runs as deploy. The file must be readable by deploy before
+    # crdir, and still readable after. A failed crdir is not ignored.
+    as_root chown "$OWNER:$GROUP" "$localphp" || return 1
+    as_root chmod 0640 "$localphp" || return 1
     cr=$(need_crdir)
-    "$cr" -o "$OWNER" -g "$GROUP" -m 0640 "$localphp" || true
+    "$cr" -o "$OWNER" -g "$GROUP" -m 0640 "$localphp" || return 1
+    if ! as_root -u "$OWNER" test -r "$localphp"; then
+      echo "$PROG: $OWNER cannot read $localphp" >&2
+      ls -l "$localphp" >&2 || true
+      return 1
+    fi
     echo "write $localphp (role $role)"
   else
     rm -f "$tmp"
