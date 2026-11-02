@@ -193,3 +193,25 @@ cmd_bee_verb() {
   esac
 }
 
+
+# andromeda apply theme @ref [name]
+# Sets the default theme and the default layout template.
+# Writes the config files. Does not touch admin layouts.
+cmd_apply_theme() {
+  ref=${1:-}
+  name=${2:-tabler}
+  if [ -z "$ref" ]; then
+    echo "usage: $PROG apply theme @host:plat/site [name]" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  bee_yes --root="$web" --site="$product" config-set system.core theme_default "$name" || return 1
+  bee_yes --root="$web" --site="$product" config-set layout.layout.default layout_template "$name" || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+  echo "applied $name to system.core and layout.layout.default"
+}
+
