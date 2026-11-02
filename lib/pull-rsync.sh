@@ -137,7 +137,7 @@ pull_content() {
     echo "images none — no image tree for $src_s on $remote"
   fi
   rm -rf "$stage"
-  chown_files "$root/files/$product" 2>/dev/null || true
+  stage_apply || return 1
 }
 
 
@@ -215,7 +215,7 @@ pull_files() {
     echo "private none"
   fi
   rm -rf "$stage"
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+  stage_apply || return 1
 }
 
 # pull_db WEB PRODUCT VPS SRC_PLATFORM SRC_SITE
@@ -244,8 +244,7 @@ pull_db() {
     if command -v setfacl >/dev/null 2>&1; then
       run_root setfacl -b "$web" "$web/sites" "$site" "$site/settings.local.php" 2>/dev/null || true
     fi
-    run_root chmod 0755 "$web" "$web/sites" "$site" 2>/dev/null || true
-    run_root chmod 0644 "$site/settings.local.php" 2>/dev/null || true
+    stage_apply || return 1
     # Bee db-import greps a private temp file and dies with
     # "grep: /tmp/tmp.XXX: Permission denied". Use the tools Bee uses:
     # sed to drop the MariaDB 11 sandbox line (Bee issue #384), then the
@@ -298,7 +297,7 @@ pull_config() {
   if command -v setfacl >/dev/null 2>&1; then
     run_root setfacl -b "$root/config" "$root/config/$product" "$active" "$staging" 2>/dev/null || true
   fi
-  run_root chmod 0775 "$active" "$staging" 2>/dev/null || true
+  : # mode comes from the skeleton
   # Active config is what makes the site boot. A migrated site has it
   # and may have no staging. Copy it first. See docs/reference/repo-ensure.md.
   echo "config active from $remote"
@@ -328,7 +327,7 @@ pull_config() {
   else
     echo "config active has no system.core.json — site will not boot"
   fi
-  chown_files "$active" 2>/dev/null || true
+  stage_apply || return 1
   echo "config andro bee export on $remote"
   ssh_cmd "$remote" "andromeda bee $src_p $src_s -y config-export" || \
     ssh_cmd "$remote" "bee -y --root=/srv/platforms/$src_p/web --site=$src_s config-export" || true
@@ -366,7 +365,7 @@ pull_config() {
   # final ownership. Root is not needed.
   echo "config active seed from staging"
   as_root -u "$OWNER" rsync -rl --no-perms --no-owner --no-group --no-times "$staging/" "$active/" || true
-  chown_files "$active" 2>/dev/null || true
+  stage_apply || return 1
   n=$(find "$active" -name '*.json' 2>/dev/null | wc -l)
   if [ "$n" -lt 10 ]; then
     echo "config active seed failed — $n JSON files in $active" >&2
@@ -445,7 +444,7 @@ pull_content_local() {
   if [ -d "$src_root/config/$src_s/active" ]; then
     as_root -u "$OWNER" rsync -a --delete "$src_root/config/$src_s/active/" "$root/config/$product/active/" || true
   fi
-  chown_files "$root/files/$product" "$root/files_private/$product" 2>/dev/null || true
+  stage_apply || return 1
 }
 
 pull_db_local() {

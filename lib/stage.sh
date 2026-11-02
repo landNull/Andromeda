@@ -133,6 +133,23 @@ stage_security() {
 }
 
 
+
+# stage_apply
+# The one landing pad. Reads the blueprint and makes the tree match it.
+# deploy runs crdir. Call this before a function writes, and again after
+# it lands files, so no caller keeps its own mode.
+stage_apply() {
+  cr=$(need_crdir)
+  echo "skeleton as $STAGE_OWNER"
+  as_root -u "$STAGE_OWNER" "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
+    "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
+    "$STAGE_STAGING" "$STAGE_SITE" || return 1
+  if [ -f "$STAGE_LOCALPHP" ]; then
+    as_root -u "$STAGE_OWNER" "$cr" -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_FILE" \
+      "$STAGE_LOCALPHP" || return 1
+  fi
+}
+
 # stage_health
 # Verify the blueprint after crdir. deploy must own and be able to
 # write every skeleton path. Prints OK or FAIL per path. Returns 1
@@ -237,10 +254,7 @@ cmd_ensure_stage() {
   # Blueprint: deploy owns every skeleton path. Group www-admin.
   # setgid so a file deploy writes stays in the group. Apache is
   # in that group.
-  echo "skeleton as $OWNER"
-  as_root -u "$OWNER" "$cr" -s -o "$STAGE_OWNER" -g "$STAGE_GROUP" -m "$STAGE_MODE_DIR" \
-    "$STAGE_FILES" "$STAGE_PRIVATE" "$STAGE_ACTIVE" \
-    "$STAGE_STAGING" "$STAGE_SITE" || return 1
+  stage_apply || return 1
   stage_health || {
     echo "$PROG: skeleton health failed — pull stopped" >&2
     return 1

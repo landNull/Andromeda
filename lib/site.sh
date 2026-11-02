@@ -270,12 +270,8 @@ cmd_site_add() {
     echo "+ $cr -s -o $DAEMON -g $GROUP $root/files/$product $root/files_private/$product $root/config/$product/active"
     echo "+ $cr -o $OWNER -g $GROUP $root/config/$product/staging"
   else
-    echo "skeleton as $OWNER"
-    as_root -u "$OWNER" "$cr" -s -o "$OWNER" -g "$GROUP" -m 0770 \
-      "$root/files/$product" \
-      "$root/files_private/$product" \
-      "$root/config/$product/active" \
-      "$root/config/$product/staging" || return 1
+    stage_paths "$platform" "$product" "$role"
+    stage_apply || return 1
   fi
 
   ensure_settings_php "$root" "$product"
