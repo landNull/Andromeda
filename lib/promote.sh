@@ -64,6 +64,7 @@ cmd_promote() {
     exit 1
   fi
 
+  ensure_worktree "$name" "$to" || true
   dest=""
   if [ -d "$PLATFORMS/${name}-${to}/web" ]; then
     dest="${name}-${to}"
