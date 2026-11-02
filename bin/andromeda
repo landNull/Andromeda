@@ -246,7 +246,7 @@ set -- $_rest
 # verb-first: pull site, add platform, heal site, list sites, promote platform
 # object-first forms (site pull, platform add) remain as aliases
 case $cmd in
-  pull|push|add|heal|list|promote|ensure|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset|migrate|default|clear|update|import|export|get|set|status|maintenance|apply)
+  pull|push|add|heal|list|promote|ensure|backup|restore|clone|debug|check|disable|enable|delete|remove|upgrade|test|lock|unlock|verify|install|login-reset|migrate|default|clear|update|import|export|get|set|status|maintenance|apply|place|theme)
     obj=${1:-}
     case $cmd in
       pull)    case $obj in site) cmd=site-pull; shift ;; esac ;;
@@ -273,6 +273,8 @@ case $cmd in
       status)  case $obj in site) cmd=bee-verb; set -- status "$@" ;; esac ;;
       maintenance) case $obj in site) cmd=bee-verb; set -- maintenance "$@" ;; esac ;;
       apply)   case $obj in theme) cmd=apply-theme; shift ;; esac ;;
+      place)   case $obj in blocks) cmd=place-blocks; shift ;; esac ;;
+      theme)   case $obj in blog) cmd=theme-blog; shift ;; esac ;;
       delete)  case $obj in site) cmd=site-delete; shift ;; esac ;;
       remove)  case $obj in platform) cmd=platform-remove; shift ;; esac ;;
       upgrade) case $obj in platform) cmd=platform-upgrade; shift ;; esac ;;
@@ -420,6 +422,8 @@ dispatch() {
     theme) cmd_theme "$@" ;;
     bee-verb) cmd_bee_verb "$@" ;;
     apply-theme) cmd_apply_theme "$@" ;;
+    place-blocks) cmd_place_blocks "$@" ;;
+    theme-blog) cmd_theme_blog "$@" ;;
     run) cmd_run "$@" ;;
     d7|d7-migrate) cmd_d7 "$@" ;;
     d7-prep) cmd_d7 prep "$@" ;;

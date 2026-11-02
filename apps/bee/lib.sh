@@ -218,3 +218,73 @@ cmd_apply_theme() {
   echo "note: the $name layout must live in layouts/$name/ so admin can see it"
 }
 
+
+# andromeda place blocks @ref
+# Places site name, main menu, page content, and search in the default layout.
+cmd_place_blocks() {
+  ref=${1:-}
+  if [ -z "$ref" ]; then
+    echo "usage: $PROG place blocks @host:plat/site" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  bee_yes --root="$web" --site="$product" eval '
+$config = config("layout.layout.default");
+$config->set("positions", array(
+  "header" => array("site-name"),
+  "navigation" => array("main-menu"),
+  "content" => array("default"),
+  "sidebar" => array("search"),
+));
+$config->set("content", array(
+  "site-name" => array("plugin" => "system:site_name", "data" => array("module" => "system", "delta" => "site_name"), "uuid" => "site-name"),
+  "main-menu" => array("plugin" => "system:main-menu", "data" => array("module" => "system", "delta" => "main-menu"), "uuid" => "main-menu"),
+  "default" => array("plugin" => "system:main", "data" => array("module" => "system", "delta" => "main"), "uuid" => "default"),
+  "search" => array("plugin" => "search:form", "data" => array("module" => "search", "delta" => "form"), "uuid" => "search"),
+));
+$config->save();
+print "blocks placed\n";
+' || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+  echo "placed site name, main menu, page content, search"
+}
+
+# andromeda theme blog @ref
+# Sets a blog-friendly layout: site name, menu, content, and a sidebar for recent posts.
+cmd_theme_blog() {
+  ref=${1:-}
+  if [ -z "$ref" ]; then
+    echo "usage: $PROG theme blog @host:plat/site" >&2
+    return 2
+  fi
+  parse_one_ref "$ref" || {
+    echo "$PROG: bad ref $ref" >&2
+    return 2
+  }
+  resolve_site "$REF_PLAT" "$REF_SITE"
+  bee_yes --root="$web" --site="$product" eval '
+$config = config("layout.layout.default");
+$config->set("positions", array(
+  "header" => array("site-name"),
+  "navigation" => array("main-menu"),
+  "content" => array("default"),
+  "sidebar" => array("search", "recent"),
+));
+$config->set("content", array(
+  "site-name" => array("plugin" => "system:site_name", "data" => array("module" => "system", "delta" => "site_name"), "uuid" => "site-name"),
+  "main-menu" => array("plugin" => "system:main-menu", "data" => array("module" => "system", "delta" => "main-menu"), "uuid" => "main-menu"),
+  "default" => array("plugin" => "system:main", "data" => array("module" => "system", "delta" => "main"), "uuid" => "default"),
+  "search" => array("plugin" => "search:form", "data" => array("module" => "search", "delta" => "form"), "uuid" => "search"),
+  "recent" => array("plugin" => "views:recent", "data" => array("module" => "views", "delta" => "recent"), "uuid" => "recent"),
+));
+$config->save();
+print "blog layout set\n";
+' || return 1
+  bee_yes --root="$web" --site="$product" cache-clear all || return 1
+  echo "blog layout: site name, menu, content, search, recent"
+}
+
