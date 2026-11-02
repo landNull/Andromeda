@@ -144,13 +144,13 @@ cmd_run() {
 # The map is the Bee verb. The user does not type bee.
 bee_verb_map() {
   case "$1 $2" in
-    "list themes")        printf '%s\n' themes ;;
+    "list themes")        printf '%s\n' projects ;;
     "enable theme")       printf '%s\n' enable ;;
-    "disable theme")      printf '%s\n' theme-disable ;;
+    "disable theme")      printf '%s\n' disable ;;
     "default theme")      printf '%s\n' theme-default ;;
-    "list modules")       printf '%s\n' modules ;;
+    "list modules")       printf '%s\n' projects ;;
     "enable module")      printf '%s\n' enable ;;
-    "disable module")     printf '%s\n' module-disable ;;
+    "disable module")     printf '%s\n' disable ;;
     "clear cache")        printf '%s\n' cache-clear ;;
     "update database")    printf '%s\n' updb ;;
     "import config")      printf '%s\n' config-import ;;
