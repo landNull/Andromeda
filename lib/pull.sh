@@ -421,6 +421,14 @@ _write_local() {
       return 1
     fi
     echo "write $localphp (role $role)"
+
+  # Backdrop builds the file URL from system.core, not from settings.
+  # A pulled site keeps the source value "files", so the page asks for
+  # /files/... and gets a 404. Set it to the site path.
+  if [ -f "$cfgactive/system.core.json" ]; then
+    as_root -u "$OWNER" "$BEE" --root="$web" --site="$product" config-set system.core file_public_path "sites/$product/files" || \
+      echo "$PROG: could not set file_public_path in system.core" >&2
+  fi
   else
     rm -f "$tmp"
     return 1
